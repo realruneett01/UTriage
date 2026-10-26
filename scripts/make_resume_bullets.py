@@ -147,11 +147,14 @@ def _build_triage_bullet(results_dir: Path) -> str | None:
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
     if "bullet" in data:
-        return str(data["bullet"])
+        bullet_str = str(data["bullet"])
+        if "(synthetic validation)" not in bullet_str and "(real data)" not in bullet_str:
+            return f"{bullet_str.rstrip('.')} (synthetic validation)."
+        return bullet_str
     cov = round_floor(data.get("conformal_coverage", 0.9), 2)
     return (
         f"Triage decision support with conformal uncertainty (coverage >= {cov}) "
-        "prioritizes critical indications for Level II review (advisory)."
+        "prioritizes critical indications for Level II review (advisory) (synthetic validation)."
     )
 
 

@@ -206,12 +206,52 @@ def test_labels_present(tmp_path: Path) -> None:
     assert "(synthetic validation)" in all_text
 
 
+def test_triage_bullet_label(tmp_path: Path) -> None:
+    """Verify triage bullet contains (synthetic validation) label."""
+    _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
+    _write_json(tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic())
+    _write_json(
+        tmp_path / "mlndt_metrics.json",
+        {
+            "per_split": {
+                "test": {"pod": {"a90_95": 0.7231}, "false_calls": {"n_false": 0, "n": 778}}
+            }
+        },
+    )
+    _write_json(tmp_path / "triage_metrics.json", {"conformal_coverage": 0.85})
+
+    bullets = build_bullets(tmp_path)
+    assert len(bullets) == 4
+    triage_bullet = bullets[3]
+    assert "(synthetic validation)" in triage_bullet
+    assert "0.85" in triage_bullet
+
+
+def test_triage_custom_bullet_label(tmp_path: Path) -> None:
+    """Verify custom bullet in triage_metrics gets (synthetic validation) label if missing."""
+    _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
+    _write_json(tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic())
+    _write_json(
+        tmp_path / "mlndt_metrics.json",
+        {
+            "per_split": {
+                "test": {"pod": {"a90_95": 0.7231}, "false_calls": {"n_false": 0, "n": 778}}
+            }
+        },
+    )
+    _write_json(tmp_path / "triage_metrics.json", {"bullet": "Custom triage summary."})
+
+    bullets = build_bullets(tmp_path)
+    assert len(bullets) == 4
+    assert "(synthetic validation)" in bullets[3]
+
+
 def test_real_results() -> None:
     """Verify build_bullets succeeds on real repository results directory."""
     results_dir = Path(__file__).resolve().parents[1] / "results"
     bullets = build_bullets(results_dir)
 
-    assert len(bullets) == 3
+    assert len(bullets) >= 3
     all_text = " ".join(bullets)
     assert "(real data)" in all_text
     assert "(synthetic validation)" in all_text
@@ -220,10 +260,23 @@ def test_real_results() -> None:
     assert "0.84 mm to 0.72 mm" in all_text
     assert "0.018" in all_text
 
+    real_bullets = [b for b in bullets if "(real data)" in b]
+    assert len(real_bullets) >= 1
+    valid_labels = ("(real data)", "(synthetic validation)", "(synthetic triage)")
+    for bullet in bullets:
+        if "safety baseline" not in bullet:
+            assert any(label in bullet for label in valid_labels)
+
 
 def test_main(capsys: pytest.CaptureFixture[str]) -> None:
     """Verify main function executes and prints bullets."""
     main()
     captured = capsys.readouterr()
     lines = [line for line in captured.out.splitlines() if line.startswith("- ")]
-    assert len(lines) == 3
+    assert len(lines) >= 3
+    assert any("(real data)" in line for line in lines)
+    assert any("(synthetic validation)" in line for line in lines)
+    valid_labels = ("(real data)", "(synthetic validation)", "(synthetic triage)")
+    for line in lines:
+        if "safety baseline" not in line:
+            assert any(label in line for label in valid_labels)
