@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 # Ensure local worktree src is prioritized over any site-packages editable install
@@ -24,19 +25,43 @@ from utriage.physics.calibration import (  # noqa: E402
 from utriage.physics.simulator import fbh_amplitude, load_material, load_probe  # noqa: E402
 
 
+@dataclass(frozen=True)
+class DacInterpolationCase:
+    z1: float
+    a1: float
+    z2: float
+    a2: float
+    eval_z: float
+    expected: float
+
+
+def _simulate_and_measure(block: CalibrationBlock) -> list[DacPoint]:
+    """Helper to simulate calibration block and measure DAC points."""
+    time_us, ascans, t_if_us = simulate_calibration_block(block)
+    return measure_dac(time_us, ascans, t_if_us, block)
+
+
 @pytest.fixture
-def clean_block() -> CalibrationBlock:
+def default_block() -> CalibrationBlock:
+    """Default calibration block specification."""
+    return CalibrationBlock(
+        material=load_material("ti64"),
+        probe=load_probe("p5"),
+        water=load_material("water"),
+    )
+
+
+@pytest.fixture
+def clean_block(default_block: CalibrationBlock) -> CalibrationBlock:
     """Calibration block with noise disabled for theoretical checks."""
-    ti64 = dataclasses.replace(load_material("ti64"), grain_noise=0.0)
-    p5 = dataclasses.replace(load_probe("p5"), electronic_noise=0.0)
-    water = load_material("water")
-    return CalibrationBlock(material=ti64, probe=p5, water=water)
+    ti64 = dataclasses.replace(default_block.material, grain_noise=0.0)
+    p5 = dataclasses.replace(default_block.probe, electronic_noise=0.0)
+    return dataclasses.replace(default_block, material=ti64, probe=p5)
 
 
 def test_dac_amplitudes_match_fbh_theory(clean_block: CalibrationBlock) -> None:
     """With zero noise, measured DAC amplitudes match fbh_amplitude within 3%."""
-    time_us, ascans, t_if_us = simulate_calibration_block(clean_block)
-    points = measure_dac(time_us, ascans, t_if_us, clean_block)
+    points = _simulate_and_measure(clean_block)
     for pt in points:
         expected = abs(fbh_amplitude(clean_block.fbh_diameter_mm, pt.depth_mm, clean_block))
         assert np.isclose(pt.amplitude, expected, rtol=0.03)
@@ -46,8 +71,7 @@ def test_zero_attenuation_focal_peak(clean_block: CalibrationBlock) -> None:
     """With zero attenuation, the DAC point nearest the focal depth is maximal."""
     lossless_mat = dataclasses.replace(clean_block.material, attenuation_db_mm_mhz=0.0)
     block = dataclasses.replace(clean_block, material=lossless_mat)
-    time_us, ascans, t_if_us = simulate_calibration_block(block)
-    points = measure_dac(time_us, ascans, t_if_us, block)
+    points = _simulate_and_measure(block)
 
     focal_depth = block.probe.focal_depth_mm
     nearest_pt = min(points, key=lambda p: abs(p.depth_mm - focal_depth))
@@ -56,21 +80,22 @@ def test_zero_attenuation_focal_peak(clean_block: CalibrationBlock) -> None:
 
 
 @pytest.mark.parametrize(
-    ("z1", "a1", "z2", "a2", "eval_z", "expected"),
+    "case",
     [
-        (10.0, 0.4, 20.0, 0.8, 15.0, 0.6),
-        (5.0, 0.2, 15.0, 1.0, 10.0, 0.6),
-        (0.0, 0.0, 10.0, 1.0, 2.5, 0.25),
+        DacInterpolationCase(10.0, 0.4, 20.0, 0.8, 15.0, 0.6),
+        DacInterpolationCase(5.0, 0.2, 15.0, 1.0, 10.0, 0.6),
+        DacInterpolationCase(0.0, 0.0, 10.0, 1.0, 2.5, 0.25),
     ],
 )
-def test_dac_curve_interpolates_midpoints(
-    z1: float, a1: float, z2: float, a2: float, eval_z: float, expected: float
-) -> None:
+def test_dac_curve_interpolates_midpoints(case: DacInterpolationCase) -> None:
     """Linear DAC interpolation produces exact midpoints."""
-    points = [DacPoint(depth_mm=z1, amplitude=a1), DacPoint(depth_mm=z2, amplitude=a2)]
+    points = [
+        DacPoint(depth_mm=case.z1, amplitude=case.a1),
+        DacPoint(depth_mm=case.z2, amplitude=case.a2),
+    ]
     curve = dac_curve(points)
-    result = curve(np.array([eval_z]))
-    assert np.isclose(result[0], expected)
+    result = curve(np.array([case.eval_z]))
+    assert np.isclose(result[0], case.expected)
 
 
 def test_dac_curve_clamped_ends() -> None:
@@ -87,12 +112,9 @@ def test_dac_curve_empty_points_raises() -> None:
         dac_curve([])
 
 
-def test_simulation_determinism_and_shapes() -> None:
+def test_simulation_determinism_and_shapes(default_block: CalibrationBlock) -> None:
     """Simulation is deterministic with seed and returns proper shapes and types."""
-    ti64 = load_material("ti64")
-    p5 = load_probe("p5")
-    water = load_material("water")
-    block = CalibrationBlock(material=ti64, probe=p5, water=water, seed=123)
+    block = dataclasses.replace(default_block, seed=123)
 
     t1, a1, if1 = simulate_calibration_block(block)
     t2, a2, if2 = simulate_calibration_block(block)

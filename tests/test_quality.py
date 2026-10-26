@@ -16,6 +16,7 @@ import pytest  # noqa: E402
 from utriage.physics.simulator import (  # noqa: E402
     ARTEFACT_KINDS,
     Artefact,
+    BarScan,
     BarSpec,
     Probe,
     load_material,
@@ -23,7 +24,7 @@ from utriage.physics.simulator import (  # noqa: E402
     simulate_bar,
 )
 from utriage.rules.config import AcceptanceConfig, load_acceptance  # noqa: E402
-from utriage.rules.quality import check_quality  # noqa: E402
+from utriage.rules.quality import QualityReport, check_quality  # noqa: E402
 
 
 def _make_spec(
@@ -43,11 +44,25 @@ def _make_spec(
     )
 
 
+def _evaluate_artefact_scan(
+    cfg: AcceptanceConfig,
+    artefacts: tuple[Artefact, ...] = (),
+    probe_override: Probe | None = None,
+) -> tuple[BarScan, QualityReport]:
+    scan = simulate_bar(_make_spec(artefacts=artefacts, probe_override=probe_override))
+    return scan, check_quality(scan, cfg)
+
+
 @pytest.fixture
-def test_cfg() -> AcceptanceConfig:
+def quality_cfg() -> AcceptanceConfig:
     base = load_acceptance()
     quality = base.quality.model_copy(update={"noise_limit_ratio": 1.5})
     return base.model_copy(update={"quality": quality})
+
+
+@pytest.fixture
+def clean_scan() -> BarScan:
+    return simulate_bar(_make_spec())
 
 
 def _overlaps(r1: tuple[float, float], r2: tuple[float, float]) -> bool:
@@ -55,21 +70,21 @@ def _overlaps(r1: tuple[float, float], r2: tuple[float, float]) -> bool:
 
 
 @pytest.mark.parametrize("use_default", [True, False])
-def test_clean_bar_has_no_faults(use_default: bool, test_cfg: AcceptanceConfig) -> None:
-    cfg = load_acceptance() if use_default else test_cfg
-    scan = simulate_bar(_make_spec())
-    report = check_quality(scan, cfg)
+def test_clean_bar_has_no_faults(
+    use_default: bool, clean_scan: BarScan, quality_cfg: AcceptanceConfig
+) -> None:
+    cfg = load_acceptance() if use_default else quality_cfg
+    report = check_quality(clean_scan, cfg)
     assert not report.faults
     assert not np.any(report.fault_mask)
     assert not report.rescan_recommended
 
 
 @pytest.mark.parametrize("kind", ARTEFACT_KINDS)
-def test_planted_artefact_detected(kind: str, test_cfg: AcceptanceConfig) -> None:
+def test_planted_artefact_detected(kind: str, quality_cfg: AcceptanceConfig) -> None:
     ax_region, ang_region = (8.0, 16.0), (60.0, 160.0)
     art = Artefact(kind=kind, axial_mm=ax_region, angle_deg=ang_region, severity=1.0)
-    scan = simulate_bar(_make_spec(artefacts=(art,)))
-    report = check_quality(scan, test_cfg)
+    scan, report = _evaluate_artefact_scan(quality_cfg, artefacts=(art,))
 
     has_overlap = any(
         _overlaps(f.axial_mm, ax_region) and _overlaps(f.angle_deg, ang_region)
@@ -87,11 +102,10 @@ def test_planted_artefact_detected(kind: str, test_cfg: AcceptanceConfig) -> Non
     assert ratio >= 0.5
 
 
-def test_high_gain_reports_saturation(test_cfg: AcceptanceConfig) -> None:
+def test_high_gain_reports_saturation(quality_cfg: AcceptanceConfig) -> None:
     base_probe = load_probe("p5")
     high_gain = Probe(**{**base_probe.__dict__, "gain_db": 40.0})
-    scan = simulate_bar(_make_spec(probe_override=high_gain))
-    report = check_quality(scan, test_cfg)
+    _, report = _evaluate_artefact_scan(quality_cfg, probe_override=high_gain)
     assert any(f.kind == "saturation" for f in report.faults)
     assert np.any(report.masks["saturation"])
     assert report.rescan_recommended

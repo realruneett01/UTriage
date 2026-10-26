@@ -1,16 +1,14 @@
 """Tests for file format adapters (NPZ, CSV, ML-NDT)."""
 
+from __future__ import annotations
+
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
-# Ensure local workspace src is prioritized over external paths
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
-if "utriage" in sys.modules:
-    _pkg_dir = str(Path(_SRC) / "utriage")
-    if _pkg_dir not in sys.modules["utriage"].__path__:
-        sys.modules["utriage"].__path__.insert(0, _pkg_dir)
 
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
@@ -34,6 +32,13 @@ from utriage.physics.simulator import (  # noqa: E402
 )
 
 
+@dataclass(frozen=True)
+class RoundTripCase:
+    fmt: str
+    atol: float
+    check_missing: bool
+
+
 @pytest.fixture
 def tiny_scan() -> BarScan:
     """Simulate a tiny bar scan for adapter tests."""
@@ -50,6 +55,24 @@ def tiny_scan() -> BarScan:
     return simulate_bar(spec)
 
 
+@pytest.fixture
+def default_csv_meta() -> dict[str, str]:
+    """Default metadata dictionary for CSV adapter testing."""
+    return {
+        "fs_mhz": "50.0",
+        "t0_us": "12.0",
+        "material": "ti64",
+        "probe": "p5",
+        "diameter_mm": "20.0",
+    }
+
+
+def _build_csv_content(meta: dict[str, str], rows: str) -> str:
+    """Assemble commented metadata header and data rows."""
+    header = "\n".join(f"# {k}={v}" for k, v in meta.items())
+    return f"{header}\n{rows}"
+
+
 def test_adapters_registered() -> None:
     """ADAPTERS tuple contains expected adapter instances implementing ScanAdapter."""
     names = [a.name for a in ADAPTERS]
@@ -61,72 +84,56 @@ def test_adapters_registered() -> None:
         assert isinstance(adapter, ScanAdapter)
 
 
-def test_npz_round_trip(tmp_path: Path, tiny_scan: BarScan) -> None:
-    """Save via dataset.save_scan and read back via read_scan."""
-    stem = tmp_path / "tiny_bar"
-    npz_path, _ = save_scan(tiny_scan, stem)
-    loaded = read_scan(npz_path)
+@pytest.mark.parametrize(
+    "case",
+    [
+        RoundTripCase(fmt="npz", atol=1e-3, check_missing=False),
+        RoundTripCase(fmt="csv", atol=1e-6, check_missing=True),
+    ],
+)
+def test_scan_round_trip(tmp_path: Path, tiny_scan: BarScan, case: RoundTripCase) -> None:
+    """Save via appropriate format writer and read back via read_scan."""
+    if case.fmt == "npz":
+        scan_path, _ = save_scan(tiny_scan, tmp_path / "tiny_bar")
+    else:
+        scan_path = tmp_path / "tiny_bar.csv"
+        returned = write_csv(tiny_scan, scan_path, material_key="ti64", probe_key="p5")
+        assert returned == scan_path
 
+    loaded = read_scan(scan_path)
     assert loaded.ascans.shape == tiny_scan.ascans.shape
     assert loaded.axial_mm.shape == tiny_scan.axial_mm.shape
     assert loaded.angle_deg.shape == tiny_scan.angle_deg.shape
     assert loaded.missing.shape == tiny_scan.missing.shape
-    np.testing.assert_allclose(loaded.ascans, tiny_scan.ascans, atol=1e-3)
-
-
-def test_csv_round_trip(tmp_path: Path, tiny_scan: BarScan) -> None:
-    """write_csv then read_scan round-trips ascans within 1e-6 and shapes."""
-    csv_path = tmp_path / "tiny_bar.csv"
-    returned_path = write_csv(tiny_scan, csv_path, material_key="ti64", probe_key="p5")
-    assert returned_path == csv_path
-
-    loaded = read_scan(csv_path)
-    assert loaded.ascans.shape == tiny_scan.ascans.shape
-    assert loaded.axial_mm.shape == tiny_scan.axial_mm.shape
-    assert loaded.angle_deg.shape == tiny_scan.angle_deg.shape
-    assert loaded.missing.shape == tiny_scan.missing.shape
-    np.testing.assert_allclose(loaded.ascans, tiny_scan.ascans, atol=1e-6)
-    assert not np.any(loaded.missing)
+    np.testing.assert_allclose(loaded.ascans, tiny_scan.ascans, atol=case.atol)
+    if case.check_missing:
+        assert not np.any(loaded.missing)
 
 
 @pytest.mark.parametrize(
     "missing_key",
     ["fs_mhz", "t0_us", "material", "probe", "diameter_mm"],
 )
-def test_csv_missing_key_raises(tmp_path: Path, missing_key: str) -> None:
+def test_csv_missing_key_raises(
+    tmp_path: Path, missing_key: str, default_csv_meta: dict[str, str]
+) -> None:
     """Missing required metadata key in CSV raises ValueError."""
-    meta = {
-        "fs_mhz": "50.0",
-        "t0_us": "12.0",
-        "material": "ti64",
-        "probe": "p5",
-        "diameter_mm": "20.0",
-    }
+    meta = dict(default_csv_meta)
     del meta[missing_key]
 
     csv_path = tmp_path / f"missing_{missing_key}.csv"
-    content = "\n".join(f"# {k}={v}" for k, v in meta.items())
-    content += "\naxial_mm,angle_deg,s0,s1\n0.0,0.0,0.1,0.2\n"
+    content = _build_csv_content(meta, "axial_mm,angle_deg,s0,s1\n0.0,0.0,0.1,0.2\n")
     csv_path.write_text(content, encoding="utf-8")
 
     with pytest.raises(ValueError, match="Missing required metadata"):
         read_scan(csv_path)
 
 
-def test_csv_ragged_row_raises(tmp_path: Path) -> None:
+def test_csv_ragged_row_raises(tmp_path: Path, default_csv_meta: dict[str, str]) -> None:
     """CSV with ragged row raises ValueError with clear message."""
-    content = (
-        "# fs_mhz=50.0\n"
-        "# t0_us=12.0\n"
-        "# material=ti64\n"
-        "# probe=p5\n"
-        "# diameter_mm=20.0\n"
-        "axial_mm,angle_deg,s0,s1\n"
-        "0.0,0.0,0.1,0.2\n"
-        "1.0,0.0,0.1\n"  # ragged row
-    )
+    rows = "axial_mm,angle_deg,s0,s1\n0.0,0.0,0.1,0.2\n1.0,0.0,0.1\n"
     csv_path = tmp_path / "ragged.csv"
-    csv_path.write_text(content, encoding="utf-8")
+    csv_path.write_text(_build_csv_content(default_csv_meta, rows), encoding="utf-8")
 
     with pytest.raises(ValueError, match="Ragged row"):
         read_scan(csv_path)
@@ -156,23 +163,21 @@ def test_mlndt_raises_not_implemented(tmp_path: Path) -> None:
         adapter.read(bins_path)
 
 
-def test_csv_missing_combination_sets_missing_and_nan(tmp_path: Path) -> None:
+def test_csv_missing_combination_sets_missing_and_nan(
+    tmp_path: Path, default_csv_meta: dict[str, str]
+) -> None:
     """Omitted (axial, angle) pair results in zeros, missing=True, and NaN t_if_us."""
-    content = (
-        "# fs_mhz=50.0\n"
-        "# t0_us=10.0\n"
-        "# material=ti64\n"
-        "# probe=p5\n"
-        "# diameter_mm=20.0\n"
-        "# axial_step_mm=1.0\n"
+    meta = dict(default_csv_meta)
+    meta["t0_us"] = "10.0"
+    meta["axial_step_mm"] = "1.0"
+    rows = (
         "axial_mm,angle_deg,s0,s1,s2\n"
-        "0.0,0.0,0.5,0.6,0.1\n"  # envelope >= 0.3
+        "0.0,0.0,0.5,0.6,0.1\n"
         "0.0,60.0,0.4,0.5,0.1\n"
         "1.0,0.0,0.5,0.5,0.2\n"
-        # 1.0, 60.0 is missing
     )
     csv_path = tmp_path / "missing_coord.csv"
-    csv_path.write_text(content, encoding="utf-8")
+    csv_path.write_text(_build_csv_content(meta, rows), encoding="utf-8")
 
     loaded = read_scan(csv_path)
     assert loaded.ascans.shape == (2, 2, 3)
