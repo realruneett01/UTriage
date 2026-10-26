@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 # Ensure local worktree src/ takes precedence over any installed package
@@ -37,11 +38,35 @@ def _generate_synthetic_data(
     return sizes, hits
 
 
+def _fit_synthetic(n: int, seed: int = 0, beta0: float = -2.0, beta1: float = 4.0) -> PodFit:
+    """Generate synthetic data and fit hit/miss model."""
+    sizes, hits = _generate_synthetic_data(n, seed=seed, beta0=beta0, beta1=beta1)
+    return fit_hitmiss(sizes, hits)
+
+
+def _ci_width(fit: PodFit) -> float:
+    """Width of 95% confidence interval on a90."""
+    return float(fit.a90_95 - fit.a90)
+
+
+@pytest.fixture
+def sample_pod_fit() -> PodFit:
+    """Standard PodFit fixture for testing evaluation and serialization."""
+    return PodFit(
+        beta0=-2.0,
+        beta1=4.0,
+        cov=((0.01, -0.005), (-0.005, 0.02)),
+        n=2000,
+        a50=1.65,
+        a90=2.85,
+        a90_95=3.10,
+    )
+
+
 def test_recover_known_parameters() -> None:
     """Recover known parameters within specified tolerance (project plan 03-pod)."""
     true_b0, true_b1 = -2.0, 4.0
-    sizes, hits = _generate_synthetic_data(2000, seed=0, beta0=true_b0, beta1=true_b1)
-    fit = fit_hitmiss(sizes, hits)
+    fit = _fit_synthetic(2000, seed=0, beta0=true_b0, beta1=true_b1)
 
     assert isinstance(fit, PodFit)
     assert fit.method == "delta"
@@ -54,16 +79,22 @@ def test_recover_known_parameters() -> None:
     assert fit.a90_95 > fit.a90
 
 
+@pytest.mark.parametrize("sample_size", [200, 2000])
+def test_fit_hitmiss_sample_sizes(sample_size: int) -> None:
+    """Hit/miss fit produces valid PodFit across sample sizes 200 and 2000."""
+    fit = _fit_synthetic(sample_size, seed=0)
+    assert isinstance(fit, PodFit)
+    assert fit.method == "delta"
+    assert fit.n == sample_size
+    assert fit.a90_95 > fit.a90
+    assert fit.a50 < fit.a90
+
+
 def test_a90_95_shrinks_with_sample_size() -> None:
     """Confidence interval on a90 narrows as sample size increases."""
-    sizes_200, hits_200 = _generate_synthetic_data(200, seed=0)
-    sizes_2000, hits_2000 = _generate_synthetic_data(2000, seed=0)
-    fit_200 = fit_hitmiss(sizes_200, hits_200)
-    fit_2000 = fit_hitmiss(sizes_2000, hits_2000)
-
-    delta_200 = fit_200.a90_95 - fit_200.a90
-    delta_2000 = fit_2000.a90_95 - fit_2000.a90
-    assert delta_2000 < delta_200
+    fit_200 = _fit_synthetic(200, seed=0)
+    fit_2000 = _fit_synthetic(2000, seed=0)
+    assert _ci_width(fit_2000) < _ci_width(fit_200)
 
 
 @pytest.mark.parametrize(
@@ -96,8 +127,7 @@ def test_invalid_sizes_raise() -> None:
 
 def test_pod_curve_and_lower_bound() -> None:
     """Lower bound of POD curve must be <= POD curve everywhere."""
-    sizes, hits = _generate_synthetic_data(500, seed=42)
-    fit = fit_hitmiss(sizes, hits)
+    fit = _fit_synthetic(500, seed=42)
 
     eval_sizes = np.linspace(0.2, 5.0, 100)
     pod = pod_curve(fit, eval_sizes)
@@ -110,21 +140,22 @@ def test_pod_curve_and_lower_bound() -> None:
     assert np.all(pod <= 1.0)
 
 
-def test_pod_curve_invalid_sizes() -> None:
-    """Evaluating POD curve on non-positive sizes raises ValueError."""
-    fit = PodFit(
-        beta0=-2.0,
-        beta1=4.0,
-        cov=((0.01, 0.0), (0.0, 0.01)),
-        n=100,
-        a50=1.65,
-        a90=2.85,
-        a90_95=3.10,
-    )
+@pytest.mark.parametrize(
+    ("eval_fn", "invalid_sizes"),
+    [
+        (pod_curve, np.array([0.0, 1.0])),
+        (pod_lower_bound, np.array([-1.0, 1.0])),
+    ],
+    ids=["pod_curve_zero", "pod_lower_bound_negative"],
+)
+def test_pod_curve_invalid_sizes(
+    sample_pod_fit: PodFit,
+    eval_fn: Callable[[PodFit, np.ndarray], np.ndarray],
+    invalid_sizes: np.ndarray,
+) -> None:
+    """Evaluating POD curve or lower bound on non-positive sizes raises ValueError."""
     with pytest.raises(ValueError, match="positive"):
-        pod_curve(fit, np.array([0.0, 1.0]))
-    with pytest.raises(ValueError, match="positive"):
-        pod_lower_bound(fit, np.array([-1.0, 1.0]))
+        eval_fn(sample_pod_fit, invalid_sizes)
 
 
 def test_false_call_rate_zero_of_hundred() -> None:
@@ -138,34 +169,38 @@ def test_false_call_rate_zero_of_hundred() -> None:
     assert pytest.approx(fcr["upper95"], rel=1e-3) == 0.02951
 
 
-def test_false_call_rate_cases() -> None:
+@pytest.mark.parametrize(
+    ("flags", "expected_rate", "expected_upper95", "exact_upper"),
+    [
+        (np.ones(50, dtype=int), 1.0, 1.0, True),
+        (np.array([0] * 90 + [1] * 10), 0.10, 0.10, False),
+    ],
+    ids=["all_flags", "mixed_flags"],
+)
+def test_false_call_rate_cases(
+    flags: np.ndarray,
+    expected_rate: float,
+    expected_upper95: float,
+    exact_upper: bool,
+) -> None:
     """Test boundary and non-zero cases for false call rate."""
-    all_flags = np.ones(50, dtype=int)
-    fcr_all = false_call_rate(all_flags)
-    assert fcr_all["rate"] == 1.0
-    assert fcr_all["upper95"] == 1.0
+    fcr = false_call_rate(flags)
+    assert fcr["rate"] == expected_rate
+    if exact_upper:
+        assert fcr["upper95"] == expected_upper95
+    else:
+        assert fcr["upper95"] > expected_upper95
 
-    mixed_flags = np.array([0] * 90 + [1] * 10)
-    fcr_mixed = false_call_rate(mixed_flags)
-    assert fcr_mixed["rate"] == 0.10
-    assert fcr_mixed["upper95"] > 0.10
 
+def test_false_call_rate_empty_raises() -> None:
+    """Empty flags array raises ValueError."""
     with pytest.raises(ValueError, match="empty"):
         false_call_rate(np.array([]))
 
 
-def test_fit_to_dict_json_serializable() -> None:
+def test_fit_to_dict_json_serializable(sample_pod_fit: PodFit) -> None:
     """fit_to_dict must produce valid JSON-safe dictionary."""
-    fit = PodFit(
-        beta0=-2.0,
-        beta1=4.0,
-        cov=((0.01, -0.005), (-0.005, 0.02)),
-        n=2000,
-        a50=1.65,
-        a90=2.85,
-        a90_95=3.10,
-    )
-    d = fit_to_dict(fit)
+    d = fit_to_dict(sample_pod_fit)
     assert isinstance(d, dict)
     assert d["beta0"] == -2.0
     assert d["beta1"] == 4.0
@@ -178,27 +213,28 @@ def test_fit_to_dict_json_serializable() -> None:
     assert deserialized["a90"] == 2.85
 
 
-def test_binomial_pod_bound_twenty_nine_of_twenty_nine() -> None:
-    """29 of 29 hits yields ~0.902 (>= 0.90) lower bound (project plan Phase 3)."""
+@pytest.mark.parametrize(
+    ("hits", "expected_hit_count", "expected_lower95", "min_threshold"),
+    [
+        (np.ones(29, dtype=int), 29, 0.902, 0.90),
+        (np.zeros(29, dtype=int), 0, 0.0, 0.0),
+    ],
+    ids=["twenty_nine_of_twenty_nine", "zero_hits"],
+)
+def test_binomial_pod_bound_extremes(
+    hits: np.ndarray,
+    expected_hit_count: int,
+    expected_lower95: float,
+    min_threshold: float,
+) -> None:
+    """29/29 and 0/29 hits yield expected lower bounds (project plan Phase 3)."""
     sizes = np.linspace(1.0, 5.0, 29)
-    hits = np.ones(29, dtype=int)
     res = binomial_pod_bound(sizes, hits)
 
     assert res["n_flawed"] == 29
-    assert res["n_hit"] == 29
-    assert res["pod_lower95"] >= 0.90
-    assert pytest.approx(res["pod_lower95"], rel=1e-3) == 0.902
-
-
-def test_binomial_pod_bound_zero_hits() -> None:
-    """0 hits yields exactly 0.0 lower bound."""
-    sizes = np.linspace(1.0, 5.0, 29)
-    hits = np.zeros(29, dtype=int)
-    res = binomial_pod_bound(sizes, hits)
-
-    assert res["n_flawed"] == 29
-    assert res["n_hit"] == 0
-    assert res["pod_lower95"] == 0.0
+    assert res["n_hit"] == expected_hit_count
+    assert res["pod_lower95"] >= min_threshold
+    assert pytest.approx(res["pod_lower95"], rel=1e-3) == expected_lower95
 
 
 def test_binomial_pod_bound_keys_and_json_serializable() -> None:

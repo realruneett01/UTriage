@@ -24,30 +24,44 @@ import torch  # noqa: E402
 from utriage.ml.models import BasicBlock, MlNdtNet, count_params  # noqa: E402
 
 
+@pytest.fixture
+def model() -> MlNdtNet:
+    """Default MlNdtNet instance with width=32."""
+    return MlNdtNet(width=32)
+
+
+@pytest.fixture
+def dropout_model() -> MlNdtNet:
+    """MlNdtNet instance with width=32 and dropout=0.5."""
+    return MlNdtNet(width=32, dropout=0.5)
+
+
+def _dummy_input(batch_size: int = 2, spatial_size: int = 128) -> torch.Tensor:
+    """Generate dummy input tensor with shape (batch_size, 1, spatial_size, spatial_size)."""
+    return torch.randn(batch_size, 1, spatial_size, spatial_size)
+
+
 @pytest.mark.parametrize("spatial_size", [256, 128])
-def test_output_shapes(spatial_size: int) -> None:
+def test_output_shapes(model: MlNdtNet, spatial_size: int) -> None:
     """Output shapes are (B,) for logit and size across input resolutions."""
-    model = MlNdtNet(width=32)
     model.eval()
     batch_size = 2
-    x = torch.randn(batch_size, 1, spatial_size, spatial_size)
+    x = _dummy_input(batch_size, spatial_size)
     logit, size = model(x)
     assert logit.shape == (batch_size,)
     assert size.shape == (batch_size,)
 
 
-def test_count_params_range() -> None:
+def test_count_params_range(model: MlNdtNet) -> None:
     """Parameter count for width 32 is between 0.5M and 6M."""
-    model = MlNdtNet(width=32)
     total = count_params(model)
     assert 500_000 <= total <= 6_000_000
 
 
-def test_gradient_flows_to_stem() -> None:
+def test_gradient_flows_to_stem(model: MlNdtNet) -> None:
     """Gradients propagate back to the stem conv weights."""
-    model = MlNdtNet(width=32)
     model.train()
-    x = torch.randn(2, 1, 128, 128)
+    x = _dummy_input(2, 128)
     logit, size = model(x)
     loss = logit.sum() + size.sum()
     loss.backward()
@@ -56,26 +70,25 @@ def test_gradient_flows_to_stem() -> None:
     assert torch.any(stem_conv.weight.grad != 0.0)
 
 
-def test_eval_mode_deterministic() -> None:
-    """Eval mode produces identical outputs for identical inputs."""
-    model = MlNdtNet(width=32, dropout=0.5)
-    model.eval()
-    x = torch.randn(2, 1, 128, 128)
+@pytest.mark.parametrize("spatial_size", [256, 128])
+def test_eval_mode_deterministic(dropout_model: MlNdtNet, spatial_size: int) -> None:
+    """Eval mode produces identical outputs for identical inputs across resolutions."""
+    dropout_model.eval()
+    x = _dummy_input(2, spatial_size)
     with torch.no_grad():
-        logit1, size1 = model(x)
-        logit2, size2 = model(x)
+        logit1, size1 = dropout_model(x)
+        logit2, size2 = dropout_model(x)
     assert torch.allclose(logit1, logit2)
     assert torch.allclose(size1, size2)
 
 
-def test_train_mode_dropout_different() -> None:
+def test_train_mode_dropout_different(dropout_model: MlNdtNet) -> None:
     """Train mode with dropout produces stochastic outputs."""
     torch.manual_seed(42)
-    model = MlNdtNet(width=32, dropout=0.5)
-    model.train()
-    x = torch.randn(2, 1, 128, 128)
-    logit1, _ = model(x)
-    logit2, _ = model(x)
+    dropout_model.train()
+    x = _dummy_input(2, 128)
+    logit1, _ = dropout_model(x)
+    logit2, _ = dropout_model(x)
     assert not torch.allclose(logit1, logit2)
 
 
