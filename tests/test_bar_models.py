@@ -23,6 +23,25 @@ from utriage.ml.bar_models import (  # noqa: E402
 from utriage.ml.train import TrainConfig, TrainResult, train_model  # noqa: E402
 
 
+def make_toy_dataset(
+    n: int = 64,
+    in_channels: int = 1,
+    seed: int = 42,
+) -> tuple[WindowDataset, WindowDataset]:
+    rng = np.random.default_rng(seed)
+    x = rng.standard_normal((n, in_channels, 128)).astype(np.float32)
+    y = rng.choice([0, 1, 2], size=n)
+    size_mm = rng.uniform(0.5, 2.5, size=n).astype(np.float32)
+    ds_train = WindowDataset(x=x, y=y, size_mm=size_mm)
+    ds_val = WindowDataset(x=x[: n // 4], y=y[: n // 4], size_mm=size_mm[: n // 4])
+    return ds_train, ds_val
+
+
+@pytest.fixture
+def dropout_net() -> WindowNet:
+    return WindowNet(width=16, dropout=0.5)
+
+
 @pytest.mark.parametrize("in_channels", [1, 9])
 @pytest.mark.parametrize("batch_size", [1, 4])
 def test_window_net_shapes(in_channels: int, batch_size: int) -> None:
@@ -43,26 +62,24 @@ def test_count_params_under_1m() -> None:
     assert 50_000 < total < 1_000_000
 
 
-def test_eval_mode_deterministic() -> None:
+def test_eval_mode_deterministic(dropout_net: WindowNet) -> None:
     """WindowNet outputs are deterministic in eval mode."""
-    net = WindowNet(width=16, dropout=0.5)
-    net.eval()
+    dropout_net.eval()
     x = torch.randn(2, 1, 128)
     with torch.no_grad():
-        l1, s1 = net(x)
-        l2, s2 = net(x)
+        l1, s1 = dropout_net(x)
+        l2, s2 = dropout_net(x)
     assert torch.allclose(l1, l2)
     assert torch.allclose(s1, s2)
 
 
-def test_train_mode_dropout_different() -> None:
+def test_train_mode_dropout_different(dropout_net: WindowNet) -> None:
     """WindowNet with dropout produces stochastic outputs in train mode."""
     torch.manual_seed(42)
-    net = WindowNet(width=16, dropout=0.5)
-    net.train()
+    dropout_net.train()
     x = torch.randn(2, 1, 128)
-    l1, _ = net(x)
-    l2, _ = net(x)
+    l1, _ = dropout_net(x)
+    l2, _ = dropout_net(x)
     assert not torch.allclose(l1, l2)
 
 
@@ -90,7 +107,8 @@ def test_flaw_logit_three_classes() -> None:
 
 
 @pytest.mark.parametrize("x_dim", [2, 3])
-def test_window_dataset_items(x_dim: int) -> None:
+@pytest.mark.parametrize(("idx", "expected_flaw"), [(1, 1.0), (0, 0.0)])
+def test_window_dataset_items(x_dim: int, idx: int, expected_flaw: float) -> None:
     """WindowDataset returns properly typed tensors and maps flaw to y==1."""
     n = 8
     x_raw = np.random.randn(n, 128).astype(np.float32)
@@ -101,27 +119,17 @@ def test_window_dataset_items(x_dim: int) -> None:
     ds = WindowDataset(x=x_raw, y=y, size_mm=size_mm)
 
     assert len(ds) == n
-    item_x, item_flaw, item_size = ds[1]
+    item_x, item_flaw, item_size = ds[idx]
     assert item_x.shape == (1, 128)
-    assert item_flaw.item() == 1.0
-    assert np.isclose(item_size.item(), size_mm[1])
-
-    _, neg_flaw, _ = ds[0]
-    assert neg_flaw.item() == 0.0
+    assert item_flaw.item() == expected_flaw
+    assert np.isclose(item_size.item(), size_mm[idx])
 
 
-def test_trainer_adapter_train_model() -> None:
+@pytest.mark.parametrize("in_channels", [1, 9])
+def test_trainer_adapter_train_model(in_channels: int) -> None:
     """TrainerAdapter executes cleanly in train_model on toy WindowDataset."""
-    rng = np.random.default_rng(42)
-    n = 64
-    x = rng.standard_normal((n, 1, 128)).astype(np.float32)
-    y = rng.choice([0, 1, 2], size=n)
-    size_mm = rng.uniform(0.5, 2.5, size=n).astype(np.float32)
-
-    ds_train = WindowDataset(x=x, y=y, size_mm=size_mm)
-    ds_val = WindowDataset(x=x[:16], y=y[:16], size_mm=size_mm[:16])
-
-    net = WindowNet(in_channels=1, width=16, n_classes=3)
+    ds_train, ds_val = make_toy_dataset(n=64, in_channels=in_channels, seed=42)
+    net = WindowNet(in_channels=in_channels, width=16, n_classes=3)
     adapter = TrainerAdapter(net)
     cfg = TrainConfig(epochs=2, batch_size=16, device="cpu", amp=False)
 

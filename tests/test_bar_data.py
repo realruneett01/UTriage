@@ -66,6 +66,32 @@ def base_scan():
     return simulate_bar(spec)
 
 
+@pytest.fixture
+def base_dac(base_scan):
+    return dac_for(base_scan)
+
+
+@pytest.fixture
+def sample_site() -> np.ndarray:
+    return np.array([[8.0, 0.0, 15.0]])
+
+
+def make_reflector(kind: str = "fbh", amplitude_factor: float = 1.0) -> Reflector:
+    return Reflector(
+        axial_mm=8.0,
+        angle_deg=0.0,
+        depth_mm=15.0,
+        diameter_mm=0.8,
+        kind=kind,
+        amplitude_factor=amplitude_factor,
+    )
+
+
+def assert_window_sets_equal(actual: WindowSet, expected: WindowSet) -> None:
+    for attr in ("x", "y", "size_mm", "depth_mm", "noise_scale"):
+        np.testing.assert_array_equal(getattr(actual, attr), getattr(expected, attr))
+
+
 @pytest.mark.parametrize(("patch", "channels"), [(False, 1), (True, 9)])
 def test_shapes_and_dtypes(patch: bool, channels: int) -> None:
     cfg = WindowConfig(patch=patch, seed=42)
@@ -74,11 +100,9 @@ def test_shapes_and_dtypes(patch: bool, channels: int) -> None:
     assert wset.x.ndim == 3
     assert wset.x.shape[1] == channels
     assert wset.x.shape[2] == WINDOW
-    assert wset.x.dtype == np.float32
     assert wset.y.dtype == np.int64
-    assert wset.size_mm.dtype == np.float32
-    assert wset.depth_mm.dtype == np.float32
-    assert wset.noise_scale.dtype == np.float32
+    for field in (wset.x, wset.size_mm, wset.depth_mm, wset.noise_scale):
+        assert field.dtype == np.float32
 
 
 def test_implant_zeros() -> None:
@@ -89,29 +113,20 @@ def test_implant_zeros() -> None:
     assert res.dtype == np.float32
 
 
-def test_flaw_signal_peak_dac(base_scan) -> None:
-    dac = dac_for(base_scan)
-    ref = Reflector(
-        axial_mm=8.0,
-        angle_deg=0.0,
-        depth_mm=15.0,
-        diameter_mm=0.8,
-        kind="fbh",
-    )
-    site = np.array([[8, 0, 15.0]])
-    sig = flaw_signal(base_scan, dac, ref, site, patch=False)
+def test_flaw_signal_peak_dac(base_scan, base_dac, sample_site) -> None:
+    ref = make_reflector("fbh")
+    sig = flaw_signal(base_scan, base_dac, ref, sample_site, patch=False)
     env = envelope(sig[0, 0])
     peak = float(np.max(env))
     assert np.isclose(peak, 1.0, atol=0.10)
 
 
-def test_class_counts() -> None:
+@pytest.mark.parametrize("class_name", ["noise", "flaw"])
+def test_class_counts(class_name: str) -> None:
     cfg = WindowConfig(patch=False, seed=7)
     wset = make_training_set(cfg, n_bars=1, per_bar=4)
-    noise_count = int(np.sum(wset.y == CLASSES.index("noise")))
-    flaw_count = int(np.sum(wset.y == CLASSES.index("flaw")))
-    assert noise_count > 0
-    assert flaw_count > 0
+    count = int(np.sum(wset.y == CLASSES.index(class_name)))
+    assert count > 0
 
 
 def test_save_load_round_trip(tmp_path: Path) -> None:
@@ -120,20 +135,14 @@ def test_save_load_round_trip(tmp_path: Path) -> None:
     save_path = tmp_path / "windows.npz"
     wset.save(save_path)
     loaded = WindowSet.load(save_path)
-
-    np.testing.assert_array_equal(loaded.x, wset.x)
-    np.testing.assert_array_equal(loaded.y, wset.y)
-    np.testing.assert_array_equal(loaded.size_mm, wset.size_mm)
-    np.testing.assert_array_equal(loaded.depth_mm, wset.depth_mm)
-    np.testing.assert_array_equal(loaded.noise_scale, wset.noise_scale)
+    assert_window_sets_equal(loaded, wset)
 
 
 def test_determinism() -> None:
     cfg = WindowConfig(patch=False, seed=99)
     set1 = make_training_set(cfg, n_bars=1, per_bar=3)
     set2 = make_training_set(cfg, n_bars=1, per_bar=3)
-    np.testing.assert_array_equal(set1.x, set2.x)
-    np.testing.assert_array_equal(set1.y, set2.y)
+    assert_window_sets_equal(set1, set2)
 
 
 def test_make_test_set_basic() -> None:
@@ -145,28 +154,17 @@ def test_make_test_set_basic() -> None:
         noise_scales=(1.0,),
     )
     assert test_set.x.shape[0] == 4  # 2 flaws + 2 noise
-    assert np.sum(test_set.y == CLASSES.index("flaw")) == 2
-    assert np.sum(test_set.y == CLASSES.index("noise")) == 2
+    for cls in ("flaw", "noise"):
+        assert np.sum(test_set.y == CLASSES.index(cls)) == 2
 
 
-def test_cut_windows_empty(base_scan) -> None:
-    dac = dac_for(base_scan)
-    empty = cut_windows(base_scan, dac, np.zeros((0, 3)), patch=False)
-    assert empty.shape == (0, 1, WINDOW)
-    empty_patch = cut_windows(base_scan, dac, np.zeros((0, 3)), patch=True)
-    assert empty_patch.shape == (0, 9, WINDOW)
+@pytest.mark.parametrize(("patch", "expected_channels"), [(False, 1), (True, 9)])
+def test_cut_windows_empty(base_scan, base_dac, patch: bool, expected_channels: int) -> None:
+    empty = cut_windows(base_scan, base_dac, np.zeros((0, 3)), patch=patch)
+    assert empty.shape == (0, expected_channels, WINDOW)
 
 
-def test_flaw_signal_inclusion(base_scan) -> None:
-    dac = dac_for(base_scan)
-    ref = Reflector(
-        axial_mm=8.0,
-        angle_deg=0.0,
-        depth_mm=15.0,
-        diameter_mm=0.8,
-        kind="inclusion",
-        amplitude_factor=0.5,
-    )
-    site = np.array([[8, 0, 15.0]])
-    sig = flaw_signal(base_scan, dac, ref, site, patch=True)
+def test_flaw_signal_inclusion(base_scan, base_dac, sample_site) -> None:
+    ref = make_reflector("inclusion", amplitude_factor=0.5)
+    sig = flaw_signal(base_scan, base_dac, ref, sample_site, patch=True)
     assert sig.shape == (1, 9, WINDOW)
