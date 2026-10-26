@@ -18,6 +18,7 @@ from utriage.ml.datasets import (  # noqa: E402
     MLNDT_ROOT,
     MlNdtDataset,
     list_batches,
+    n_images,
     read_batch,
     read_image,
     read_labels,
@@ -192,3 +193,18 @@ def test_real_mlndt_batches() -> None:
     val_batches = list_batches("validation")
     assert len(train_batches) == 199
     assert len(val_batches) == 2
+
+
+def test_short_batch_is_counted_by_file_size(tmp_path: Path) -> None:
+    """A batch with fewer than 100 images (ML-NDT has one with 10) is sized from the file."""
+    split = tmp_path / "training"
+    split.mkdir()
+    rng = np.random.default_rng(0)
+    bins = split / "short.bins"
+    rng.integers(0, 65535, size=(10, 256, 256), dtype=np.uint16).tofile(bins)
+    np.savetxt(split / "short.labels", np.zeros((10, 2)), delimiter="\t")
+    dataset = MlNdtDataset([bins])
+    assert n_images(bins) == 10
+    assert len(dataset) == 10
+    x, _, _ = dataset[9]
+    assert tuple(x.shape) == (1, 256, 256)

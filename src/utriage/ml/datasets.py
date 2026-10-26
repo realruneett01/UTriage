@@ -47,10 +47,24 @@ def split_holdout(
     return shuffled[n_test:], shuffled[:n_test]
 
 
+_IMG_PIXELS = 256 * 256
+_IMG_BYTES = _IMG_PIXELS * np.dtype(np.uint16).itemsize
+
+
+def n_images(bins: Path) -> int:
+    """Number of 256x256 uint16 images in a .bins file, from its size."""
+    return Path(bins).stat().st_size // _IMG_BYTES
+
+
 def read_batch(bins: Path) -> tuple[np.memmap, np.ndarray]:
-    """Read uint16 memmap shape (100, 256, 256) and labels float32 shape (100, 2)."""
+    """Read uint16 memmap shape (n, 256, 256) and labels float32 shape (n, 2).
+
+    Most batches hold 100 images, but not all (one training batch holds 10), so ``n`` comes
+    from the file size.
+    """
     bins_path = Path(bins)
-    mmap = np.memmap(bins_path, dtype=np.uint16, mode="r", shape=(100, 256, 256))
+    shape = (n_images(bins_path), 256, 256)
+    mmap = np.memmap(bins_path, dtype=np.uint16, mode="r", shape=shape)
     labels_path = bins_path.with_suffix(".labels")
     labels = np.loadtxt(labels_path, dtype=np.float32)
     if labels.ndim == 1:
@@ -64,9 +78,6 @@ def standardise(img: np.ndarray) -> np.ndarray:
     mean = np.mean(x)
     std = np.std(x)
     return ((x - mean) / (std + 1e-5)).astype(np.float32)
-
-
-_IMG_PIXELS = 256 * 256
 
 
 def read_image(bins: Path, image_idx: int) -> np.ndarray:
@@ -91,9 +102,10 @@ class MlNdtDataset(Dataset):
         self.batches: list[Path] = [Path(b) for b in batches]
         self.size: int = size
         self._labels: dict[int, np.ndarray] = {}
+        self._starts = np.cumsum([0] + [n_images(b) for b in self.batches])
 
     def __len__(self) -> int:
-        return 100 * len(self.batches)
+        return int(self._starts[-1])
 
     def _get_labels(self, batch_idx: int) -> np.ndarray:
         """Labels of one batch, cached (small). Images are never cached."""
@@ -107,8 +119,8 @@ class MlNdtDataset(Dataset):
         if index < 0 or index >= len(self):
             raise IndexError(f"Index {index} out of range for length {len(self)}")
 
-        batch_idx = index // 100
-        image_idx = index % 100
+        batch_idx = int(np.searchsorted(self._starts, index, side="right")) - 1
+        image_idx = index - int(self._starts[batch_idx])
         labels = self._get_labels(batch_idx)
 
         img_std = standardise(read_image(self.batches[batch_idx], image_idx))
