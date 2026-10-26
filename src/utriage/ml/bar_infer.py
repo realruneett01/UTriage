@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -204,42 +205,27 @@ def _build_adj(cands: list[_Candidate], n_angle: int) -> list[list[int]]:
     return adj
 
 
-def _expand_node(
-    curr: int,
-    adj: list[list[int]],
-    visited: list[bool],
-    queue: list[int],
-) -> None:
-    for nbr in adj[curr]:
-        if not visited[nbr]:
-            visited[nbr] = True
-            queue.append(nbr)
-
-
-def _bfs_component(start: int, adj: list[list[int]], visited: list[bool]) -> list[int]:
-    comp: list[int] = []
-    queue = [start]
-    visited[start] = True
-    while queue:
-        curr = queue.pop()
-        comp.append(curr)
-        _expand_node(curr, adj, visited, queue)
-    return comp
-
-
-def _connected_groups(adj: list[list[int]]) -> list[list[int]]:
-    visited = [False] * len(adj)
-    groups: list[list[int]] = []
-    for i in range(len(adj)):
-        if visited[i]:
+def _greedy_nms(cands: list[_Candidate], adj: list[list[int]]) -> list[_Candidate]:
+    order = sorted(range(len(cands)), key=lambda idx: cands[idx].score, reverse=True)
+    suppressed = [False] * len(cands)
+    kept: list[_Candidate] = []
+    for idx in order:
+        if suppressed[idx]:
             continue
-        groups.append(_bfs_component(i, adj, visited))
-    return groups
+        kept.append(cands[idx])
+        for nbr in adj[idx]:
+            suppressed[nbr] = True
+    return kept
 
 
-def _pick_best(group: list[int], cands: list[_Candidate]) -> MlFinding:
-    best_idx = max(group, key=lambda idx: (cands[idx].score, -idx))
-    c = cands[best_idx]
+def _suppress_candidates(cands: list[_Candidate], n_angle: int) -> list[_Candidate]:
+    if not cands:
+        return []
+    adj = _build_adj(cands, n_angle)
+    return _greedy_nms(cands, adj)
+
+
+def _candidate_to_finding(c: _Candidate) -> MlFinding:
     return MlFinding(
         axial_idx=c.axial_idx,
         angle_idx=c.angle_idx,
@@ -254,23 +240,12 @@ def _pick_best(group: list[int], cands: list[_Candidate]) -> MlFinding:
     )
 
 
-def _suppress_candidates(cands: list[_Candidate], n_angle: int) -> list[MlFinding]:
-    if not cands:
-        return []
-    adj = _build_adj(cands, n_angle)
-    groups = _connected_groups(adj)
-    findings = [_pick_best(grp, cands) for grp in groups]
-    findings.sort(key=lambda f: f.score, reverse=True)
-    return findings
-
-
-def scan_bar(
+def _scan_candidates(
     model: WindowNet,
     scan: BarScan,
-    settings: ScanSettings = _DEFAULT_SETTINGS,
-    device: str = "auto",
-) -> list[MlFinding]:
-    """Scan a bar with WindowNet, returning non-maximum suppressed findings."""
+    settings: ScanSettings,
+    device: str,
+) -> list[_Candidate]:
     sites = _make_grid_sites(scan, settings)
     if len(sites) == 0:
         return []
@@ -281,6 +256,65 @@ def scan_bar(
     stats = _eval_batches(model, windows, settings, dev)
     cands = _build_candidates(sites, stats, settings.threshold)
     return _suppress_candidates(cands, scan.spec.n_angle)
+
+
+def scan_bar(
+    model: WindowNet,
+    scan: BarScan,
+    settings: ScanSettings = _DEFAULT_SETTINGS,
+    device: str = "auto",
+) -> list[MlFinding]:
+    """Scan a bar with WindowNet, returning non-maximum suppressed findings."""
+    kept = _scan_candidates(model, scan, settings, device)
+    return [_candidate_to_finding(c) for c in kept]
+
+
+def candidate_scores(
+    model: WindowNet,
+    scan: BarScan,
+    settings: ScanSettings = _DEFAULT_SETTINGS,
+    device: str = "auto",
+) -> np.ndarray:
+    """Return the scores of all NMS-surviving local maxima with threshold 0."""
+    zero_settings = dataclasses.replace(settings, threshold=0.0)
+    kept = _scan_candidates(model, scan, zero_settings, device)
+    if not kept:
+        return np.zeros(0, dtype=np.float64)
+    return np.array([c.score for c in kept], dtype=np.float64)
+
+
+def _collect_clean_scores(
+    model: WindowNet,
+    scans: list[BarScan],
+    settings: ScanSettings,
+) -> list[float]:
+    all_scores: list[float] = []
+    for scan in scans:
+        sc = candidate_scores(model, scan, settings)
+        all_scores.extend(float(x) for x in sc)
+    return all_scores
+
+
+def calibrate_bar_threshold(
+    model: WindowNet,
+    clean_scans: list[BarScan],
+    max_flags_per_bar: float = 1.0,
+    settings: ScanSettings = _DEFAULT_SETTINGS,
+) -> float:
+    """Calibrate the smallest threshold giving <= max_flags_per_bar on clean bars."""
+    if not clean_scans:
+        return 1.0
+    all_scores = _collect_clean_scores(model, clean_scans, settings)
+    if not all_scores:
+        return 0.0
+    max_total = max_flags_per_bar * len(clean_scans)
+    arr = np.sort(np.asarray(all_scores, dtype=np.float64))
+    if len(arr) <= max_total:
+        return 0.0
+    for val in np.unique(arr):
+        if int(np.sum(arr >= val)) <= max_total:
+            return float(val)
+    return 1.0
 
 
 def finding_to_dict(finding: MlFinding) -> dict:
@@ -305,6 +339,8 @@ def findings_to_dicts(findings: Sequence[MlFinding]) -> list[dict]:
 
 __all__ = [
     "ScanSettings",
+    "calibrate_bar_threshold",
+    "candidate_scores",
     "findings_to_dicts",
     "load_window_model",
     "save_window_model",

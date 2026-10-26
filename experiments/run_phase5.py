@@ -27,7 +27,12 @@ import numpy as np
 import torch
 
 from utriage.ml.bar_data import WindowConfig, make_test_set
-from utriage.ml.bar_infer import ScanSettings, load_window_model, scan_bar
+from utriage.ml.bar_infer import (
+    ScanSettings,
+    calibrate_bar_threshold,
+    load_window_model,
+    scan_bar,
+)
 from utriage.ml.bar_models import WindowNet, flaw_logit
 from utriage.physics.simulator import (
     BarScan,
@@ -304,6 +309,39 @@ def _evaluate_bar_flaws(
     return int(rules_found), int(union_found)
 
 
+def _evaluate_single_bar(
+    ctx: _RankingContext,
+    scan: BarScan,
+    rule_inds: list[Indication],
+    ranked_items: list[TriageItem],
+) -> dict[str, Any]:
+    """Compute effort and detection metrics for a single ranked bar."""
+    ranked_real = [item_is_real(it, scan.spec, scan) for it in ranked_items]
+    n_real = len(scan.spec.reflectors)
+    effort_r = review_effort(ranked_real, n_real)
+    bar_seed = int(ctx.rng.integers(0, 2**31 - 1))
+    effort_rand = random_order_effort(ranked_real, n_real, n_perm=200, seed=bar_seed)
+
+    rules_found, union_found = _evaluate_bar_flaws(ranked_items, rule_inds, scan.spec, scan)
+    ml_fc = sum(
+        1
+        for it, is_real in zip(ranked_items, ranked_real, strict=True)
+        if it.category == "ml_flag" and not is_real
+    )
+    return {
+        "bar_idx": ctx.bar_idx,
+        "n_planted": n_real,
+        "rules_found": rules_found,
+        "union_found": union_found,
+        "effort_ranked": int(effort_r) if effort_r is not None else None,
+        "effort_random": float(effort_rand) if not np.isnan(effort_rand) else None,
+        "n_items": len(ranked_items),
+        "n_rules": len(rule_inds),
+        "n_ml_only": len(ranked_items) - len(rule_inds),
+        "ml_flag_false_calls": ml_fc,
+    }
+
+
 def _run_single_bar_ranking(ctx: _RankingContext) -> dict[str, Any]:
     """Run simulation, rules detection, ML scan, fusion, and ranking for one bar."""
     refs = _generate_planted_reflectors(ctx.rng)
@@ -322,32 +360,9 @@ def _run_single_bar_ranking(ctx: _RankingContext) -> dict[str, Any]:
     preserved = rules_flags_preserved(rule_inds, ranked_items)
     assert preserved, f"Bar {ctx.bar_idx}: rules indications were not preserved!"  # noqa: S101
 
-    ranked_real = [item_is_real(it, scan.spec, scan) for it in ranked_items]
-    n_real = len(scan.spec.reflectors)
-    effort_r = review_effort(ranked_real, n_real)
-    bar_seed = int(ctx.rng.integers(0, 2**31 - 1))
-    effort_rand = random_order_effort(ranked_real, n_real, n_perm=200, seed=bar_seed)
-
-    rules_found, union_found = _evaluate_bar_flaws(ranked_items, rule_inds, scan.spec, scan)
-    ml_fc = sum(
-        1
-        for it, is_real in zip(ranked_items, ranked_real, strict=True)
-        if it.category == "ml_flag" and not is_real
-    )
-
-    return {
-        "bar_idx": ctx.bar_idx,
-        "n_planted": n_real,
-        "rules_found": rules_found,
-        "union_found": union_found,
-        "effort_ranked": int(effort_r) if effort_r is not None else None,
-        "effort_random": float(effort_rand) if not np.isnan(effort_rand) else None,
-        "n_items": len(ranked_items),
-        "n_rules": len(rule_inds),
-        "n_ml_only": len(ranked_items) - len(rule_inds),
-        "ml_flag_false_calls": ml_fc,
-        "preserved": preserved,
-    }
+    res = _evaluate_single_bar(ctx, scan, rule_inds, ranked_items)
+    res["preserved"] = preserved
+    return res
 
 
 def _summarize_ranking(
@@ -455,36 +470,64 @@ def _calibrate_and_select_op(
     return conf_res, op
 
 
-def _run_both_rankings(
+def _run_mode(
+    name: str,
+    threshold: float,
+    model: WindowNet,
+    cfg: _RunConfig,
+) -> dict[str, Any]:
+    """Run a ranking campaign for a given mode and threshold."""
+    print(f"Running ranking campaign for {name} ({threshold:.4f})...")
+    res = _run_ranking_campaign(model, threshold, cfg)
+    print(
+        f"Ranking ({name}): mean ranked={res['mean_effort_ranked']}, "
+        f"mean random={res['mean_effort_random']}"
+    )
+    return res
+
+
+def _calibrate_bar_budget(
+    model: WindowNet,
+    cfg: _RunConfig,
+    budget: float = 1.0,
+) -> float:
+    """Simulate clean bars and calibrate threshold for target flags per bar."""
+    n_clean = 2 if cfg.quick else 10
+    print(f"Simulating {n_clean} clean bars for bar budget calibration (budget={budget})...")
+    cal_rng = np.random.default_rng(cfg.seed + 1000)
+    clean_bars = [_simulate_ranking_bar(cal_rng, refs=()) for _ in range(n_clean)]
+    thresh = calibrate_bar_threshold(model, clean_bars, max_flags_per_bar=budget)
+    print(f"Calibrated bar budget threshold: {thresh:.4f}")
+    return thresh
+
+
+def _run_all_rankings(
     model: WindowNet,
     op_thresh: float,
     cfg: _RunConfig,
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Run ranking campaigns at operating point and matched false-call threshold."""
-    print("Running ranking campaign at operating point...")
-    ranking_op = _run_ranking_campaign(model, op_thresh, cfg)
-    print(
-        f"Ranking (op): mean ranked={ranking_op['mean_effort_ranked']}, "
-        f"mean random={ranking_op['mean_effort_random']}"
-    )
-
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Run ranking campaigns across all three evaluation modes."""
+    rank_op = _run_mode("operating_point", op_thresh, model, cfg)
     matched_thresh = _load_matched_threshold()
-    print(f"Running ranking campaign at matched FCR threshold ({matched_thresh:.4f})...")
-    ranking_matched = _run_ranking_campaign(model, matched_thresh, cfg)
-    print(
-        f"Ranking (matched FCR): mean ranked={ranking_matched['mean_effort_ranked']}, "
-        f"mean random={ranking_matched['mean_effort_random']}"
-    )
-    return ranking_op, ranking_matched
+    rank_matched = _run_mode("matched_fcr", matched_thresh, model, cfg)
+
+    budget_val = 1.0
+    cal_thresh = _calibrate_bar_budget(model, cfg, budget=budget_val)
+    rank_budget = _run_mode("bar_budget", cal_thresh, model, cfg)
+    rank_budget["budget"] = budget_val
+    rank_budget["calibrated_threshold"] = float(cal_thresh)
+
+    return rank_op, rank_matched, rank_budget
 
 
 def _save_phase5_metrics(
     conf_res: dict[str, Any],
     op: OperatingPoint,
-    rank_op: dict[str, Any],
-    rank_matched: dict[str, Any],
+    rank_modes: tuple[dict[str, Any], dict[str, Any], dict[str, Any]],
 ) -> None:
     """Save combined Phase 5 triage metrics to JSON."""
+    rank_op, rank_matched, rank_budget = rank_modes
+    total_violations = sum(m["union_violations"] for m in rank_modes)
     output = {
         "label": "Synthetic data",
         "conformal": conf_res,
@@ -492,8 +535,9 @@ def _save_phase5_metrics(
         "ranking": {
             "operating_point": rank_op,
             "matched_fcr": rank_matched,
+            "bar_budget": rank_budget,
         },
-        "union_violations": rank_op["union_violations"] + rank_matched["union_violations"],
+        "union_violations": total_violations,
         "property_test": "tests/test_fusion.py 10,000 examples",
     }
     out_path = Path("results/triage_metrics.json")
@@ -513,8 +557,8 @@ def _execute_phase5(cfg: _RunConfig) -> None:
 
     data = _prepare_test_windows(cfg, is_patch)
     conf_res, op = _calibrate_and_select_op(model, data, device)
-    rank_op, rank_matched = _run_both_rankings(model, op.threshold, cfg)
-    _save_phase5_metrics(conf_res, op, rank_op, rank_matched)
+    rank_modes = _run_all_rankings(model, op.threshold, cfg)
+    _save_phase5_metrics(conf_res, op, rank_modes)
 
 
 def main() -> None:

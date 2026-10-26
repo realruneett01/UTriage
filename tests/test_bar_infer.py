@@ -17,12 +17,17 @@ if "utriage.ml" in sys.modules:
     if _ml_dir not in sys.modules["utriage.ml"].__path__:
         sys.modules["utriage.ml"].__path__.insert(0, _ml_dir)
 
+from typing import Any  # noqa: E402
+
+import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
 
 from utriage.ml.bar_infer import (  # noqa: E402
     ScanSettings,
+    calibrate_bar_threshold,
+    candidate_scores,
     findings_to_dicts,
     load_window_model,
     save_window_model,
@@ -178,3 +183,60 @@ def test_findings_to_dicts() -> None:
     assert d["uncertainty"] == pytest.approx(0.12)
     assert d["grain_noise_prob"] == pytest.approx(0.15)
     assert d["evidence"] == ["ML window score 0.85", "MC-dropout std 0.06"]
+
+
+@pytest.mark.parametrize(
+    ("max_flags", "expected_threshold"),
+    [
+        (0.5, 0.9),
+        (1.0, 0.8),
+        (1.5, 0.7),
+        (2.0, 0.6),
+    ],
+)
+def test_calibrate_bar_threshold_quantiles(
+    monkeypatch: pytest.MonkeyPatch,
+    tiny_scan: BarScan,
+    max_flags: float,
+    expected_threshold: float,
+) -> None:
+    scores_map = {
+        0: np.array([0.9, 0.7, 0.5]),
+        1: np.array([0.8, 0.6, 0.4]),
+    }
+    call_count = 0
+
+    def mock_candidate_scores(
+        model: Any,
+        scan: Any,
+        settings: Any = None,
+        device: str = "auto",
+    ) -> np.ndarray:
+        nonlocal call_count
+        res = scores_map.get(call_count, np.zeros(0))
+        call_count += 1
+        return res
+
+    monkeypatch.setattr("utriage.ml.bar_infer.candidate_scores", mock_candidate_scores)
+    model = WindowNet(in_channels=1, width=4)
+    thresh = calibrate_bar_threshold(
+        model,
+        [tiny_scan, tiny_scan],
+        max_flags_per_bar=max_flags,
+    )
+    assert thresh == pytest.approx(expected_threshold)
+
+
+@pytest.mark.parametrize("threshold", [0.0, 0.2, 0.5, 0.8])
+def test_candidate_scores_count_gte_scan_bar(
+    tiny_model: WindowNet,
+    tiny_scan: BarScan,
+    threshold: float,
+) -> None:
+    settings = ScanSettings(threshold=threshold, depth_step_mm=1.0, mc_passes=1)
+    torch.manual_seed(42)
+    scores = candidate_scores(tiny_model, tiny_scan, settings, device="cpu")
+    torch.manual_seed(42)
+    findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
+    assert len(scores) >= len(findings)
+    assert np.all((scores >= 0.0) & (scores <= 1.0))
