@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 
 # Ensure local worktree src/ takes precedence over any installed package
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
@@ -51,7 +52,8 @@ def ctx() -> SimContext:
     probe = load_probe("p5")
     water = load_material("water")
     cfg = load_acceptance()
-    dac = np.vectorize(lambda z: abs(fbh_amplitude(0.8, float(z), mat, probe, water)))
+    setup = SimpleNamespace(material=mat, probe=probe, water=water)
+    dac = np.vectorize(lambda z: abs(fbh_amplitude(0.8, float(z), setup)))
     return SimContext(mat, probe, water, cfg, dac)
 
 

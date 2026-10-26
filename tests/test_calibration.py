@@ -38,15 +38,7 @@ def test_dac_amplitudes_match_fbh_theory(clean_block: CalibrationBlock) -> None:
     time_us, ascans, t_if_us = simulate_calibration_block(clean_block)
     points = measure_dac(time_us, ascans, t_if_us, clean_block)
     for pt in points:
-        expected = abs(
-            fbh_amplitude(
-                clean_block.fbh_diameter_mm,
-                pt.depth_mm,
-                clean_block.material,
-                clean_block.probe,
-                clean_block.water,
-            )
-        )
+        expected = abs(fbh_amplitude(clean_block.fbh_diameter_mm, pt.depth_mm, clean_block))
         assert np.isclose(pt.amplitude, expected, rtol=0.03)
 
 

@@ -100,7 +100,7 @@ def test_amplitude_exactness(base_quiet_spec: BarSpec, depth_mm: float) -> None:
     c_m = spec.material.velocity_m_s * 1e-3
     t_fbh = (2.0 * spec.probe.water_path_mm / c_w) + (2.0 * depth_mm / c_m)
     _, peak_val = _window_peak(scan.time_us, env, t_fbh, half_window=0.5)
-    expected = abs(fbh_amplitude(1.0, depth_mm, spec.material, spec.probe, spec.water))
+    expected = abs(fbh_amplitude(1.0, depth_mm, spec))
     assert abs(peak_val - expected) / expected < 0.03
 
 

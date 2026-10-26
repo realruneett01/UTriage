@@ -76,7 +76,7 @@ def _add_block_echoes(
     rf += bw * pulse(time_us - t_bw, probe)
     for i, z in enumerate(block.metal_paths_mm):
         t_z = t_if_us + 2.0 * z / c_m
-        amp = fbh_amplitude(block.fbh_diameter_mm, z, mat, probe, water)
+        amp = fbh_amplitude(block.fbh_diameter_mm, z, block)
         rf[i] += (-amp) * pulse(time_us - t_z, probe)
 
 
@@ -99,7 +99,7 @@ def simulate_calibration_block(
         diameter_mm=block.thickness_mm,
         seed=block.seed,
     )
-    rf = grain_noise((n_paths,), time_us, np.full(n_paths, t_if_us), spec, rng)
+    rf = grain_noise(time_us, np.full(n_paths, t_if_us), spec, rng)
     _add_block_echoes(rf, time_us, t_if_us, block)
 
     rf *= 10.0 ** (probe.gain_db / 20.0)

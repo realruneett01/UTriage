@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Protocol
 
 import numpy as np
 import yaml
@@ -166,10 +167,17 @@ def beam_factor(depth_mm: np.ndarray | float, probe: Probe) -> np.ndarray:
     return 1.0 / np.sqrt(1.0 + u**2)
 
 
-def fbh_amplitude(
-    diameter_mm: float, depth_mm: float, material: Material, probe: Probe, water: Material
-) -> float:
+class Setup(Protocol):
+    """Anything that names a material, a probe and the couplant (BarSpec, CalibrationBlock)."""
+
+    material: Material
+    probe: Probe
+    water: Material
+
+
+def fbh_amplitude(diameter_mm: float, depth_mm: float, setup: Setup) -> float:
     """Peak echo amplitude of a flat-bottom hole: k (d/1mm)^2 T_rt A(z) G(z), before gain."""
+    material, probe, water = setup.material, setup.probe, setup.water
     t_rt = round_trip_transmission(water.impedance, material.impedance)
     losses = attenuation_factor(depth_mm, material, probe) * beam_factor(depth_mm, probe)
     return float(probe.k_fbh * diameter_mm**2 * t_rt * losses)
@@ -186,18 +194,17 @@ def depth_of_time(t_us: np.ndarray, t_if_us: np.ndarray, material: Material) -> 
 
 
 def grain_noise(
-    lead_shape: tuple[int, ...],
-    t_us: np.ndarray,
-    t_if_us: np.ndarray,
-    spec: BarSpec,
-    rng: np.random.Generator,
+    t_us: np.ndarray, t_if_us: np.ndarray, spec: BarSpec, rng: np.random.Generator
 ) -> np.ndarray:
-    """Grain backscatter: white noise convolved with the pulse, scaled by depth losses."""
+    """Grain backscatter: white noise convolved with the pulse, scaled by depth losses.
+
+    One noise trace is drawn per entry of ``t_if_us`` (its shape is the leading shape).
+    """
     mat, probe = spec.material, spec.probe
     n_t = t_us.size
     kernel = pulse((np.arange(n_t) - n_t // 2) / probe.sampling_mhz, probe)
     kernel /= np.sqrt(np.sum(kernel**2))
-    white = rng.standard_normal((*lead_shape, n_t))
+    white = rng.standard_normal((*t_if_us.shape, n_t))
     nfft = 2 * n_t
     conv = np.fft.irfft(np.fft.rfft(white, nfft) * np.fft.rfft(kernel, nfft), nfft)
     colored = conv[..., n_t // 2 : n_t // 2 + n_t]
@@ -289,34 +296,36 @@ def lateral_weight(
     return np.exp(-r2 / (2.0 * spec.probe.beam_sigma_mm**2))
 
 
-def _echo(
-    cube: np.ndarray, t_us: np.ndarray, t_echo: np.ndarray, amp: np.ndarray, probe: Probe
-) -> None:
+@dataclass
+class _Canvas:
+    """The A-scan cube being drawn, with its time axis, interface times and scan grid."""
+
+    cube: np.ndarray
+    t_us: np.ndarray
+    t_if: np.ndarray
+    axial: np.ndarray
+    angle: np.ndarray
+    probe: Probe
+
+
+def _echo(c: _Canvas, t_echo: np.ndarray, amp: np.ndarray) -> None:
     """Add amp * p(t - t_echo) to every A-scan (only where amp is non-zero)."""
     idx = np.nonzero(amp)
     if idx[0].size:
-        cube[idx] += amp[idx][:, None] * pulse(t_us[None, :] - t_echo[idx][:, None], probe)
+        shifted = c.t_us[None, :] - t_echo[idx][:, None]
+        c.cube[idx] += amp[idx][:, None] * pulse(shifted, c.probe)
 
 
-def _reflector_echoes(
-    cube: np.ndarray,
-    t_us: np.ndarray,
-    t_if: np.ndarray,
-    spec: BarSpec,
-    f: _Fields,
-    axial: np.ndarray,
-    angle: np.ndarray,
-) -> None:
-    mat, probe = spec.material, spec.probe
-    period = 1.0 / probe.frequency_mhz
+def _reflector_echoes(c: _Canvas, spec: BarSpec, f: _Fields) -> None:
+    period = 1.0 / spec.probe.frequency_mhz
     for ref in spec.reflectors:
-        base = fbh_amplitude(ref.diameter_mm, ref.depth_mm, mat, probe, spec.water)
-        weight = lateral_weight(spec, ref, axial, angle) * f.metal * ref.amplitude_factor
+        base = fbh_amplitude(ref.diameter_mm, ref.depth_mm, spec)
+        weight = lateral_weight(spec, ref, c.axial, c.angle) * f.metal * ref.amplitude_factor
         amp = -base * np.where(weight > 1e-3, weight, 0.0)  # metal -> void: phase inverts
-        t_ref = t_if + 2.0 * ref.depth_mm / (mat.velocity_m_s * 1e-3)
+        t_ref = c.t_if + 2.0 * ref.depth_mm / (spec.material.velocity_m_s * 1e-3)
         facets = _INCLUSION_FACETS if ref.kind == "inclusion" else ((0.0, 1.0),)
         for delay, w in facets:
-            _echo(cube, t_us, t_ref + delay * period, w * amp, probe)
+            _echo(c, t_ref + delay * period, w * amp)
 
 
 def _time_axis(spec: BarSpec, t_if: np.ndarray) -> np.ndarray:
@@ -327,18 +336,16 @@ def _time_axis(spec: BarSpec, t_if: np.ndarray) -> np.ndarray:
     return start + np.arange(n_t) / spec.probe.sampling_mhz
 
 
-def _wall_echoes(
-    cube: np.ndarray, t_us: np.ndarray, t_if: np.ndarray, spec: BarSpec, f: _Fields
-) -> None:
+def _wall_echoes(c: _Canvas, spec: BarSpec, f: _Fields) -> None:
     w, m, probe = spec.water, spec.material, spec.probe
     r_wm = reflection_coefficient(w.impedance, m.impedance)
     t_rt = round_trip_transmission(w.impedance, m.impedance)
     d = spec.diameter_mm
     bw = -r_wm * t_rt * attenuation_factor(d, m, probe) * beam_factor(d, probe)
-    t_bw = t_if + 2.0 * d / (m.velocity_m_s * 1e-3)
-    _echo(cube, t_us, t_if, r_wm * f.interface, probe)
-    _echo(cube, t_us, t_bw, bw * f.backwall * f.metal, probe)
-    _echo(cube, t_us, t_if - 0.8, f.bubble, probe)
+    t_bw = c.t_if + 2.0 * d / (m.velocity_m_s * 1e-3)
+    _echo(c, c.t_if, r_wm * f.interface)
+    _echo(c, t_bw, bw * f.backwall * f.metal)
+    _echo(c, c.t_if - 0.8, f.bubble)
 
 
 def simulate_bar(spec: BarSpec) -> BarScan:
@@ -350,9 +357,10 @@ def simulate_bar(spec: BarSpec) -> BarScan:
     f = _artefact_fields(spec, axial, angle)
     t_if = 2.0 * f.water_path_mm / (spec.water.velocity_m_s * 1e-3)
     t_us = _time_axis(spec, t_if)
-    cube = grain_noise(t_if.shape, t_us, t_if, spec, rng) * f.metal[..., None]
-    _wall_echoes(cube, t_us, t_if, spec, f)
-    _reflector_echoes(cube, t_us, t_if, spec, f, axial, angle)
+    cube = grain_noise(t_us, t_if, spec, rng) * f.metal[..., None]
+    canvas = _Canvas(cube, t_us, t_if, axial, angle, probe)
+    _wall_echoes(canvas, spec, f)
+    _reflector_echoes(canvas, spec, f)
     near = (t_us[None, None, :] > t_if[..., None]) & (t_us[None, None, :] < t_if[..., None] + 1.0)
     cube += near * f.surface_noise[..., None] * rng.standard_normal(cube.shape)
     cube *= 10.0 ** (probe.gain_db / 20.0)
