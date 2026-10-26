@@ -23,6 +23,38 @@ from utriage.ml.bar_models import (  # noqa: E402
 from utriage.ml.train import TrainConfig, TrainResult, train_model  # noqa: E402
 
 
+def _make_window_net(
+    in_channels: int = 1,
+    width: int = 16,
+    n_classes: int = 3,
+    dropout: float = 0.0,
+) -> WindowNet:
+    """Construct a WindowNet instance with default width=16 and n_classes=3."""
+    return WindowNet(in_channels=in_channels, width=width, n_classes=n_classes, dropout=dropout)
+
+
+def _assert_shapes(
+    logits: torch.Tensor,
+    sizes: torch.Tensor,
+    batch_size: int,
+    n_classes: int = 3,
+) -> None:
+    """Assert WindowNet output logits and sizes tensor shapes."""
+    assert logits.shape == (batch_size, n_classes)
+    assert sizes.shape == (batch_size,)
+
+
+def _assert_close(
+    l1: torch.Tensor,
+    s1: torch.Tensor,
+    l2: torch.Tensor,
+    s2: torch.Tensor,
+) -> None:
+    """Assert output logits and sizes are elementwise close."""
+    assert torch.allclose(l1, l2)
+    assert torch.allclose(s1, s2)
+
+
 def make_toy_dataset(
     n: int = 64,
     in_channels: int = 1,
@@ -39,7 +71,7 @@ def make_toy_dataset(
 
 @pytest.fixture
 def dropout_net() -> WindowNet:
-    return WindowNet(width=16, dropout=0.5)
+    return _make_window_net(width=16, dropout=0.5)
 
 
 @pytest.mark.parametrize("in_channels", [1, 9])
@@ -47,59 +79,66 @@ def dropout_net() -> WindowNet:
 def test_window_net_shapes(in_channels: int, batch_size: int) -> None:
     """WindowNet outputs (B, n_classes) logits and (B,) sizes for C=1 and C=9."""
     n_classes = 3
-    net = WindowNet(in_channels=in_channels, width=16, n_classes=n_classes)
+    net = _make_window_net(in_channels=in_channels, width=16, n_classes=n_classes)
     net.eval()
     x = torch.randn(batch_size, in_channels, 128)
     logits, sizes = net(x)
-    assert logits.shape == (batch_size, n_classes)
-    assert sizes.shape == (batch_size,)
+    _assert_shapes(logits, sizes, batch_size, n_classes)
 
 
 def test_count_params_under_1m() -> None:
     """WindowNet with width 32 has parameter count strictly under 1M."""
-    net = WindowNet(width=32)
+    net = _make_window_net(width=32)
     total = count_params(net)
     assert 50_000 < total < 1_000_000
 
 
-def test_eval_mode_deterministic(dropout_net: WindowNet) -> None:
-    """WindowNet outputs are deterministic in eval mode."""
-    dropout_net.eval()
+@pytest.mark.parametrize(
+    ("is_train", "expected_deterministic"),
+    [(False, True), (True, False)],
+    ids=["eval_deterministic", "train_stochastic"],
+)
+def test_dropout_net_mode(
+    dropout_net: WindowNet,
+    is_train: bool,
+    expected_deterministic: bool,
+) -> None:
+    """WindowNet with dropout is deterministic in eval mode and stochastic in train mode."""
     x = torch.randn(2, 1, 128)
-    with torch.no_grad():
-        l1, s1 = dropout_net(x)
-        l2, s2 = dropout_net(x)
-    assert torch.allclose(l1, l2)
-    assert torch.allclose(s1, s2)
-
-
-def test_train_mode_dropout_different(dropout_net: WindowNet) -> None:
-    """WindowNet with dropout produces stochastic outputs in train mode."""
-    torch.manual_seed(42)
-    dropout_net.train()
-    x = torch.randn(2, 1, 128)
-    l1, _ = dropout_net(x)
-    l2, _ = dropout_net(x)
-    assert not torch.allclose(l1, l2)
+    if is_train:
+        torch.manual_seed(42)
+        dropout_net.train()
+        l1, _ = dropout_net(x)
+        l2, _ = dropout_net(x)
+        assert not torch.allclose(l1, l2)
+    else:
+        dropout_net.eval()
+        with torch.no_grad():
+            l1, s1 = dropout_net(x)
+            l2, s2 = dropout_net(x)
+        _assert_shapes(l1, s1, 2)
+        _assert_shapes(l2, s2, 2)
+        _assert_close(l1, s1, l2, s2)
 
 
 @pytest.mark.parametrize(
-    ("z0", "z1"),
-    [(1.0, 2.0), (-0.5, 1.5), (3.0, -1.0)],
+    ("logits_vals", "expected_val"),
+    [
+        ([1.0, 2.0], 2.0 - 1.0),
+        ([-0.5, 1.5], 1.5 - (-0.5)),
+        ([3.0, -1.0], -1.0 - 3.0),
+        (
+            [1.0, 2.5, 0.5],
+            2.5 - float(np.log(np.exp(1.0) + np.exp(0.5))),
+        ),
+    ],
+    ids=["binary_pos", "binary_neg", "binary_large_neg", "three_classes"],
 )
-def test_flaw_logit_equals_binary_logit(z0: float, z1: float) -> None:
-    """For n_classes=2, flaw_logit matches manual z1 - z0 log-odds."""
-    logits = torch.tensor([[z0, z1]])
-    result = flaw_logit(logits)
-    expected = torch.tensor([z1 - z0])
-    assert torch.allclose(result, expected)
-
-
-def test_flaw_logit_three_classes() -> None:
-    """For n_classes=3, flaw_logit matches z1 - logsumexp(z0, z2)."""
-    logits = torch.tensor([[1.0, 2.5, 0.5]])
+def test_flaw_logit_formula(logits_vals: list[float], expected_val: float) -> None:
+    """flaw_logit matches manual logit contrast and sigmoid matches softmax probability."""
+    logits = torch.tensor([logits_vals])
     computed = flaw_logit(logits)
-    expected = 2.5 - torch.log(torch.exp(torch.tensor(1.0)) + torch.exp(torch.tensor(0.5)))
+    expected = torch.tensor([expected_val])
     assert torch.allclose(computed, expected)
     prob_flaw = torch.sigmoid(computed)
     softmax_flaw = torch.softmax(logits, dim=-1)[0, 1]
@@ -129,7 +168,7 @@ def test_window_dataset_items(x_dim: int, idx: int, expected_flaw: float) -> Non
 def test_trainer_adapter_train_model(in_channels: int) -> None:
     """TrainerAdapter executes cleanly in train_model on toy WindowDataset."""
     ds_train, ds_val = make_toy_dataset(n=64, in_channels=in_channels, seed=42)
-    net = WindowNet(in_channels=in_channels, width=16, n_classes=3)
+    net = _make_window_net(in_channels=in_channels, width=16, n_classes=3)
     adapter = TrainerAdapter(net)
     cfg = TrainConfig(epochs=2, batch_size=16, device="cpu", amp=False)
 

@@ -65,34 +65,63 @@ def tiny_model() -> WindowNet:
     return WindowNet(in_channels=1, width=4, n_classes=3, dropout=0.2)
 
 
+@pytest.fixture
+def patch_model() -> WindowNet:
+    """Fixture providing an untrained WindowNet of width 4 with 9 input channels."""
+    return WindowNet(in_channels=9, width=4)
+
+
+def _assert_uncertainties_bounded(findings: list[MlFinding]) -> None:
+    """Assert non-empty findings and all uncertainties fall in [0.0, 1.0]."""
+    assert len(findings) > 0
+    for f in findings:
+        assert 0.0 <= f.uncertainty <= 1.0
+
+
+def _assert_outputs_close(
+    out1: torch.Tensor,
+    sz1: torch.Tensor,
+    out2: torch.Tensor,
+    sz2: torch.Tensor,
+) -> None:
+    """Assert two sets of model outputs are elementwise close."""
+    assert torch.allclose(out1, out2)
+    assert torch.allclose(sz1, sz2)
+
+
 def test_scan_bar_findings_grid_and_gate(tiny_model: WindowNet, tiny_scan: BarScan) -> None:
     settings = ScanSettings(threshold=0.0, depth_step_mm=1.0, mc_passes=4)
     findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
-    assert len(findings) > 0
+    _assert_uncertainties_bounded(findings)
     max_d = tiny_scan.spec.diameter_mm - settings.back_margin_mm
     for f in findings:
         assert 0 <= f.axial_idx < tiny_scan.ascans.shape[0]
         assert 0 <= f.angle_idx < tiny_scan.ascans.shape[1]
         assert settings.front_mm <= f.depth_mm <= max_d + 1e-6
         assert 0.0 <= f.score <= 1.0
-        assert 0.0 <= f.uncertainty <= 1.0
         assert f.grain_noise_prob == pytest.approx(1.0 - f.score, abs=1e-5)
         assert len(f.evidence) == 2
         assert f.evidence[0].startswith("ML window score")
         assert f.evidence[1].startswith("MC-dropout std")
 
 
-def test_scan_bar_threshold_empty(tiny_model: WindowNet, tiny_scan: BarScan) -> None:
-    findings = scan_bar(tiny_model, tiny_scan, ScanSettings(threshold=1.1), device="cpu")
+@pytest.mark.parametrize(
+    "settings",
+    [
+        ScanSettings(threshold=1.1),
+        ScanSettings(front_mm=25.0, back_margin_mm=2.0),
+    ],
+    ids=["threshold_above_1", "gate_outside_bar"],
+)
+def test_scan_bar_empty(tiny_model: WindowNet, tiny_scan: BarScan, settings: ScanSettings) -> None:
+    findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
     assert findings == []
 
 
 def test_scan_bar_mc_uncertainty_range(tiny_model: WindowNet, tiny_scan: BarScan) -> None:
     settings = ScanSettings(threshold=0.0, mc_passes=6)
     findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
-    assert len(findings) > 0
-    for f in findings:
-        assert 0.0 <= f.uncertainty <= 1.0
+    _assert_uncertainties_bounded(findings)
 
 
 def test_scan_bar_batchnorm_stats_unchanged(tiny_model: WindowNet, tiny_scan: BarScan) -> None:
@@ -119,20 +148,12 @@ def test_load_window_model_roundtrip(tmp_path: Path, tiny_model: WindowNet) -> N
     with torch.no_grad():
         out1, sz1 = tiny_model(x)
         out2, sz2 = loaded_model(x)
-    assert torch.allclose(out1, out2)
-    assert torch.allclose(sz1, sz2)
+    _assert_outputs_close(out1, sz1, out2, sz2)
 
 
-def test_scan_bar_patch_channels(tiny_scan: BarScan) -> None:
-    patch_model = WindowNet(in_channels=9, width=4)
+def test_scan_bar_patch_channels(patch_model: WindowNet, tiny_scan: BarScan) -> None:
     findings = scan_bar(patch_model, tiny_scan, ScanSettings(threshold=0.0), device="cpu")
     assert isinstance(findings, list)
-
-
-def test_scan_bar_empty_gate(tiny_model: WindowNet, tiny_scan: BarScan) -> None:
-    settings = ScanSettings(front_mm=25.0, back_margin_mm=2.0)
-    findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
-    assert findings == []
 
 
 def test_findings_to_dicts() -> None:

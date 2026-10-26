@@ -24,16 +24,38 @@ import torch  # noqa: E402
 from utriage.ml.models import BasicBlock, MlNdtNet, count_params  # noqa: E402
 
 
+def _make_model(width: int = 32, dropout: float = 0.0) -> MlNdtNet:
+    """Construct an MlNdtNet instance with specified parameters."""
+    return MlNdtNet(width=width, dropout=dropout)
+
+
+def _assert_shapes(logit: torch.Tensor, size: torch.Tensor, batch_size: int) -> None:
+    """Assert logit and size tensor shapes."""
+    assert logit.shape == (batch_size,)
+    assert size.shape == (batch_size,)
+
+
+def _assert_close(
+    logit1: torch.Tensor,
+    size1: torch.Tensor,
+    logit2: torch.Tensor,
+    size2: torch.Tensor,
+) -> None:
+    """Assert logit and size tensors are elementwise close."""
+    assert torch.allclose(logit1, logit2)
+    assert torch.allclose(size1, size2)
+
+
 @pytest.fixture
 def model() -> MlNdtNet:
     """Default MlNdtNet instance with width=32."""
-    return MlNdtNet(width=32)
+    return _make_model(width=32)
 
 
 @pytest.fixture
 def dropout_model() -> MlNdtNet:
     """MlNdtNet instance with width=32 and dropout=0.5."""
-    return MlNdtNet(width=32, dropout=0.5)
+    return _make_model(width=32, dropout=0.5)
 
 
 def _dummy_input(batch_size: int = 2, spatial_size: int = 128) -> torch.Tensor:
@@ -48,8 +70,7 @@ def test_output_shapes(model: MlNdtNet, spatial_size: int) -> None:
     batch_size = 2
     x = _dummy_input(batch_size, spatial_size)
     logit, size = model(x)
-    assert logit.shape == (batch_size,)
-    assert size.shape == (batch_size,)
+    _assert_shapes(logit, size, batch_size)
 
 
 def test_count_params_range(model: MlNdtNet) -> None:
@@ -63,6 +84,7 @@ def test_gradient_flows_to_stem(model: MlNdtNet) -> None:
     model.train()
     x = _dummy_input(2, 128)
     logit, size = model(x)
+    _assert_shapes(logit, size, 2)
     loss = logit.sum() + size.sum()
     loss.backward()
     stem_conv = model.stem[0]
@@ -70,26 +92,34 @@ def test_gradient_flows_to_stem(model: MlNdtNet) -> None:
     assert torch.any(stem_conv.weight.grad != 0.0)
 
 
+@pytest.mark.parametrize(
+    ("is_train", "expected_deterministic"),
+    [(False, True), (True, False)],
+    ids=["eval_deterministic", "train_stochastic"],
+)
 @pytest.mark.parametrize("spatial_size", [256, 128])
-def test_eval_mode_deterministic(dropout_model: MlNdtNet, spatial_size: int) -> None:
-    """Eval mode produces identical outputs for identical inputs across resolutions."""
-    dropout_model.eval()
+def test_dropout_model_mode(
+    dropout_model: MlNdtNet,
+    is_train: bool,
+    expected_deterministic: bool,
+    spatial_size: int,
+) -> None:
+    """Dropout model is deterministic in eval mode and stochastic in train mode."""
     x = _dummy_input(2, spatial_size)
-    with torch.no_grad():
-        logit1, size1 = dropout_model(x)
-        logit2, size2 = dropout_model(x)
-    assert torch.allclose(logit1, logit2)
-    assert torch.allclose(size1, size2)
-
-
-def test_train_mode_dropout_different(dropout_model: MlNdtNet) -> None:
-    """Train mode with dropout produces stochastic outputs."""
-    torch.manual_seed(42)
-    dropout_model.train()
-    x = _dummy_input(2, 128)
-    logit1, _ = dropout_model(x)
-    logit2, _ = dropout_model(x)
-    assert not torch.allclose(logit1, logit2)
+    if is_train:
+        torch.manual_seed(42)
+        dropout_model.train()
+        logit1, _ = dropout_model(x)
+        logit2, _ = dropout_model(x)
+        assert not torch.allclose(logit1, logit2)
+    else:
+        dropout_model.eval()
+        with torch.no_grad():
+            logit1, size1 = dropout_model(x)
+            logit2, size2 = dropout_model(x)
+        _assert_shapes(logit1, size1, 2)
+        _assert_shapes(logit2, size2, 2)
+        _assert_close(logit1, size1, logit2, size2)
 
 
 @pytest.mark.parametrize("stride", [1, 2])
