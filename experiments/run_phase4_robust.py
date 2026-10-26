@@ -88,26 +88,40 @@ class ShiftContext:
     p_cfg: TrainConfig
 
 
+@dataclass(frozen=True)
+class EvalGroundTruth:
+    """Ground truth labels and flaw sizes for evaluation."""
+
+    y: np.ndarray
+    sizes: np.ndarray
+    target_sizes: tuple[float, ...]
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Phase 4 robustness experiment")
     parser.add_argument("--quick", action="store_true", help="Quick run with fewer bars/batches")
     return parser.parse_args()
 
 
-def _resolve_model_path(name: str) -> Path:
-    local_p = Path("models") / name
-    if local_p.exists():
-        return local_p
+def _repo_parent_root() -> Path | None:
+    """Find parent workspace root via git common dir if in a worktree."""
     try:
         cmd = ["git", "rev-parse", "--git-common-dir"]  # noqa: S607
         common = subprocess.check_output(  # noqa: S603
             cmd, text=True, stderr=subprocess.DEVNULL
         ).strip()
-        desktop_p = Path(common).resolve().parent / "models" / name
-        if desktop_p.exists():
-            return desktop_p
+        return Path(common).resolve().parent
     except (subprocess.SubprocessError, OSError):  # Git inspection fallback
-        pass
+        return None
+
+
+def _resolve_model_path(name: str) -> Path:
+    local_p = Path("models") / name
+    if local_p.exists():
+        return local_p
+    parent = _repo_parent_root()
+    if parent is not None and (parent / "models" / name).exists():
+        return parent / "models" / name
     wt_dir = Path(__file__).resolve().parents[2]
     for cand in wt_dir.glob(f"*/models/{name}"):
         if cand.exists():
@@ -118,30 +132,20 @@ def _resolve_model_path(name: str) -> Path:
 def _find_data_root() -> Path:
     if MLNDT_ROOT.exists():
         return MLNDT_ROOT
-    try:
-        cmd = ["git", "rev-parse", "--git-common-dir"]  # noqa: S607
-        common = subprocess.check_output(  # noqa: S603
-            cmd, text=True, stderr=subprocess.DEVNULL
-        ).strip()
-        fallback = Path(common).resolve().parent / "data" / "external" / "ML-NDT" / "data"
+    parent = _repo_parent_root()
+    if parent is not None:
+        fallback = parent / "data" / "external" / "ML-NDT" / "data"
         if fallback.exists():
             return fallback
-    except (subprocess.SubprocessError, OSError):  # Git inspection fallback
-        pass
     return MLNDT_ROOT
 
 
 def _load_p4_thresholds() -> tuple[float, float, float]:
     p = Path("results/bar_domain_metrics.json")
     if not p.exists():
-        try:
-            cmd = ["git", "rev-parse", "--git-common-dir"]  # noqa: S607
-            common = subprocess.check_output(  # noqa: S603
-                cmd, text=True, stderr=subprocess.DEVNULL
-            ).strip()
-            p = Path(common).resolve().parent / "results" / "bar_domain_metrics.json"
-        except (subprocess.SubprocessError, OSError):  # Git inspection fallback
-            pass
+        parent = _repo_parent_root()
+        if parent is not None:
+            p = parent / "results" / "bar_domain_metrics.json"
     with p.open("r", encoding="utf-8") as f:
         data = json.load(f)
     rec_pct = float(data.get("configs", {}).get("record_pct", 50.0))
@@ -152,13 +156,11 @@ def _load_p4_thresholds() -> tuple[float, float, float]:
 
 def _calc_detection_rates(
     hits: np.ndarray,
-    y: np.ndarray,
-    sizes: np.ndarray,
-    target_sizes: tuple[float, ...],
+    gt: EvalGroundTruth,
 ) -> dict[str, float]:
     rates: dict[str, float] = {}
-    for sz in target_sizes:
-        mask = (y == 1) & np.isclose(sizes, sz)
+    for sz in gt.target_sizes:
+        mask = (gt.y == 1) & np.isclose(gt.sizes, sz)
         count = int(np.sum(mask))
         rate = float(np.mean(hits[mask])) if count > 0 else 0.0
         rates[f"{sz:.1f}"] = rate
@@ -168,15 +170,47 @@ def _calc_detection_rates(
 def _eval_method(
     scores: np.ndarray,
     threshold: float,
-    y: np.ndarray,
-    sizes: np.ndarray,
-    target_sizes: tuple[float, ...],
+    gt: EvalGroundTruth,
 ) -> dict[str, Any]:
     hits = (scores >= threshold).astype(float)
-    noise_mask = y == 0
+    noise_mask = gt.y == 0
     fcr = float(false_call_rate(hits[noise_mask])["rate"]) if np.any(noise_mask) else 0.0
-    rates = _calc_detection_rates(hits, y, sizes, target_sizes)
+    rates = _calc_detection_rates(hits, gt)
     return {"threshold": threshold, "detection_per_size": rates, "false_call_rate": fcr}
+
+
+def _eval_model_pair(
+    scores: np.ndarray,
+    fixed_thresh: float,
+    rules_fcr: float,
+    gt: EvalGroundTruth,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    p4_eval = _eval_method(scores, fixed_thresh, gt)
+    m_thresh = matched_threshold(scores[gt.y == 0], rules_fcr)
+    m_eval = _eval_method(scores, m_thresh, gt)
+    return p4_eval, m_eval
+
+
+def _make_shift_datasets(
+    spec: ShiftSpec,
+    n_bars: int,
+    sizes: tuple[float, ...],
+) -> tuple[WindowSet, WindowSet]:
+    cfg1 = WindowConfig(material=spec.material, probe=spec.probe, patch=False, seed=0)
+    cfg2 = WindowConfig(material=spec.material, probe=spec.probe, patch=True, seed=0)
+    t1 = make_test_set(cfg1, n_bars=n_bars, sizes_mm=sizes, noise_scales=(spec.noise_scale,))
+    t2 = make_test_set(cfg2, n_bars=n_bars, sizes_mm=sizes, noise_scales=(spec.noise_scale,))
+    return t1, t2
+
+
+def _predict_windowset(
+    adapter: TrainerAdapter,
+    ws: WindowSet,
+    p_cfg: TrainConfig,
+) -> np.ndarray:
+    ds = WindowDataset(ws.x, ws.y, ws.size_mm)
+    scores, _ = predict(adapter, ds, p_cfg)
+    return scores
 
 
 def _run_domain_shift(
@@ -186,26 +220,18 @@ def _run_domain_shift(
     sizes: tuple[float, ...],
 ) -> dict[str, Any]:
     print(f"Running domain shift: {spec.name}...", flush=True)
-    cfg1 = WindowConfig(material=spec.material, probe=spec.probe, patch=False, seed=0)
-    cfg2 = WindowConfig(material=spec.material, probe=spec.probe, patch=True, seed=0)
-    t1 = make_test_set(cfg1, n_bars=n_bars, sizes_mm=sizes, noise_scales=(spec.noise_scale,))
-    t2 = make_test_set(cfg2, n_bars=n_bars, sizes_mm=sizes, noise_scales=(spec.noise_scale,))
+    t1, t2 = _make_shift_datasets(spec, n_bars, sizes)
+    gt1 = EvalGroundTruth(t1.y, t1.size_mm, sizes)
+    gt2 = EvalGroundTruth(t2.y, t2.size_mm, sizes)
 
     r_scores = rules_window_score(t1.x)
-    ds1 = WindowDataset(t1.x, t1.y, t1.size_mm)
-    ds2 = WindowDataset(t2.x, t2.y, t2.size_mm)
-    s1, _ = predict(ctx.adapter_1d, ds1, ctx.p_cfg)
-    s2, _ = predict(ctx.adapter_2d, ds2, ctx.p_cfg)
+    res_rules = _eval_method(r_scores, ctx.rec_pct, gt1)
+    rules_fcr = res_rules["false_call_rate"]
 
-    res_rules = _eval_method(r_scores, ctx.rec_pct, t1.y, t1.size_mm, sizes)
-    res_1d_p4 = _eval_method(s1, ctx.thresh_1d, t1.y, t1.size_mm, sizes)
-    res_2d_p4 = _eval_method(s2, ctx.thresh_2d, t2.y, t2.size_mm, sizes)
-
-    n_m1, n_m2 = t1.y == 0, t2.y == 0
-    m_t1 = matched_threshold(s1[n_m1], res_rules["false_call_rate"])
-    m_t2 = matched_threshold(s2[n_m2], res_rules["false_call_rate"])
-    res_1d_m = _eval_method(s1, m_t1, t1.y, t1.size_mm, sizes)
-    res_2d_m = _eval_method(s2, m_t2, t2.y, t2.size_mm, sizes)
+    s1 = _predict_windowset(ctx.adapter_1d, t1, ctx.p_cfg)
+    s2 = _predict_windowset(ctx.adapter_2d, t2, ctx.p_cfg)
+    res_1d_p4, res_1d_m = _eval_model_pair(s1, ctx.thresh_1d, rules_fcr, gt1)
+    res_2d_p4, res_2d_m = _eval_model_pair(s2, ctx.thresh_2d, rules_fcr, gt2)
 
     return {
         "spec": {"material": spec.material, "probe": spec.probe, "noise_scale": spec.noise_scale},
@@ -217,33 +243,37 @@ def _run_domain_shift(
     }
 
 
+def _sample_roughness_bar(
+    cfg: WindowConfig,
+    rng: np.random.Generator,
+    per_bar: int,
+) -> WindowSet | None:
+    art = Artefact("roughness", (4.0, 12.0), (30.0, 150.0), severity=1.0)
+    spec = BarSpec(
+        material=load_material("ti64"),
+        probe=load_probe("p5"),
+        water=load_material("water"),
+        diameter_mm=cfg.diameter_mm,
+        length_mm=16.0,
+        axial_step_mm=1.0,
+        n_angle=36,
+        artefacts=(art,),
+        seed=int(rng.integers(0, 2**31 - 1)),
+    )
+    scan = simulate_bar(spec)
+    _, inside = _partition_grid(scan, (art,))
+    if len(inside) == 0:
+        return None
+    ctx = _BarContext(scan, dac_for(scan), cfg, 1.0, (art,))
+    return _bar_artefact_windows(ctx, inside, rng, per_bar)
+
+
 def _make_roughness_windows(n_bars: int, per_bar: int, seed: int = 42) -> WindowSet:
     rng = np.random.default_rng(seed)
     cfg = WindowConfig(material="ti64", probe="p5", patch=False)
-    mat = load_material("ti64")
-    probe = load_probe("p5")
-    water = load_material("water")
     all_sets: list[WindowSet] = []
     for _ in range(n_bars):
-        art = Artefact("roughness", (4.0, 12.0), (30.0, 150.0), severity=1.0)
-        spec = BarSpec(
-            material=mat,
-            probe=probe,
-            water=water,
-            diameter_mm=cfg.diameter_mm,
-            length_mm=16.0,
-            axial_step_mm=1.0,
-            n_angle=36,
-            artefacts=(art,),
-            seed=int(rng.integers(0, 2**31 - 1)),
-        )
-        scan = simulate_bar(spec)
-        dac = dac_for(scan)
-        _, inside = _partition_grid(scan, (art,))
-        if len(inside) == 0:
-            continue
-        ctx = _BarContext(scan, dac, cfg, 1.0, (art,))
-        wset = _bar_artefact_windows(ctx, inside, rng, per_bar)
+        wset = _sample_roughness_bar(cfg, rng, per_bar)
         if wset is not None:
             all_sets.append(wset)
     return _concat_sets(all_sets, patch=False)
@@ -275,9 +305,8 @@ def _eval_unseen_artefact(ctx: ShiftContext, quick: bool) -> dict[str, Any]:
     n_bars = 2 if quick else 8
     rough_wset = _make_roughness_windows(n_bars=n_bars, per_bar=50)
 
-    ds_rough = WindowDataset(rough_wset.x, rough_wset.y, rough_wset.size_mm)
-    fresh_scores, _ = predict(fresh_adapter, ds_rough, ctx.p_cfg)
-    p4_scores, _ = predict(ctx.adapter_1d, ds_rough, ctx.p_cfg)
+    fresh_scores = _predict_windowset(fresh_adapter, rough_wset, ctx.p_cfg)
+    p4_scores = _predict_windowset(ctx.adapter_1d, rough_wset, ctx.p_cfg)
     rules_scores = rules_window_score(rough_wset.x)
 
     fresh_fcr = float(np.mean(fresh_scores >= ctx.thresh_1d))
@@ -297,19 +326,24 @@ def _eval_unseen_artefact(ctx: ShiftContext, quick: bool) -> dict[str, Any]:
     }
 
 
+def _bscan_from_scan(scan: Any) -> np.ndarray:
+    ax_idx = int(np.round(8.0 / scan.spec.axial_step_mm))
+    env = envelope(scan.ascans[ax_idx])
+    factors = (256.0 / env.shape[0], 256.0 / env.shape[1])
+    bscan = scipy.ndimage.zoom(env, factors, order=1).astype(np.float32)
+    return standardise(bscan)
+
+
 def _simulate_bscan_slice(flawed: bool, seed: int) -> np.ndarray:
-    mat = load_material("ti64")
-    probe = load_probe("p5")
-    water = load_material("water")
     refs = (
         (Reflector(axial_mm=8.0, angle_deg=0.0, depth_mm=15.0, diameter_mm=1.2, kind="fbh"),)
         if flawed
         else ()
     )
     spec = BarSpec(
-        material=mat,
-        probe=probe,
-        water=water,
+        material=load_material("ti64"),
+        probe=load_probe("p5"),
+        water=load_material("water"),
         diameter_mm=40.0,
         length_mm=16.0,
         axial_step_mm=1.0,
@@ -317,18 +351,10 @@ def _simulate_bscan_slice(flawed: bool, seed: int) -> np.ndarray:
         reflectors=refs,
         seed=seed,
     )
-    scan = simulate_bar(spec)
-    ax_idx = int(np.round(8.0 / scan.spec.axial_step_mm))
-    rf = scan.ascans[ax_idx]
-    env = envelope(rf)
-    factors = (256.0 / env.shape[0], 256.0 / env.shape[1])
-    bscan = scipy.ndimage.zoom(env, factors, order=1).astype(np.float32)
-    return standardise(bscan)
+    return _bscan_from_scan(simulate_bar(spec))
 
 
-def _eval_mlndt_on_simulated(model: nn.Module, quick: bool, dev: torch.device) -> dict[str, Any]:
-    print("Evaluating Phase 3 model on simulated B-scans...", flush=True)
-    n_each = 5 if quick else 20
+def _generate_sim_dataset(n_each: int) -> tuple[np.ndarray, list[int]]:
     images: list[np.ndarray] = []
     labels: list[int] = []
     rng = np.random.default_rng(101)
@@ -337,8 +363,13 @@ def _eval_mlndt_on_simulated(model: nn.Module, quick: bool, dev: torch.device) -
         labels.append(1)
         images.append(_simulate_bscan_slice(flawed=False, seed=int(rng.integers(0, 2**31 - 1))))
         labels.append(0)
+    return np.stack(images, axis=0), labels
 
-    img_arr = np.stack(images, axis=0)
+
+def _eval_mlndt_on_simulated(model: nn.Module, quick: bool, dev: torch.device) -> dict[str, Any]:
+    print("Evaluating Phase 3 model on simulated B-scans...", flush=True)
+    n_each = 5 if quick else 20
+    img_arr, labels = _generate_sim_dataset(n_each)
     probs, _ = predict_images(model, img_arr, dev)
     auc = float(roc_auc_score(labels, probs))
     print(f"ML-NDT model on simulated B-scans ROC AUC: {auc:.4f}", flush=True)
@@ -365,6 +396,17 @@ def _score_mlndt_image(img: np.ndarray, model: WindowNet, dev: torch.device) -> 
     return float(np.max(scores))
 
 
+def _score_mlndt_batch(
+    batch_p: Path,
+    model: WindowNet,
+    dev: torch.device,
+) -> tuple[list[float], list[int]]:
+    mmap, labels = read_batch(batch_p)
+    scores = [_score_mlndt_image(mmap[i], model, dev) for i in range(len(mmap))]
+    gt = [int(labels[i, 0] > 0.5) for i in range(len(mmap))]
+    return scores, gt
+
+
 def _eval_bar1d_on_mlndt(model: WindowNet, quick: bool, dev: torch.device) -> dict[str, Any]:
     print("Evaluating Bar 1D model on ML-NDT validation images...", flush=True)
     root = _find_data_root()
@@ -374,11 +416,9 @@ def _eval_bar1d_on_mlndt(model: WindowNet, quick: bool, dev: torch.device) -> di
     all_labels: list[int] = []
 
     for batch_p in batches_to_use:
-        mmap, labels = read_batch(batch_p)
-        for idx in range(len(mmap)):
-            score = _score_mlndt_image(mmap[idx], model, dev)
-            all_scores.append(score)
-            all_labels.append(int(labels[idx, 0] > 0.5))
+        batch_scores, batch_labels = _score_mlndt_batch(batch_p, model, dev)
+        all_scores.extend(batch_scores)
+        all_labels.extend(batch_labels)
 
     auc = float(roc_auc_score(all_labels, all_scores)) if len(all_scores) > 0 else 0.0
     print(f"Bar 1D model on ML-NDT validation images ROC AUC: {auc:.4f}", flush=True)
@@ -454,32 +494,42 @@ def _run_all_domain_shifts(ctx: ShiftContext, quick: bool) -> dict[str, Any]:
     return {s.name: _run_domain_shift(s, ctx, n_bars, target_sizes) for s in specs}
 
 
+def _eval_sim_to_real(
+    ctx: ShiftContext,
+    quick: bool,
+    dev: torch.device,
+) -> dict[str, Any]:
+    mlndt_net, _ = load_model(_resolve_model_path("mlndt_best.pt"), device=str(dev))
+    s2r_sim = _eval_mlndt_on_simulated(mlndt_net, quick, dev)
+    s2r_mlndt = _eval_bar1d_on_mlndt(ctx.adapter_1d.net, quick, dev)
+    return {
+        "mlndt_on_simulated_bscan": s2r_sim,
+        "bar_1d_on_mlndt_val": s2r_mlndt,
+    }
+
+
+def _select_device() -> torch.device:
+    has_cuda = torch.cuda.is_available()
+    dev = torch.device("cuda" if has_cuda else "cpu")
+    msg = (
+        "Device: cuda (NVIDIA GeForce RTX 5070 Ti Laptop GPU)"
+        if has_cuda
+        else "CUDA unavailable, using CPU"
+    )
+    print(msg, flush=True)
+    return dev
+
+
 def main() -> None:
     args = _parse_args()
     set_seed(0)
-    has_cuda = torch.cuda.is_available()
-    dev = torch.device("cuda" if has_cuda else "cpu")
-    print(
-        "Device: cuda (NVIDIA GeForce RTX 5070 Ti Laptop GPU)"
-        if has_cuda
-        else "CUDA unavailable, using CPU",
-        flush=True,
-    )
+    dev = _select_device()
     ctx = _setup_context(dev)
-    shifts = _run_all_domain_shifts(ctx, args.quick)
-    unseen_res = _eval_unseen_artefact(ctx, args.quick)
-    mlndt_net, _ = load_model(_resolve_model_path("mlndt_best.pt"), device=str(dev))
-    s2r_sim = _eval_mlndt_on_simulated(mlndt_net, args.quick, dev)
-    s2r_mlndt = _eval_bar1d_on_mlndt(ctx.adapter_1d.net, args.quick, dev)
-
     metrics = {
         "label": "Synthetic data",
-        "domain_shift": shifts,
-        "unseen_artefact": unseen_res,
-        "sim_to_real": {
-            "mlndt_on_simulated_bscan": s2r_sim,
-            "bar_1d_on_mlndt_val": s2r_mlndt,
-        },
+        "domain_shift": _run_all_domain_shifts(ctx, args.quick),
+        "unseen_artefact": _eval_unseen_artefact(ctx, args.quick),
+        "sim_to_real": _eval_sim_to_real(ctx, args.quick, dev),
     }
     _save_metrics_and_figures(metrics)
     print("Phase 4 robustness experiment completed successfully.", flush=True)
