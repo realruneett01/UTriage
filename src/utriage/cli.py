@@ -14,6 +14,7 @@ from utriage.physics.figures import plot_cscan
 from utriage.physics.simulator import BarScan
 from utriage.rules.config import DEFAULT_ACCEPTANCE, AcceptanceConfig, load_acceptance
 from utriage.rules.pipeline import Evaluation, evaluate_scan, evaluation_to_dict
+from utriage.workflow import ADVISORY_BANNER, run_batch
 
 app = typer.Typer(
     help="UTriage: advisory, offline UT indication triage. Decisions belong to the inspector.",
@@ -135,3 +136,61 @@ def evaluate(
     _print_evaluation(ev)
     if json_out is not None:
         _write_json_out(ev, json_out)
+
+
+def _resolve_default_model(model: Path | None) -> Path | None:
+    """Resolve model path, falling back to default checkpoint if present."""
+    if model is not None:
+        return model
+    default_p = Path("models/bar_2d.pt")
+    return default_p if default_p.is_file() else None
+
+
+def _format_summary_line(summary: dict) -> str:
+    """Format single-line CLI summary for a processed scan."""
+    bar = summary.get("bar_id", "bar")
+    counts = summary.get("counts_per_category", {})
+    counts_str = ", ".join(f"{k}={v}" for k, v in counts.items()) or "none"
+    rescan = "yes" if summary.get("rescan_recommended") else "no"
+    report_p = summary.get("report_path") or ""
+    report_name = Path(report_p).name if report_p else "-"
+    return f"{bar}: indications: [{counts_str}], rescan={rescan}, report={report_name}"
+
+
+def _print_scan_result(summary: dict) -> bool:
+    """Print either summary line or error in red. Returns True if failed."""
+    err = summary.get("error")
+    if err:
+        bar = summary.get("bar_id", "bar")
+        typer.secho(f"{bar}: ERROR: {err}", fg=typer.colors.RED)
+        return True
+    typer.echo(_format_summary_line(summary))
+    return False
+
+
+@app.command()
+def triage(
+    scans: Annotated[list[Path], typer.Argument(help="Paths to scan .npz files")],
+    out: Annotated[
+        Path,
+        typer.Option("--out", help="Output directory for reports and summaries"),
+    ] = Path("out"),
+    model: Annotated[
+        Path | None,
+        typer.Option("--model", help="Optional ML model checkpoint path"),
+    ] = None,
+    acceptance: Annotated[
+        Path | None,
+        typer.Option("--acceptance", help="Optional path to acceptance configuration"),
+    ] = None,
+) -> None:
+    """Batch shop-floor triage: advisory evaluation, report and JSON generation."""
+    typer.echo(ADVISORY_BANNER)
+    resolved_model = _resolve_default_model(model)
+    summaries = run_batch(scans, out, model=resolved_model, acceptance=acceptance)
+    has_failure = False
+    for s in summaries:
+        if _print_scan_result(s):
+            has_failure = True
+    if has_failure:
+        raise typer.Exit(code=1)
