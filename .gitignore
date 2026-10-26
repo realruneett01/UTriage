@@ -1,0 +1,18 @@
+# Data: fetched or generated, never committed
+/data/external/
+/data/synthetic/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+/build/
+/dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Tools
+/.repowise/

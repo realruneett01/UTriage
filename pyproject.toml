@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "utriage"
+version = "0.0.1"
+description = "Advisory, offline triage of ultrasonic (UT) indications for aerospace bar inspection."
+readme = "project plan"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "scikit-learn",
+    "pydantic>=2",
+    "pyyaml",
+    "typer",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+ml = ["torch"]
+app = ["streamlit"]
+dev = ["pytest", "hypothesis", "ruff"]
+
+[project.scripts]
+utriage = "utriage.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "C90"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 6
