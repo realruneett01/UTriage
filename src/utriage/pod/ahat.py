@@ -63,17 +63,27 @@ def _check_arrays(sizes: np.ndarray, responses: np.ndarray) -> None:
         raise ValueError("Flaw sizes and responses must be strictly positive.")
 
 
+def _check_positive_bound(value: float | None, label: str) -> None:
+    """Validate that an optional censoring bound is strictly positive."""
+    if value is not None and value <= 0.0:
+        raise ValueError(f"Censor {label} limit must be strictly positive.")
+
+
+def _check_censor_range(low: float | None, high: float | None) -> None:
+    """Validate that censor low is strictly less than high."""
+    if low is None or high is None:
+        return
+    if low >= high:
+        raise ValueError("Censor low limit must be strictly less than high limit.")
+
+
 def _check_censor(decision: float, censor: Censoring) -> None:
     """Validate decision threshold and censoring bounds."""
     if decision <= 0.0:
         raise ValueError("Decision threshold must be strictly positive.")
-    if censor.low is not None and censor.low <= 0.0:
-        raise ValueError("Censor low limit must be strictly positive.")
-    if censor.high is not None and censor.high <= 0.0:
-        raise ValueError("Censor high limit must be strictly positive.")
-    if censor.low is not None and censor.high is not None:
-        if censor.low >= censor.high:
-            raise ValueError("Censor low limit must be strictly less than high limit.")
+    _check_positive_bound(censor.low, "low")
+    _check_positive_bound(censor.high, "high")
+    _check_censor_range(censor.low, censor.high)
 
 
 def _identify_censoring(
