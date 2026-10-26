@@ -27,6 +27,6 @@ Operational constraints and qualification boundaries:
 
 ## Consequences
 
-- **Guaranteed detection lower bound**: The search procedure ensures that false-call reduction never compromises the statistical 95% lower confidence detection limit at the 0.8 mm FBH tender reference size.
+- **Detection lower bound on validation data only**: on the validation set used, the chosen threshold keeps the one-sided 95% lower bound of POD at the 0.8 mm FBH-equivalent reference size at or above the target. This is a property of that (synthetic) validation set, not a guarantee for real parts; real qualification needs a POD study on real flaws (see docs/safety-case.md).
 - **Reproducibility**: Operating point selection is deterministic, data-driven, and recorded in `results/triage_metrics.json`.
 - **Advisory limitation**: Because validation is performed on synthetic data, this operating point remains advisory and does not constitute plant qualification or production clearance.
