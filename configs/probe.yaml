@@ -15,7 +15,7 @@ p5:
   beam_sigma_mm: 0.6
   sampling_mhz: 100.0
   gain_db: 0.0
-  electronic_noise: 0.004
+  electronic_noise: 0.0015
   k_fbh: 0.8
   source: "simulator defaults (model choice, not from an instrument datasheet)"
 
@@ -28,6 +28,6 @@ p10:
   beam_sigma_mm: 0.4
   sampling_mhz: 100.0
   gain_db: 0.0
-  electronic_noise: 0.004
+  electronic_noise: 0.0015
   k_fbh: 0.8
   source: "simulator defaults (model choice, not from an instrument datasheet)"
