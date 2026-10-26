@@ -1,0 +1,75 @@
+{
+  "label": "Synthetic data",
+  "sim_version": "1.0.0",
+  "seed": 7000,
+  "material": {
+    "name": "Ti-6Al-4V",
+    "velocity_m_s": 6100.0,
+    "density_kg_m3": 4430.0,
+    "attenuation_db_mm_mhz": 0.004,
+    "grain_noise": 0.06162312604640159
+  },
+  "probe": {
+    "frequency_mhz": 5.0,
+    "fractional_bandwidth": 0.6,
+    "water_path_mm": 50.0,
+    "focal_depth_mm": 15.0,
+    "focal_zone_mm": 12.0,
+    "beam_sigma_mm": 0.6,
+    "sampling_mhz": 100.0,
+    "gain_db": 0.0,
+    "electronic_noise": 0.004,
+    "k_fbh": 0.8
+  },
+  "water": {
+    "name": "water",
+    "velocity_m_s": 1483.0,
+    "density_kg_m3": 998.0,
+    "attenuation_db_mm_mhz": 0.0,
+    "grain_noise": 0.0
+  },
+  "diameter_mm": 40.0,
+  "length_mm": 16.0,
+  "axial_step_mm": 1.0,
+  "n_angle": 60,
+  "reflectors": [
+    {
+      "axial_mm": 6.827737841895108,
+      "angle_deg": 23.374106732267833,
+      "depth_mm": 19.812656359101943,
+      "diameter_mm": 1.5148485425203568,
+      "kind": "fbh",
+      "amplitude_factor": 1.0
+    },
+    {
+      "axial_mm": 10.146632708125814,
+      "angle_deg": 84.50576545321442,
+      "depth_mm": 13.876650419430227,
+      "diameter_mm": 1.1733388728488674,
+      "kind": "fbh",
+      "amplitude_factor": 1.0
+    },
+    {
+      "axial_mm": 10.604158798207656,
+      "angle_deg": 203.29377513813864,
+      "depth_mm": 34.656687488192105,
+      "diameter_mm": 1.5264793908558656,
+      "kind": "fbh",
+      "amplitude_factor": 1.0
+    }
+  ],
+  "artefacts": [
+    {
+      "kind": "missing_coverage",
+      "axial_mm": [
+        4.729314291785709,
+        15.830608913667973
+      ],
+      "angle_deg": [
+        29.17120913182805,
+        50.810832867698224
+      ],
+      "severity": 0.8558917633762674
+    }
+  ]
+}

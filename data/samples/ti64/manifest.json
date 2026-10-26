@@ -1,0 +1,26 @@
+{
+  "label": "Synthetic data",
+  "sim_version": "1.0.0",
+  "config": {
+    "n_bars": 1,
+    "material": "ti64",
+    "probe": "p5",
+    "seed": 7,
+    "diameter_mm": 40.0,
+    "length_mm": 16.0,
+    "n_angle": 60,
+    "mean_reflectors": 2.0,
+    "artefact_rate": 0.3,
+    "noise_scale": [
+      0.5,
+      2.0
+    ],
+    "fbh_range_mm": [
+      0.4,
+      2.0
+    ]
+  },
+  "files": [
+    "bar_0000.npz"
+  ]
+}
