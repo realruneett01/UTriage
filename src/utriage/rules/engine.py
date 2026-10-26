@@ -7,6 +7,7 @@ wrapping, local SNR, and indication extraction.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 import scipy.ndimage
@@ -16,6 +17,25 @@ from utriage.rules.config import AcceptanceConfig
 from utriage.rules.types import Indication
 
 Dac = Callable[[np.ndarray], np.ndarray]
+
+
+@dataclass(frozen=True)
+class EnvelopeView:
+    """Precomputed envelope and interface-time view of a bar scan."""
+
+    env: np.ndarray
+    time_us: np.ndarray
+    t_if_us: np.ndarray
+    scan: BarScan
+
+
+@dataclass(frozen=True)
+class Peak:
+    """Peak indication location and depth."""
+
+    ia: int
+    ja: int
+    depth_mm: float
 
 
 def interface_times(env: np.ndarray, time_us: np.ndarray, threshold: float) -> np.ndarray:
@@ -31,19 +51,17 @@ def interface_times(env: np.ndarray, time_us: np.ndarray, threshold: float) -> n
 
 
 def amplitude_map(
-    env: np.ndarray,
-    time_us: np.ndarray,
-    t_if_us: np.ndarray,
-    scan: BarScan,
+    view: EnvelopeView,
     dac: Dac,
     cfg: AcceptanceConfig,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Peak amplitude % and depth in flaw gate per A-scan."""
-    t_grid = time_us[None, None, :] if time_us.ndim == 1 else time_us
-    tif_grid = t_if_us[..., None] if t_if_us.ndim == 2 else t_if_us
-    depth = depth_of_time(t_grid, tif_grid, scan.spec.material)
+    env = view.env
+    t_grid = view.time_us[None, None, :] if view.time_us.ndim == 1 else view.time_us
+    tif_grid = view.t_if_us[..., None] if view.t_if_us.ndim == 2 else view.t_if_us
+    depth = depth_of_time(t_grid, tif_grid, view.scan.spec.material)
     z_min = cfg.gates.front_dead_zone_mm
-    z_max = scan.spec.diameter_mm - cfg.gates.back_margin_mm
+    z_max = view.scan.spec.diameter_mm - cfg.gates.back_margin_mm
     in_range = (depth >= z_min) & (depth <= z_max)
     in_gate = in_range & np.isfinite(depth)
     pct = np.zeros_like(env)
@@ -97,30 +115,27 @@ def label_clusters(mask: np.ndarray) -> tuple[np.ndarray, int]:
     return _remap_labels(labeled, parent, n_features)
 
 
-def local_snr(
-    env: np.ndarray,
-    time_us: np.ndarray,
-    t_if_us: np.ndarray,
-    scan: BarScan,
-    ia: int,
-    ja: int,
-    depth_mm: float,
-    cfg: AcceptanceConfig,
-) -> float:
+def local_snr(view: EnvelopeView, peak: Peak, cfg: AcceptanceConfig) -> float:
     """Local SNR in dB around an indication peak."""
-    z_peak = depth_of_time(time_us, t_if_us[ia, ja], scan.spec.material)
-    m_peak = (np.abs(z_peak - depth_mm) <= cfg.snr.exclude_mm) & np.isfinite(z_peak)
-    peak = float(np.max(env[ia, ja, m_peak])) if np.any(m_peak) else float(np.max(env[ia, ja]))
-    ax = np.arange(max(0, ia - 1), min(env.shape[0], ia + 2))
-    ang = np.unique([(ja + dj) % env.shape[1] for dj in (-1, 0, 1)])
+    env = view.env
+    z_peak = depth_of_time(view.time_us, view.t_if_us[peak.ia, peak.ja], view.scan.spec.material)
+    m_peak = (np.abs(z_peak - peak.depth_mm) <= cfg.snr.exclude_mm) & np.isfinite(z_peak)
+    has_peak = np.any(m_peak)
+    peak_val = (
+        float(np.max(env[peak.ia, peak.ja, m_peak]))
+        if has_peak
+        else float(np.max(env[peak.ia, peak.ja]))
+    )
+    ax = np.arange(max(0, peak.ia - 1), min(env.shape[0], peak.ia + 2))
+    ang = np.unique([(peak.ja + dj) % env.shape[1] for dj in (-1, 0, 1)])
     sub_env = env[ax[:, None], ang[None, :], :]
-    sub_tif = t_if_us[ax[:, None], ang[None, :]]
-    sub_z = depth_of_time(time_us[None, None, :], sub_tif[..., None], scan.spec.material)
-    dist = np.abs(sub_z - depth_mm)
+    sub_tif = view.t_if_us[ax[:, None], ang[None, :]]
+    sub_z = depth_of_time(view.time_us[None, None, :], sub_tif[..., None], view.scan.spec.material)
+    dist = np.abs(sub_z - peak.depth_mm)
     in_win = (dist <= cfg.snr.noise_window_mm) & (dist > cfg.snr.exclude_mm)
     noise = sub_env[in_win & np.isfinite(dist)]
     rms = float(np.sqrt(np.mean(noise**2))) if noise.size > 0 else 0.0
-    return float(20.0 * np.log10(max(peak, 1e-12) / max(rms, 1e-12)))
+    return float(20.0 * np.log10(max(peak_val, 1e-12) / max(rms, 1e-12)))
 
 
 def _cluster_stats(
@@ -140,32 +155,39 @@ def _cluster_stats(
     return ia, ja, float(pcts[top]), d_mm, ax_len, circ_len
 
 
+def _to_indication(
+    i: int,
+    item: tuple[float, int, int, float, float, float, int, float],
+    scan: BarScan,
+) -> Indication:
+    amp, ia, ja, d_mm, ax_len, circ_len, n_asc, snr = item
+    return Indication(
+        id=i,
+        axial_mm=float(scan.axial_mm[ia]),
+        angle_deg=float(scan.angle_deg[ja]),
+        depth_mm=d_mm,
+        amplitude_pct=amp,
+        snr_db=snr,
+        axial_length_mm=ax_len,
+        circ_length_mm=circ_len,
+        n_ascans=n_asc,
+        axial_idx=ia,
+        angle_idx=ja,
+    )
+
+
 def detect_indications(scan: BarScan, dac: Dac, cfg: AcceptanceConfig) -> list[Indication]:
     """Detect and cluster ultrasonic indications above recording threshold."""
     env = envelope(scan.ascans)
     t_if = interface_times(env, scan.time_us, cfg.gates.interface_threshold)
-    pct_map, depth_map = amplitude_map(env, scan.time_us, t_if, scan, dac, cfg)
+    view = EnvelopeView(env=env, time_us=scan.time_us, t_if_us=t_if, scan=scan)
+    pct_map, depth_map = amplitude_map(view, dac, cfg)
     labels, n_clusters = label_clusters(pct_map >= cfg.amplitude.record_pct)
     raw = []
     for k in range(1, n_clusters + 1):
         pts = np.argwhere(labels == k)
         ia, ja, amp, d_mm, ax_len, circ_len = _cluster_stats(pts, pct_map, depth_map, scan)
-        snr = local_snr(env, scan.time_us, t_if, scan, ia, ja, d_mm, cfg)
+        snr = local_snr(view, Peak(ia, ja, d_mm), cfg)
         raw.append((amp, ia, ja, d_mm, ax_len, circ_len, len(pts), snr))
     raw.sort(key=lambda item: item[0], reverse=True)
-    return [
-        Indication(
-            id=i,
-            axial_mm=float(scan.axial_mm[ia]),
-            angle_deg=float(scan.angle_deg[ja]),
-            depth_mm=d_mm,
-            amplitude_pct=amp,
-            snr_db=snr,
-            axial_length_mm=ax_len,
-            circ_length_mm=circ_len,
-            n_ascans=n_asc,
-            axial_idx=ia,
-            angle_idx=ja,
-        )
-        for i, (amp, ia, ja, d_mm, ax_len, circ_len, n_asc, snr) in enumerate(raw)
-    ]
+    return [_to_indication(i, item, scan) for i, item in enumerate(raw)]

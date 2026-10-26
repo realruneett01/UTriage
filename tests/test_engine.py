@@ -30,11 +30,15 @@ from utriage.physics.simulator import (  # noqa: E402
 from utriage.rules.config import AcceptanceConfig, load_acceptance  # noqa: E402
 from utriage.rules.engine import (  # noqa: E402
     Dac,
+    EnvelopeView,
+    Peak,
+    amplitude_map,
     detect_indications,
     interface_times,
     label_clusters,
     local_snr,
 )
+from utriage.rules.types import Indication  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -84,21 +88,48 @@ def _sim_bar(
     return simulate_bar(spec)
 
 
-def test_interface_times_exact_step() -> None:
+def _fbh(diameter_mm: float = 0.8, depth_mm: float = 10.0) -> Reflector:
+    return Reflector(axial_mm=6.0, angle_deg=45.0, depth_mm=depth_mm, diameter_mm=diameter_mm)
+
+
+def _primary_indication(scan: BarScan, ctx: SimContext) -> Indication:
+    inds = detect_indications(scan, ctx.dac, ctx.cfg)
+    assert len(inds) >= 1
+    return inds[0]
+
+
+@pytest.mark.parametrize(
+    ("threshold", "expected"),
+    [
+        (0.3, 3.0),
+        (0.9, np.nan),
+    ],
+)
+def test_interface_times_exact_step(threshold: float, expected: float) -> None:
     time_us = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     env = np.array([0.1, 0.2, 0.4, 0.8, 0.3])
-    t_if = interface_times(env, time_us, threshold=0.3)
-    assert t_if == pytest.approx(3.0)
-    no_cross = interface_times(env, time_us, threshold=0.9)
-    assert np.isnan(no_cross)
+    t_if = interface_times(env, time_us, threshold=threshold)
+    if np.isnan(expected):
+        assert np.isnan(t_if)
+    else:
+        assert t_if == pytest.approx(expected)
 
 
-def test_interface_times_2d() -> None:
+@pytest.mark.parametrize(
+    ("idx", "expected"),
+    [
+        (0, 2.0),
+        (1, np.nan),
+    ],
+)
+def test_interface_times_2d(idx: int, expected: float) -> None:
     time_us = np.array([1.0, 2.0, 3.0, 4.0])
     env = np.array([[0.0, 0.5, 0.8, 0.2], [0.0, 0.1, 0.2, 0.0]])
     t_if = interface_times(env, time_us, threshold=0.4)
-    assert t_if[0] == pytest.approx(2.0)
-    assert np.isnan(t_if[1])
+    if np.isnan(expected):
+        assert np.isnan(t_if[idx])
+    else:
+        assert t_if[idx] == pytest.approx(expected)
 
 
 def test_label_clusters_wraps_angle() -> None:
@@ -115,11 +146,8 @@ def test_label_clusters_wraps_angle() -> None:
 
 @pytest.mark.parametrize("depth_mm", [8.0, 15.0])
 def test_planted_fbh_detected(ctx: SimContext, depth_mm: float) -> None:
-    ref = Reflector(axial_mm=6.0, angle_deg=45.0, depth_mm=depth_mm, diameter_mm=0.8)
-    scan = _sim_bar(ctx, reflectors=(ref,), grain_scale=0.2, seed=42)
-    inds = detect_indications(scan, ctx.dac, ctx.cfg)
-    assert len(inds) >= 1
-    top = inds[0]
+    scan = _sim_bar(ctx, reflectors=(_fbh(depth_mm=depth_mm),), seed=42)
+    top = _primary_indication(scan, ctx)
     assert 80.0 <= top.amplitude_pct <= 125.0
     assert abs(top.depth_mm - depth_mm) <= 1.0
 
@@ -131,24 +159,29 @@ def test_pure_noise_gives_no_indication(ctx: SimContext) -> None:
 
 
 def test_fbh_diameter_scaling(ctx: SimContext) -> None:
-    ref_small = Reflector(axial_mm=6.0, angle_deg=45.0, depth_mm=10.0, diameter_mm=0.8)
-    ref_large = Reflector(axial_mm=6.0, angle_deg=45.0, depth_mm=10.0, diameter_mm=1.6)
-    scan_s = _sim_bar(ctx, reflectors=(ref_small,), grain_scale=0.1, seed=7)
-    scan_l = _sim_bar(ctx, reflectors=(ref_large,), grain_scale=0.1, seed=7)
-    ind_s = detect_indications(scan_s, ctx.dac, ctx.cfg)[0]
-    ind_l = detect_indications(scan_l, ctx.dac, ctx.cfg)[0]
+    ind_s = _primary_indication(_sim_bar(ctx, (_fbh(0.8),), grain_scale=0.1, seed=7), ctx)
+    ind_l = _primary_indication(_sim_bar(ctx, (_fbh(1.6),), grain_scale=0.1, seed=7), ctx)
     ratio = ind_l.amplitude_pct / ind_s.amplitude_pct
     assert 3.0 <= ratio <= 5.0
 
 
+def test_amplitude_map(ctx: SimContext) -> None:
+    scan = _sim_bar(ctx, (_fbh(),), seed=42)
+    env = envelope(scan.ascans)
+    t_if = interface_times(env, scan.time_us, ctx.cfg.gates.interface_threshold)
+    view = EnvelopeView(env=env, time_us=scan.time_us, t_if_us=t_if, scan=scan)
+    pct_map, depth_map = amplitude_map(view, ctx.dac, ctx.cfg)
+    assert pct_map.shape == scan.ascans.shape[:2]
+    assert depth_map.shape == scan.ascans.shape[:2]
+    assert np.nanmax(pct_map) > 80.0
+
+
 def test_snr_planted_fbh(ctx: SimContext) -> None:
-    ref = Reflector(axial_mm=6.0, angle_deg=45.0, depth_mm=10.0, diameter_mm=0.8)
-    scan = _sim_bar(ctx, reflectors=(ref,), grain_scale=0.2, seed=99)
-    inds = detect_indications(scan, ctx.dac, ctx.cfg)
-    assert len(inds) >= 1
-    top = inds[0]
+    scan = _sim_bar(ctx, (_fbh(),), seed=99)
+    top = _primary_indication(scan, ctx)
     assert top.snr_db > 0.0
     env = envelope(scan.ascans)
     t_if = interface_times(env, scan.time_us, ctx.cfg.gates.interface_threshold)
-    noise_snr = local_snr(env, scan.time_us, t_if, scan, 1, 18, 10.0, ctx.cfg)
+    view = EnvelopeView(env=env, time_us=scan.time_us, t_if_us=t_if, scan=scan)
+    noise_snr = local_snr(view, Peak(1, 18, 10.0), ctx.cfg)
     assert top.snr_db > noise_snr
