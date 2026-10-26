@@ -53,6 +53,7 @@ class WindowConfig:
     diameter_mm: float = 40.0
     patch: bool = False
     seed: int = 0
+    artefact_kinds: tuple[str, ...] = ARTEFACT_KINDS
 
 
 @dataclass
@@ -243,8 +244,13 @@ def _concat_sets(sets: list[WindowSet], patch: bool) -> WindowSet:
     )
 
 
-def _random_artefact(rng: np.random.Generator) -> tuple[Artefact, ...]:
-    kind = str(rng.choice(ARTEFACT_KINDS))
+def _random_artefact(
+    rng: np.random.Generator,
+    kinds: tuple[str, ...] = ARTEFACT_KINDS,
+) -> tuple[Artefact, ...]:
+    if not kinds:
+        return ()
+    kind = str(rng.choice(kinds))
     ax0 = float(rng.uniform(2.0, 6.0))
     ax1 = float(rng.uniform(ax0 + 2.0, 14.0))
     ang0 = float(rng.uniform(0.0, 180.0))
@@ -268,7 +274,7 @@ def _simulate_training_bar(
         base_mat.attenuation_db_mm_mhz,
         base_mat.grain_noise * scale,
     )
-    artefacts = _random_artefact(rng) if rng.random() < 0.30 else ()
+    artefacts = _random_artefact(rng, cfg.artefact_kinds) if rng.random() < 0.30 else ()
     spec = BarSpec(
         material=mat,
         probe=probe,
