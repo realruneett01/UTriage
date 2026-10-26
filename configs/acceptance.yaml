@@ -1,0 +1,36 @@
+# Acceptance limits for the rules engine.
+# !!! ALL VALUES ARE PLACEHOLDERS !!!
+# They are NOT taken from AMS-STD-2154, ASTM E2375 or any other standard. Those standards are
+# paywalled and must not be reproduced from memory. Ruri must replace every value from a
+# legitimate copy of the standard and class that applies, then change `status` below.
+status: "PLACEHOLDER - UNVERIFIED - Ruri to check"
+source: "UNVERIFIED - Ruri to check (placeholder values chosen only so the engine runs)"
+
+gates:
+  interface_threshold: 0.3      # fraction of full screen height for interface detection
+  front_dead_zone_mm: 2.0       # metal depth not evaluated after the interface
+  back_margin_mm: 2.0           # back-wall gate half-width; flaw gate ends this far before it
+
+amplitude:
+  record_pct: 50.0              # % of reference (DAC) at which an indication is recorded
+  reject_pct: 100.0             # % of reference at or above which it is rejectable
+
+multiple:
+  window_mm: 25.0               # neighbourhood for counting multiple indications
+  max_count: 3                  # more reportable indications than this in the window -> rejectable
+
+linear:
+  max_length_mm: 6.0            # an indication longer than this -> rejectable
+
+snr:
+  noise_window_mm: 4.0          # half-width of the local noise window
+  exclude_mm: 1.0               # half-width around the peak excluded from the noise estimate
+  min_snr_db: 6.0               # below this the indication is marked borderline (low SNR)
+
+quality:
+  waterpath_tolerance_mm: 1.0   # interface drift tolerance (mm of water path)
+  backwall_drop_ratio: 0.5      # back-wall peak below this x median -> back-wall loss
+  noise_limit_ratio: 2.5        # flaw-gate noise RMS above this x median -> noise above limit
+  coverage_floor: 0.001         # A-scan max |amplitude| below this -> no data (coverage gap)
+  saturation_level: 0.999       # |sample| at or above this -> saturation
+  early_echo_threshold: 0.15    # envelope above this before the interface -> bubble / early echo
