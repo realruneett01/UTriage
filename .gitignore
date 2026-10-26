@@ -20,3 +20,4 @@ htmlcov/
 # Local editor/agent wiring (repowise init)
 /.mcp.json
 /.vscode/
+/models/
