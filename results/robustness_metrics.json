@@ -1,0 +1,202 @@
+{
+  "label": "Synthetic data",
+  "domain_shift": {
+    "noise_2.5x": {
+      "spec": {
+        "material": "ti64",
+        "probe": "p5",
+        "noise_scale": 2.5
+      },
+      "rules": {
+        "threshold": 50.0,
+        "detection_per_size": {
+          "0.4": 0.375,
+          "0.6": 0.875,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.15625
+      },
+      "ml_1d_p4_thresh": {
+        "threshold": 0.9458858966827393,
+        "detection_per_size": {
+          "0.4": 0.125,
+          "0.6": 0.75,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.0625
+      },
+      "ml_2d_p4_thresh": {
+        "threshold": 0.8373624086380005,
+        "detection_per_size": {
+          "0.4": 0.0,
+          "0.6": 1.0,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.0
+      },
+      "ml_1d_matched": {
+        "threshold": 0.7322916984558105,
+        "detection_per_size": {
+          "0.4": 0.25,
+          "0.6": 1.0,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.15625
+      },
+      "ml_2d_matched": {
+        "threshold": 0.4303743839263916,
+        "detection_per_size": {
+          "0.4": 0.25,
+          "0.6": 1.0,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.15625
+      }
+    },
+    "in718": {
+      "spec": {
+        "material": "in718",
+        "probe": "p5",
+        "noise_scale": 1.0
+      },
+      "rules": {
+        "threshold": 50.0,
+        "detection_per_size": {
+          "0.4": 0.0,
+          "0.6": 1.0,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.0
+      },
+      "ml_1d_p4_thresh": {
+        "threshold": 0.9458858966827393,
+        "detection_per_size": {
+          "0.4": 0.125,
+          "0.6": 0.875,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.0
+      },
+      "ml_2d_p4_thresh": {
+        "threshold": 0.8373624086380005,
+        "detection_per_size": {
+          "0.4": 0.75,
+          "0.6": 1.0,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.0
+      },
+      "ml_1d_matched": {
+        "threshold": 0.1143603043088913,
+        "detection_per_size": {
+          "0.4": 0.875,
+          "0.6": 1.0,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.0
+      },
+      "ml_2d_matched": {
+        "threshold": 0.0588144340941906,
+        "detection_per_size": {
+          "0.4": 1.0,
+          "0.6": 1.0,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.0
+      }
+    },
+    "probe_p10": {
+      "spec": {
+        "material": "ti64",
+        "probe": "p10",
+        "noise_scale": 1.0
+      },
+      "rules": {
+        "threshold": 50.0,
+        "detection_per_size": {
+          "0.4": 1.0,
+          "0.6": 1.0,
+          "0.8": 1.0,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.90625
+      },
+      "ml_1d_p4_thresh": {
+        "threshold": 0.9458858966827393,
+        "detection_per_size": {
+          "0.4": 0.0,
+          "0.6": 0.0,
+          "0.8": 0.0,
+          "1.2": 0.0
+        },
+        "false_call_rate": 0.0
+      },
+      "ml_2d_p4_thresh": {
+        "threshold": 0.8373624086380005,
+        "detection_per_size": {
+          "0.4": 0.625,
+          "0.6": 1.0,
+          "0.8": 0.75,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.75
+      },
+      "ml_1d_matched": {
+        "threshold": 1.0337671483284794e-06,
+        "detection_per_size": {
+          "0.4": 0.875,
+          "0.6": 0.75,
+          "0.8": 0.75,
+          "1.2": 0.125
+        },
+        "false_call_rate": 0.90625
+      },
+      "ml_2d_matched": {
+        "threshold": 0.42168116569519043,
+        "detection_per_size": {
+          "0.4": 0.75,
+          "0.6": 1.0,
+          "0.8": 0.875,
+          "1.2": 1.0
+        },
+        "false_call_rate": 0.90625
+      }
+    }
+  },
+  "unseen_artefact": {
+    "label": "Synthetic data",
+    "artefact_evaluated": "roughness",
+    "fresh_1d_no_roughness_fcr": 0.0025,
+    "p4_1d_with_roughness_fcr": 0.0,
+    "rules_fcr": 0.03,
+    "threshold_p4_1d": 0.9458858966827393,
+    "threshold_rules": 50.0
+  },
+  "sim_to_real": {
+    "mlndt_on_simulated_bscan": {
+      "label": "Synthetic data",
+      "model": "models/mlndt_best.pt",
+      "roc_auc": 0.5,
+      "n_flawed": 20,
+      "n_unflawed": 20
+    },
+    "bar_1d_on_mlndt_val": {
+      "label": "Real data (ML-NDT)",
+      "model": "models/bar_1d.pt",
+      "roc_auc": 0.7110031379694302,
+      "n_images": 200,
+      "image_axis_meaning": "UNVERIFIED - Ruri to check",
+      "domain_gap_note": "Low AUC is the expected domain gap due to uncalibrated DAC normalisation, differing frequency, and axis representation."
+    }
+  }
+}
