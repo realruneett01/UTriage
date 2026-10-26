@@ -1,0 +1,1407 @@
+{
+  "label": "Synthetic data",
+  "configs": {
+    "record_pct": 50.0,
+    "noise_scales": [
+      0.5,
+      1.0,
+      1.5,
+      2.0
+    ],
+    "sizes_mm": [
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.8,
+      1.0,
+      1.2
+    ]
+  },
+  "train_sizes": {
+    "n_train_1d": 74947,
+    "n_val_1d": 8328,
+    "n_train_2d": 74947,
+    "n_val_2d": 8328
+  },
+  "thresholds": {
+    "ml_1d": {
+      "0.5": 0.012754314338624477,
+      "1.0": 0.382719026638031,
+      "1.5": 0.6685309277305603,
+      "2.0": 0.9458858966827393,
+      "overall": 0.9458858966827393
+    },
+    "ml_2d": {
+      "0.5": 0.012909668257296085,
+      "1.0": 0.2464466558227539,
+      "1.5": 0.7928319440612793,
+      "2.0": 0.8373624086380005,
+      "overall": 0.8373624086380005
+    },
+    "rules_fcr": {
+      "0.5": 0.0,
+      "1.0": 0.0,
+      "1.5": 0.0,
+      "2.0": 0.017857142857142856
+    }
+  },
+  "per_method_per_noise": {
+    "rules": {
+      "0.5": {
+        "detection_table": [
+          {
+            "group": 0.5,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 3,
+            "rate": 0.375,
+            "detection_rate": 0.375
+          },
+          {
+            "group": 0.5,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": null,
+          "reason": "Data is separable: all hits are above all misses.",
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 27,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.3662531476436464,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.0,
+          "n": 56,
+          "n_false": 0,
+          "upper95": 0.05208952720877943
+        }
+      },
+      "1.0": {
+        "detection_table": [
+          {
+            "group": 1.0,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 1.0,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 1.0,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 1.0,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 4,
+            "rate": 0.5,
+            "detection_rate": 0.5
+          },
+          {
+            "group": 1.0,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": null,
+          "reason": "Data is separable: all hits are above all misses.",
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 28,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.3833083618646668,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.0,
+          "n": 56,
+          "n_false": 0,
+          "upper95": 0.05208952720877943
+        }
+      },
+      "1.5": {
+        "detection_table": [
+          {
+            "group": 1.5,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 1.5,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 1.5,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 1,
+            "rate": 0.125,
+            "detection_rate": 0.125
+          },
+          {
+            "group": 1.5,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 6,
+            "rate": 0.75,
+            "detection_rate": 0.75
+          },
+          {
+            "group": 1.5,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.5,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.5,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": {
+            "beta0": 10.059847843520211,
+            "beta1": 17.448912719291414,
+            "cov": [
+              [
+                15.44272296875288,
+                26.030990074480325
+              ],
+              [
+                26.030990074480325,
+                45.138898382076086
+              ]
+            ],
+            "n": 56,
+            "a50": 0.5618437452264328,
+            "a90": 0.637240459932146,
+            "a90_95": 0.7049880686948767,
+            "method": "delta"
+          },
+          "reason": null,
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 31,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.43528706762382113,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.0,
+          "n": 56,
+          "n_false": 0,
+          "upper95": 0.05208952720877943
+        }
+      },
+      "2.0": {
+        "detection_table": [
+          {
+            "group": 2.0,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 2.0,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 2,
+            "rate": 0.25,
+            "detection_rate": 0.25
+          },
+          {
+            "group": 2.0,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 1,
+            "rate": 0.125,
+            "detection_rate": 0.125
+          },
+          {
+            "group": 2.0,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 6,
+            "rate": 0.75,
+            "detection_rate": 0.75
+          },
+          {
+            "group": 2.0,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 2.0,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 2.0,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": {
+            "beta0": 4.992103664329565,
+            "beta1": 8.00719485623302,
+            "cov": [
+              [
+                2.3145952008016293,
+                3.3487051762742186
+              ],
+              [
+                3.3487051762742186,
+                5.350153021920694
+              ]
+            ],
+            "n": 56,
+            "a50": 0.5360905198375095,
+            "a90": 0.7053607048488546,
+            "a90_95": 0.8301499021075038,
+            "method": "delta"
+          },
+          "reason": null,
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 33,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.4706236506262273,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.017857142857142856,
+          "n": 56,
+          "n_false": 1,
+          "upper95": 0.08193215952933154
+        }
+      }
+    },
+    "ml_1d": {
+      "0.5": {
+        "detection_table": [
+          {
+            "group": 0.5,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": null,
+          "reason": "Data is separable: only hits or only misses present.",
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 56,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.9479104727912205,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.0,
+          "n": 56,
+          "n_false": 0,
+          "upper95": 0.05208952720877943
+        }
+      },
+      "1.0": {
+        "detection_table": [
+          {
+            "group": 1.0,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 2,
+            "rate": 0.25,
+            "detection_rate": 0.25
+          },
+          {
+            "group": 1.0,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 1,
+            "rate": 0.125,
+            "detection_rate": 0.125
+          },
+          {
+            "group": 1.0,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": {
+            "beta0": 7.552694185673988,
+            "beta1": 8.326259472624828,
+            "cov": [
+              [
+                5.273191938113588,
+                5.782310994069494
+              ],
+              [
+                5.782310994069493,
+                6.667767279963267
+              ]
+            ],
+            "n": 56,
+            "a50": 0.4036959430951648,
+            "a90": 0.5256065531988762,
+            "a90_95": 0.6120007810007648,
+            "method": "delta"
+          },
+          "reason": null,
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 43,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.6564665024573908,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.0,
+          "n": 56,
+          "n_false": 0,
+          "upper95": 0.05208952720877943
+        }
+      },
+      "1.5": {
+        "detection_table": [
+          {
+            "group": 1.5,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 1,
+            "rate": 0.125,
+            "detection_rate": 0.125
+          },
+          {
+            "group": 1.5,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 2,
+            "rate": 0.25,
+            "detection_rate": 0.25
+          },
+          {
+            "group": 1.5,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 5,
+            "rate": 0.625,
+            "detection_rate": 0.625
+          },
+          {
+            "group": 1.5,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.5,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.5,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.5,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": {
+            "beta0": 6.286066095265353,
+            "beta1": 7.668360714114599,
+            "cov": [
+              [
+                3.39789575844536,
+                4.030673519475183
+              ],
+              [
+                4.030673519475183,
+                5.120072265493654
+              ]
+            ],
+            "n": 56,
+            "a50": 0.4405459470289647,
+            "a90": 0.5867189670959757,
+            "a90_95": 0.6884125134877255,
+            "method": "delta"
+          },
+          "reason": null,
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 40,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.5989343447540845,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.0,
+          "n": 56,
+          "n_false": 0,
+          "upper95": 0.05208952720877943
+        }
+      },
+      "2.0": {
+        "detection_table": [
+          {
+            "group": 2.0,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 2.0,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 2.0,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 2.0,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 7,
+            "rate": 0.875,
+            "detection_rate": 0.875
+          },
+          {
+            "group": 2.0,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 2.0,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 2.0,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": null,
+          "reason": "Data is separable: all hits are above all misses.",
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 31,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.43528706762382113,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.017857142857142856,
+          "n": 56,
+          "n_false": 1,
+          "upper95": 0.08193215952933154
+        }
+      }
+    },
+    "ml_2d": {
+      "0.5": {
+        "detection_table": [
+          {
+            "group": 0.5,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 0.5,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": null,
+          "reason": "Data is separable: only hits or only misses present.",
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 56,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.9479104727912205,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.0,
+          "n": 56,
+          "n_false": 0,
+          "upper95": 0.05208952720877943
+        }
+      },
+      "1.0": {
+        "detection_table": [
+          {
+            "group": 1.0,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 4,
+            "rate": 0.5,
+            "detection_rate": 0.5
+          },
+          {
+            "group": 1.0,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 4,
+            "rate": 0.5,
+            "detection_rate": 0.5
+          },
+          {
+            "group": 1.0,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.0,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": {
+            "beta0": 6.376443113190713,
+            "beta1": 5.74049352391888,
+            "cov": [
+              [
+                4.042076611953077,
+                3.9048483295935696
+              ],
+              [
+                3.9048483295935696,
+                4.00439476638257
+              ]
+            ],
+            "n": 56,
+            "a50": 0.32930098899919036,
+            "a90": 0.48286205932743986,
+            "a90_95": 0.5887637238097214,
+            "method": "delta"
+          },
+          "reason": null,
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 48,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.756971473080311,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.0,
+          "n": 56,
+          "n_false": 0,
+          "upper95": 0.05208952720877943
+        }
+      },
+      "1.5": {
+        "detection_table": [
+          {
+            "group": 1.5,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 1.5,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 1.5,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 6,
+            "rate": 0.75,
+            "detection_rate": 0.75
+          },
+          {
+            "group": 1.5,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.5,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.5,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 1.5,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": null,
+          "reason": "Data is separable: all hits are above all misses.",
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 38,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.5614884793335327,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.0,
+          "n": 56,
+          "n_false": 0,
+          "upper95": 0.05208952720877943
+        }
+      },
+      "2.0": {
+        "detection_table": [
+          {
+            "group": 2.0,
+            "size": 0.30000001192092896,
+            "size_mm": 0.30000001192092896,
+            "n": 8,
+            "n_hit": 0,
+            "rate": 0.0,
+            "detection_rate": 0.0
+          },
+          {
+            "group": 2.0,
+            "size": 0.4000000059604645,
+            "size_mm": 0.4000000059604645,
+            "n": 8,
+            "n_hit": 1,
+            "rate": 0.125,
+            "detection_rate": 0.125
+          },
+          {
+            "group": 2.0,
+            "size": 0.5,
+            "size_mm": 0.5,
+            "n": 8,
+            "n_hit": 3,
+            "rate": 0.375,
+            "detection_rate": 0.375
+          },
+          {
+            "group": 2.0,
+            "size": 0.6000000238418579,
+            "size_mm": 0.6000000238418579,
+            "n": 8,
+            "n_hit": 7,
+            "rate": 0.875,
+            "detection_rate": 0.875
+          },
+          {
+            "group": 2.0,
+            "size": 0.800000011920929,
+            "size_mm": 0.800000011920929,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 2.0,
+            "size": 1.0,
+            "size_mm": 1.0,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          },
+          {
+            "group": 2.0,
+            "size": 1.2000000476837158,
+            "size_mm": 1.2000000476837158,
+            "n": 8,
+            "n_hit": 8,
+            "rate": 1.0,
+            "detection_rate": 1.0
+          }
+        ],
+        "pod_summary": {
+          "pod": {
+            "beta0": 7.094166597340403,
+            "beta1": 10.490196050758934,
+            "cov": [
+              [
+                5.463372195470921,
+                7.744103635923558
+              ],
+              [
+                7.744103635923557,
+                11.554332294602181
+              ]
+            ],
+            "n": 56,
+            "a50": 0.508512058294014,
+            "a90": 0.626998395981129,
+            "a90_95": 0.7182740366393975,
+            "method": "delta"
+          },
+          "reason": null,
+          "binomial": {
+            "n_flawed": 56,
+            "n_hit": 35,
+            "min_size": 0.30000001192092896,
+            "max_size": 1.2000000476837158,
+            "size_p10": 0.30000001192092896,
+            "size_p50": 0.6000000238418579,
+            "pod_lower95": 0.5065237677762733,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve."
+          }
+        },
+        "false_call_rate": {
+          "rate": 0.017857142857142856,
+          "n": 56,
+          "n_false": 1,
+          "upper95": 0.08193215952933154
+        }
+      }
+    }
+  },
+  "ahat_rules": {
+    "overall": {
+      "fit": {
+        "beta0": 4.806958478065872,
+        "beta1": 1.5065887406023297,
+        "sigma": 0.22080405114751647,
+        "cov": [
+          [
+            0.00045302192477771714,
+            0.0004896133963204748,
+            3.882714717443904e-13
+          ],
+          [
+            0.0004896133963204748,
+            0.0010184946544578156,
+            8.076830034104874e-13
+          ],
+          [
+            3.882714717443904e-13,
+            8.076830034104875e-13,
+            0.002232142835306121
+          ]
+        ],
+        "n": 224,
+        "n_left": 0,
+        "n_right": 0,
+        "a_dec": 50.0,
+        "a50": 0.5521064297881794,
+        "a90": 0.6661872417179089,
+        "a90_95": 0.680933298807474,
+        "method": "tobit-delta"
+      },
+      "reason": null
+    },
+    "per_noise": {
+      "0.5": {
+        "fit": {
+          "beta0": 4.7748477722503875,
+          "beta1": 1.6438486545278337,
+          "sigma": 0.15349403805649622,
+          "cov": [
+            [
+              0.0008756855039233122,
+              0.0009464163433986041,
+              -2.1954804561513396e-12
+            ],
+            [
+              0.0009464163433986042,
+              0.0019687369546000674,
+              -3.873005290522574e-12
+            ],
+            [
+              -2.195480456151339e-12,
+              -3.873005290522573e-12,
+              0.00892857142619053
+            ]
+          ],
+          "n": 56,
+          "n_left": 0,
+          "n_right": 0,
+          "a_dec": 50.0,
+          "a50": 0.5916258208018111,
+          "a90": 0.6668355863260255,
+          "a90_95": 0.685704037512761,
+          "method": "tobit-delta"
+        },
+        "reason": null
+      },
+      "1.0": {
+        "fit": {
+          "beta0": 4.78200529825423,
+          "beta1": 1.5657442391806053,
+          "sigma": 0.17443993349776848,
+          "cov": [
+            [
+              0.0011309853066114577,
+              0.001222337213616558,
+              -3.732446874969355e-12
+            ],
+            [
+              0.001222337213616558,
+              0.0025427080374337617,
+              -5.9714855318851e-12
+            ],
+            [
+              -3.732446874969355e-12,
+              -5.9714855318850995e-12,
+              0.008928571312902468
+            ]
+          ],
+          "n": 56,
+          "n_left": 0,
+          "n_right": 0,
+          "a_dec": 50.0,
+          "a50": 0.5737078437783595,
+          "a90": 0.6617604555566088,
+          "a90_95": 0.6841310076089162,
+          "method": "tobit-delta"
+        },
+        "reason": null
+      },
+      "1.5": {
+        "fit": {
+          "beta0": 4.822105624501376,
+          "beta1": 1.467930150236139,
+          "sigma": 0.19650063839703275,
+          "cov": [
+            [
+              0.0014351360343660515,
+              0.0015510547929210694,
+              -1.2300119554533078e-12
+            ],
+            [
+              0.0015510547929210694,
+              0.0032265069275218355,
+              -2.558673048378075e-12
+            ],
+            [
+              -1.2300119554533078e-12,
+              -2.558673048378075e-12,
+              0.008928571397868514
+            ]
+          ],
+          "n": 56,
+          "n_left": 0,
+          "n_right": 0,
+          "a_dec": 50.0,
+          "a50": 0.5379569246812506,
+          "a90": 0.6386371996406405,
+          "a90_95": 0.6645440249798885,
+          "method": "tobit-delta"
+        },
+        "reason": null
+      },
+      "2.0": {
+        "fit": {
+          "beta0": 4.848875217257496,
+          "beta1": 1.3488319184647395,
+          "sigma": 0.25402120173006404,
+          "cov": [
+            [
+              0.002398308645065574,
+              0.0025920247582698727,
+              2.0555182746564013e-12
+            ],
+            [
+              0.0025920247582698727,
+              0.005391934487948512,
+              4.275892751551536e-12
+            ],
+            [
+              2.0555182746564017e-12,
+              4.275892751551537e-12,
+              0.008928571482834562
+            ]
+          ],
+          "n": 56,
+          "n_left": 0,
+          "n_right": 0,
+          "a_dec": 50.0,
+          "a50": 0.4992913074268781,
+          "a90": 0.63558722628554,
+          "a90_95": 0.6721438463745927,
+          "method": "tobit-delta"
+        },
+        "reason": null
+      }
+    }
+  },
+  "latency": {
+    "ml_1d": {
+      "gpu_batch_1_ms": 2.0233000032021664,
+      "gpu_batch_256_ms": 0.006771875007416384,
+      "cpu_batch_1_ms": 0.34685000719036907
+    },
+    "ml_2d": {
+      "gpu_batch_1_ms": 0.7991500024218112,
+      "gpu_batch_256_ms": 0.0033728515518305358,
+      "cpu_batch_1_ms": 0.3544000064721331
+    }
+  },
+  "kept_model": {
+    "choice": "ml_2d",
+    "rule": "Keep simpler 1D model unless 2D a90_95 (or binomial bound) is clearly better (>= 0.1 mm).",
+    "reason": "At noise scale 2.0, 1D metric is 0.4353 and 2D metric is 0.7183; 2D is clearly better."
+  }
+}
