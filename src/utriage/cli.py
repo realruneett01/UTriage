@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated
 
@@ -10,6 +11,9 @@ import typer
 from utriage import __version__
 from utriage.physics.dataset import DatasetConfig, generate_dataset, load_scan
 from utriage.physics.figures import plot_cscan
+from utriage.physics.simulator import BarScan
+from utriage.rules.config import DEFAULT_ACCEPTANCE, AcceptanceConfig, load_acceptance
+from utriage.rules.pipeline import Evaluation, evaluate_scan, evaluation_to_dict
 
 app = typer.Typer(
     help="UTriage: advisory, offline UT indication triage. Decisions belong to the inspector.",
@@ -66,3 +70,68 @@ def simulate(
         _process_bar(npz_path, fig_dir, i)
 
     typer.echo(f"Synthetic data written to {out_dir}")
+
+
+def _attach_scan_label(scan: BarScan, scan_path: Path) -> None:
+    json_path = scan_path.with_suffix(".json")
+    if not json_path.exists():
+        return
+    try:
+        with json_path.open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        scan.label = data.get("label", "")
+    except (OSError, json.JSONDecodeError):  # ignore unreadable or invalid json
+        scan.label = ""
+
+
+def _print_evaluation(ev: Evaluation) -> None:
+    typer.echo("Advisory tool - decisions by certified inspector")
+    if ev.label:
+        typer.echo(f"Data source: {ev.label}")
+    if ev.placeholder_limits:
+        typer.echo("WARNING: Acceptance limits are PLACEHOLDERS (UNVERIFIED)")
+    for ind in ev.indications:
+        typer.echo(
+            f"Indication #{ind.id}: {ind.category} | axial={ind.axial_mm:.1f}mm "
+            f"angle={ind.angle_deg:.1f}deg depth={ind.depth_mm:.1f}mm "
+            f"pct={ind.amplitude_pct:.1f}% snr={ind.snr_db:.1f}dB"
+        )
+    for fault in ev.quality.faults:
+        typer.echo(
+            f"Fault: {fault.kind} | axial=({fault.axial_mm[0]:.1f}, {fault.axial_mm[1]:.1f})mm "
+            f"angle=({fault.angle_deg[0]:.1f}, {fault.angle_deg[1]:.1f})deg ascans={fault.n_ascans}"
+        )
+    typer.echo(f"Summary: {ev.summary}")
+
+
+def _write_json_out(ev: Evaluation, out_path: Path) -> None:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", encoding="utf-8") as fh:
+        json.dump(evaluation_to_dict(ev), fh, indent=2)
+
+
+def _load_cfg(acceptance: Path) -> AcceptanceConfig:
+    cfg_path = acceptance if acceptance.exists() else DEFAULT_ACCEPTANCE
+    return load_acceptance(cfg_path)
+
+
+@app.command()
+def evaluate(
+    scan: Annotated[Path, typer.Argument(help="Path to scan .npz file")],
+    acceptance: Annotated[
+        Path,
+        typer.Option("--acceptance", help="Path to acceptance configuration"),
+    ] = Path("configs/acceptance.yaml"),
+    json_out: Annotated[
+        Path | None,
+        typer.Option("--json-out", help="Optional path to output JSON file"),
+    ] = None,
+) -> None:
+    """Evaluate a bar scan against acceptance rules."""
+    bar_scan = load_scan(scan)
+    _attach_scan_label(bar_scan, scan)
+    cfg = _load_cfg(acceptance)
+    ev = evaluate_scan(bar_scan, cfg)
+    _print_evaluation(ev)
+    if json_out is not None:
+        _write_json_out(ev, json_out)
