@@ -17,8 +17,15 @@
   reference in low noise = True; all artefact kinds caught = True. Safety fix: data-quality faults
   never downgrade a rejectable/reportable indication.
 
+- **Phase 3** (tag `phase-3`): `ml/datasets.py` (streams ML-NDT by file offset; one batch has 10
+  images), `ml/models.py` (residual CNN, detection + size heads), `ml/train.py`, `ml/infer.py`,
+  `pod/hitmiss.py` (logistic GLM, delta-method a90/95, Clopper-Pearson bounds),
+  `experiments/run_phase3.py` (`--eval-only` reuses the trained model) -> `results/mlndt_metrics.json`,
+  `results/mlndt_report.md`. Trained on GPU (ADR 0005). Every flawed image was detected, so the
+  logistic POD is not estimable; a binomial POD lower bound is reported instead (see the JSON).
+
 ## In progress
-- Phase 3: real-data ML (loader, model, training) waiting on CUDA torch install.
+- Phase 4: window data and WindowNet merged; experiment next.
 
 
 ## Gate items only Ruri can close
