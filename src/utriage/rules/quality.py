@@ -74,19 +74,27 @@ def _check_saturation(ctx: _QualityContext) -> np.ndarray:
     return sat & ctx.valid
 
 
+def _relative_to_median(values: np.ndarray, ctx: _QualityContext) -> np.ndarray:
+    """values / median(values over valid A-scans); valid A-scans only, else 1."""
+    med = float(np.median(values[ctx.valid]))
+    ratio = values / med if med > 0 else np.ones_like(values)
+    return np.where(ctx.valid, ratio, 1.0)
+
+
+def _depth(ctx: _QualityContext) -> np.ndarray:
+    return depth_of_time(
+        ctx.scan.time_us[None, None, :], ctx.t_if[..., None], ctx.scan.spec.material
+    )
+
+
 def _check_interface_drop(ctx: _QualityContext) -> np.ndarray:
-    if not np.any(ctx.valid):
-        return np.zeros(ctx.valid.shape, dtype=bool)
     time_3d = ctx.scan.time_us[None, None, :]
     in_win = (time_3d >= ctx.t_if[..., None]) & (time_3d <= ctx.t_if[..., None] + 0.3)
     if_peak = np.max(np.where(in_win, ctx.env, 0.0), axis=-1)
-    med = float(np.median(if_peak[ctx.valid]))
-    return (if_peak < 0.5 * med) & ctx.valid
+    return _relative_to_median(if_peak, ctx) < 0.5
 
 
 def _check_waterpath_drift(ctx: _QualityContext) -> np.ndarray:
-    if not np.any(ctx.valid):
-        return np.zeros(ctx.valid.shape, dtype=bool)
     c_water = ctx.scan.spec.water.velocity_m_s * 1e-3
     med_t_if = float(np.median(ctx.t_if[ctx.valid]))
     drift_mm = np.abs(ctx.t_if - med_t_if) * c_water / 2.0
@@ -94,43 +102,30 @@ def _check_waterpath_drift(ctx: _QualityContext) -> np.ndarray:
 
 
 def _check_early_echo(ctx: _QualityContext) -> np.ndarray:
-    if not np.any(ctx.valid):
-        return np.zeros(ctx.valid.shape, dtype=bool)
     med_t_if = float(np.median(ctx.t_if[ctx.valid]))
     time_3d = ctx.scan.time_us[None, None, :]
     in_win = (time_3d >= med_t_if - 2.0) & (time_3d <= ctx.t_if[..., None] - 0.4)
-    thresh = ctx.cfg.quality.early_echo_threshold
-    has_echo = np.any(in_win & (ctx.env >= thresh), axis=-1)
+    has_echo = np.any(in_win & (ctx.env >= ctx.cfg.quality.early_echo_threshold), axis=-1)
     return has_echo & ctx.valid
 
 
 def _check_backwall_loss(ctx: _QualityContext) -> np.ndarray:
-    if not np.any(ctx.valid):
-        return np.zeros(ctx.valid.shape, dtype=bool)
-    depth = depth_of_time(
-        ctx.scan.time_us[None, None, :], ctx.t_if[..., None], ctx.scan.spec.material
-    )
+    depth = _depth(ctx)
     d, margin = ctx.scan.spec.diameter_mm, ctx.cfg.gates.back_margin_mm
     in_bw = (depth >= d - margin) & (depth <= d + margin)
     bw_peak = np.max(np.where(in_bw, ctx.env, 0.0), axis=-1)
-    med = float(np.median(bw_peak[ctx.valid]))
-    return (bw_peak < ctx.cfg.quality.backwall_drop_ratio * med) & ctx.valid
+    return _relative_to_median(bw_peak, ctx) < ctx.cfg.quality.backwall_drop_ratio
 
 
 def _check_noise_above_limit(ctx: _QualityContext) -> np.ndarray:
-    if not np.any(ctx.valid):
-        return np.zeros(ctx.valid.shape, dtype=bool)
-    depth = depth_of_time(
-        ctx.scan.time_us[None, None, :], ctx.t_if[..., None], ctx.scan.spec.material
-    )
-    z_start = ctx.cfg.gates.front_dead_zone_mm
+    depth = _depth(ctx)
     z_end = ctx.scan.spec.diameter_mm - ctx.cfg.gates.back_margin_mm
-    in_flaw = (depth >= z_start) & (depth <= z_end)
+    in_flaw = (depth >= ctx.cfg.gates.front_dead_zone_mm) & (depth <= z_end)
     rms = _gate_rms(ctx.env, in_flaw)
-    med = float(np.median(rms[ctx.valid]))
-    return (rms > ctx.cfg.quality.noise_limit_ratio * med) & ctx.valid
+    return _relative_to_median(rms, ctx) > ctx.cfg.quality.noise_limit_ratio
 
 
+_NO_VALID_NEEDED = ("coverage_gap", "interface_missing", "saturation")
 _CHECKERS: dict[str, Callable[[_QualityContext], np.ndarray]] = {
     "coverage_gap": _check_coverage_gap,
     "interface_missing": _check_interface_missing,
@@ -152,7 +147,9 @@ def check_quality(scan: BarScan, cfg: AcceptanceConfig) -> QualityReport:
     t_if = _detect_first_crossing(env, scan.time_us, cfg.gates.interface_threshold)
 
     ctx = _QualityContext(scan, cfg, env, t_if, valid, cov, if_miss)
-    masks = {kind: _CHECKERS[kind](ctx) for kind in FAULT_KINDS}
+    none = np.zeros(valid.shape, dtype=bool)
+    usable = bool(np.any(valid))
+    masks = {k: _CHECKERS[k](ctx) if usable or k in _NO_VALID_NEEDED else none for k in FAULT_KINDS}
     faults = [f for kind, mask in masks.items() for f in _mask_to_faults(kind, mask, scan)]
     fault_mask = np.bitwise_or.reduce(list(masks.values()))
     return QualityReport(faults=faults, fault_mask=fault_mask, masks=masks)
