@@ -14,6 +14,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 
+from utriage.audit import append_entry  # noqa: E402
 from utriage.io.adapters import read_scan  # noqa: E402
 from utriage.ml.bar_infer import load_window_model, scan_bar  # noqa: E402
 from utriage.physics.simulator import BarScan, cscan_peak, envelope  # noqa: E402
@@ -113,6 +114,15 @@ def _append_audit_row(log_path: Path, row: list[str]) -> None:
         writer.writerow(row)
 
 
+def _normalize_decision(decision: str) -> str:
+    """Validate and normalize inspector decision string."""
+    norm = decision.strip().lower()
+    norm = "rescan" if norm == "re-scan" else norm
+    if norm not in VALID_DECISIONS:
+        raise ValueError(f"decision must be accepted, rejected or rescan, got: {decision}")
+    return norm
+
+
 def record_decision(
     session: Session,
     item_index: int,
@@ -122,15 +132,9 @@ def record_decision(
     log_path: Path,
 ) -> None:
     """Record an inspector disposition in session and append to the audit log."""
-    norm_dec = decision.strip().lower()
-    if norm_dec == "re-scan":
-        norm_dec = "rescan"
-    if norm_dec not in VALID_DECISIONS:
-        raise ValueError(f"decision must be accepted, rejected or rescan, got: {decision}")
-
+    norm_dec = _normalize_decision(decision)
     item = session.items[item_index] if 0 <= item_index < len(session.items) else None
-    src = item.source if item else ""
-    cat = item.category if item else ""
+    src, cat = (item.source, item.category) if item else ("", "")
     now_iso = datetime.now(UTC).isoformat()
     bar_id = session.bar_id or "bar"
 
@@ -146,6 +150,17 @@ def record_decision(
         log_path,
         [now_iso, bar_id, str(item_index), src, cat, norm_dec, comment, inspector],
     )
+    record = {
+        "bar_id": bar_id,
+        "item_index": item_index,
+        "source": src,
+        "category": cat,
+        "decision": norm_dec,
+        "comment": comment,
+        "inspector": inspector,
+        "ts": now_iso,
+    }
+    append_entry(Path(log_path).with_suffix(".jsonl"), record)
 
 
 def _plot_ascan_gates(
