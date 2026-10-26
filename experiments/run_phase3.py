@@ -32,10 +32,11 @@ from utriage.ml.datasets import (  # noqa: E402
     read_batch,
     split_holdout,
 )
-from utriage.ml.infer import measure_latency, save_model  # noqa: E402
+from utriage.ml.infer import load_model, measure_latency, save_model  # noqa: E402
 from utriage.ml.models import MlNdtNet, count_params  # noqa: E402
 from utriage.ml.train import TrainConfig, TrainResult, predict, train_model  # noqa: E402
 from utriage.pod.hitmiss import (  # noqa: E402
+    binomial_pod_bound,
     false_call_rate,
     fit_hitmiss,
     fit_to_dict,
@@ -50,6 +51,7 @@ class SplitEvalResult:
 
     pod: dict | None
     pod_reason: str | None
+    detection: dict
     false_calls: dict | None
     flawed_sizes: np.ndarray
     flawed_hits: np.ndarray
@@ -73,6 +75,7 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Phase 3 ML-NDT detector experiment")
     parser.add_argument("--quick", action="store_true", help="Quick run with fewer batches")
     parser.add_argument("--epochs", type=int, default=None, help="Override epoch count")
+    parser.add_argument("--eval-only", action="store_true", help="Evaluate existing checkpoint")
     return parser.parse_args()
 
 
@@ -139,11 +142,13 @@ def _eval_split(
     hits = (probs >= 0.5).astype(float)
     flawed = (flaw_labels == 1.0) & (eq_sizes > 0.0)
     unflawed = flaw_labels == 0.0
+    det_dict = binomial_pod_bound(eq_sizes[flawed], hits[flawed])
     pod_dict, pod_err, fit_obj = _fit_pod_safe(eq_sizes[flawed], hits[flawed])
     fc_dict = false_call_rate(hits[unflawed]) if np.any(unflawed) else None
     return SplitEvalResult(
         pod=pod_dict,
         pod_reason=pod_err,
+        detection=det_dict,
         false_calls=fc_dict,
         flawed_sizes=eq_sizes[flawed],
         flawed_hits=hits[flawed],
@@ -231,8 +236,13 @@ def _plot_pod_figure(test_eval: SplitEvalResult, out_path: Path) -> None:
     if len(s) > 0:
         plt.scatter(s, h, color="crimson", alpha=0.6, label="Hits / Misses")
     plt.xlabel("Equivalent Flaw Size")
-    plt.ylabel("Detection Probability")
-    plt.title("Probability of Detection vs Size — Real data (ML-NDT)")
+    if test_eval.pod is None:
+        lb = test_eval.detection["pod_lower95"]
+        plt.title(f"Detection vs Size (Binomial 95% LB: {lb:.3f}) — Real data (ML-NDT)")
+        plt.ylabel("Hit (1) / Miss (0)")
+    else:
+        plt.title("Probability of Detection vs Size — Real data (ML-NDT)")
+        plt.ylabel("Detection Probability")
     plt.ylim(-0.05, 1.05)
     plt.grid(True, alpha=0.3)
     plt.legend(loc="lower right")
@@ -249,11 +259,13 @@ def _build_metrics(
     t_sp = {
         "pod": test_res.pod,
         "pod_reason": test_res.pod_reason,
+        "detection": test_res.detection,
         "false_calls": test_res.false_calls,
     }
     v_sp = {
         "pod": val_res.pod,
         "pod_reason": val_res.pod_reason,
+        "detection": val_res.detection,
         "false_calls": val_res.false_calls,
     }
     ref = {"a90_95": "0.9 mm", "false_calls": 0, "source": "project plan V4"}
@@ -323,6 +335,34 @@ def _report_header_md(m: dict) -> list[str]:
     ]
 
 
+def _format_detection_row(split_name: str, sp_data: dict) -> str:
+    """Format single row for detection summary table."""
+    det = sp_data["detection"]
+    n_fl = det["n_flawed"]
+    n_h = det["n_hit"]
+    rng = f"{det['min_size']:.2f} - {det['max_size']:.2f}" if n_fl > 0 else "N/A"
+    return f"| {split_name} | {n_fl} | {n_h} | {rng} | {det['pod_lower95']:.3f} |"
+
+
+def _format_detection_table(m: dict) -> list[str]:
+    """Format flaw detection table with binomial POD lower bound per split."""
+    ref_a90 = m["paper_reference"]["a90_95"]
+    lines = [
+        "",
+        "## Flaw Detection (Binomial Bound)",
+        "| Split | n_flawed | n_hit | Size Range | POD Lower Bound |",
+        "|---|---|---|---|---|",
+    ]
+    for name, data in m["per_split"].items():
+        lines.append(_format_detection_row(name.capitalize(), data))
+    lines.append("")
+    lines.append(
+        "a90/95 is not estimable by the logistic model because every tested flaw was detected; "
+        f"the paper reports a90/95 {ref_a90}; numbers are not directly comparable."
+    )
+    return lines
+
+
 def _report_tail_md(m: dict) -> list[str]:
     """Return latency, paper comparison, and limitations sections."""
     test_sp = m["per_split"]["test"]
@@ -355,7 +395,8 @@ def _report_tail_md(m: dict) -> list[str]:
 
 def _format_report_md(m: dict) -> str:
     """Generate Markdown report entirely from metrics dictionary."""
-    return "\n".join(_report_header_md(m) + _report_tail_md(m)) + "\n"
+    parts = _report_header_md(m) + _format_detection_table(m) + _report_tail_md(m)
+    return "\n".join(parts) + "\n"
 
 
 def _save_artifacts(metrics: dict, test_eval: SplitEvalResult, model: nn.Module) -> None:
@@ -397,35 +438,63 @@ def _eval_and_benchmark(
     return test_eval, val_eval
 
 
+def _load_eval_context() -> tuple[MlNdtNet, list[dict], int, int, str]:
+    """Load model and reuse training context from existing results for eval-only run."""
+    metrics_path = Path("results/mlndt_metrics.json")
+    with metrics_path.open("r", encoding="utf-8") as fh:
+        metrics = json.load(fh)
+    dev_str = "cuda" if torch.cuda.is_available() else "cpu"
+    model, _ = load_model(Path("models/mlndt_best.pt"), device=dev_str)
+    return (
+        model,
+        metrics["restarts"],
+        int(metrics["kept_seed"]),
+        int(metrics["params"]),
+        dev_str,
+    )
+
+
+def _make_splits_dict(
+    batches: tuple[list[Path], list[Path], list[Path]],
+    datasets: tuple[MlNdtDataset, MlNdtDataset, MlNdtDataset],
+) -> dict[str, dict[str, int]]:
+    """Construct splits summary mapping batch and image counts."""
+    tr_b, te_b, v_b = batches
+    tr_ds, v_ds, te_ds = datasets
+    return {
+        "train": {"batch_count": len(tr_b), "image_count": len(tr_ds)},
+        "test": {"batch_count": len(te_b), "image_count": len(te_ds)},
+        "validation": {"batch_count": len(v_b), "image_count": len(v_ds)},
+    }
+
+
 def main() -> None:
     """Run Phase 3 ML-NDT training, POD evaluation, and benchmarking."""
     t0 = time.time()
     args = _parse_args()
     epochs = args.epochs if args.epochs is not None else (1 if args.quick else 20)
     train_b, test_b, val_b = _resolve_splits(args.quick)
-    train_ds, val_ds, test_ds = (
-        MlNdtDataset(train_b),
-        MlNdtDataset(val_b),
-        MlNdtDataset(test_b),
-    )
+    train_ds = MlNdtDataset(train_b)
+    val_ds = MlNdtDataset(val_b)
+    test_ds = MlNdtDataset(test_b)
 
-    weights, seed, restarts, dev_str = _train_restarts(train_ds, val_ds, args.quick, epochs)
-    model = MlNdtNet(width=32, first_pool=(2, 2))
-    model.load_state_dict(weights)
+    if args.eval_only:
+        model, restarts, seed, params, dev_str = _load_eval_context()
+    else:
+        weights, seed, restarts, dev_str = _train_restarts(train_ds, val_ds, args.quick, epochs)
+        model = MlNdtNet(width=32, first_pool=(2, 2))
+        model.load_state_dict(weights)
+        params = count_params(model)
 
     test_ev, val_ev = _eval_and_benchmark(model, (test_ds, val_ds), (test_b, val_b), dev_str)
     latencies = _measure_latencies(model, args.quick)
     dev_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu"
-    splits = {
-        "train": {"batch_count": len(train_b), "image_count": len(train_ds)},
-        "test": {"batch_count": len(test_b), "image_count": len(test_ds)},
-        "validation": {"batch_count": len(val_b), "image_count": len(val_ds)},
-    }
+    splits = _make_splits_dict((train_b, test_b, val_b), (train_ds, val_ds, test_ds))
     ctx = ExperimentContext(
         splits_count=splits,
         restarts=restarts,
         kept_seed=seed,
-        params_count=count_params(model),
+        params_count=params,
         dev_name=dev_name,
         latencies=latencies,
     )

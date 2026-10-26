@@ -188,3 +188,39 @@ def fit_to_dict(fit: PodFit) -> dict[str, Any]:
         "a90_95": fit.a90_95,
         "method": fit.method,
     }
+
+
+def binomial_pod_bound(sizes: np.ndarray, hits: np.ndarray) -> dict[str, Any]:
+    """Calculate binomial Clopper-Pearson 95% lower bound for POD over tested size range."""
+    s = np.asarray(sizes, dtype=float)
+    h = np.asarray(hits, dtype=float)
+    if any([s.ndim != 1, h.ndim != 1, len(s) != len(h)]):
+        raise ValueError("Sizes and hits must be 1D arrays of equal length.")
+    n_flawed = int(len(s))
+    if n_flawed == 0:
+        return {
+            "n_flawed": 0,
+            "n_hit": 0,
+            "min_size": 0.0,
+            "max_size": 0.0,
+            "size_p10": 0.0,
+            "size_p50": 0.0,
+            "pod_lower95": 0.0,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+        }
+    n_hit = int(np.sum(h == 1.0))
+    pod_lower95 = (
+        0.0 if n_hit == 0 else float(scipy.stats.beta.ppf(0.05, n_hit, n_flawed - n_hit + 1))
+    )
+    return {
+        "n_flawed": n_flawed,
+        "n_hit": n_hit,
+        "min_size": float(np.min(s)),
+        "max_size": float(np.max(s)),
+        "size_p10": float(np.percentile(s, 10)),
+        "size_p50": float(np.percentile(s, 50)),
+        "pod_lower95": pod_lower95,
+        "method": "binomial Clopper-Pearson one-sided 95",
+        "note": "POD lower bound over the whole tested size range, not a POD curve.",
+    }

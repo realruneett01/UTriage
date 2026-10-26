@@ -17,6 +17,7 @@ from scipy.special import expit  # noqa: E402
 
 from utriage.pod.hitmiss import (  # noqa: E402
     PodFit,
+    binomial_pod_bound,
     false_call_rate,
     fit_hitmiss,
     fit_to_dict,
@@ -175,3 +176,60 @@ def test_fit_to_dict_json_serializable() -> None:
     serialized = json.dumps(d)
     deserialized = json.loads(serialized)
     assert deserialized["a90"] == 2.85
+
+
+def test_binomial_pod_bound_twenty_nine_of_twenty_nine() -> None:
+    """29 of 29 hits yields ~0.902 (>= 0.90) lower bound (project plan Phase 3)."""
+    sizes = np.linspace(1.0, 5.0, 29)
+    hits = np.ones(29, dtype=int)
+    res = binomial_pod_bound(sizes, hits)
+
+    assert res["n_flawed"] == 29
+    assert res["n_hit"] == 29
+    assert res["pod_lower95"] >= 0.90
+    assert pytest.approx(res["pod_lower95"], rel=1e-3) == 0.902
+
+
+def test_binomial_pod_bound_zero_hits() -> None:
+    """0 hits yields exactly 0.0 lower bound."""
+    sizes = np.linspace(1.0, 5.0, 29)
+    hits = np.zeros(29, dtype=int)
+    res = binomial_pod_bound(sizes, hits)
+
+    assert res["n_flawed"] == 29
+    assert res["n_hit"] == 0
+    assert res["pod_lower95"] == 0.0
+
+
+def test_binomial_pod_bound_keys_and_json_serializable() -> None:
+    """binomial_pod_bound produces dictionary with required keys and json serialization."""
+    sizes = np.array([1.2, 2.5, 3.8, 4.1])
+    hits = np.array([1, 1, 0, 1])
+    res = binomial_pod_bound(sizes, hits)
+
+    expected_keys = {
+        "n_flawed",
+        "n_hit",
+        "min_size",
+        "max_size",
+        "size_p10",
+        "size_p50",
+        "pod_lower95",
+        "method",
+        "note",
+    }
+    assert set(res.keys()) == expected_keys
+    assert isinstance(res["n_flawed"], int)
+    assert isinstance(res["n_hit"], int)
+    assert isinstance(res["min_size"], float)
+    assert isinstance(res["max_size"], float)
+    assert isinstance(res["size_p10"], float)
+    assert isinstance(res["size_p50"], float)
+    assert isinstance(res["pod_lower95"], float)
+    assert isinstance(res["method"], str)
+    assert isinstance(res["note"], str)
+
+    serialized = json.dumps(res)
+    deserialized = json.loads(serialized)
+    assert deserialized["n_flawed"] == 4
+    assert deserialized["n_hit"] == 3
