@@ -1,0 +1,37 @@
+# Material parameters for the Phase 1 simulator.
+# velocity_m_s: longitudinal sound velocity. density_kg_m3: density.
+# attenuation_db_mm_mhz: attenuation in dB per mm per MHz (linear frequency law, simulator model).
+# grain_noise: simulator grain-noise level (dimensionless model parameter, not a physical constant).
+# Every value is a typical handbook figure or a model choice. None is checked against a primary
+# source yet, so every entry carries: UNVERIFIED - Ruri to check.
+
+water:
+  velocity_m_s: 1483.0
+  density_kg_m3: 998.0
+  attenuation_db_mm_mhz: 0.0
+  grain_noise: 0.0
+  source: "UNVERIFIED - Ruri to check (typical handbook value, water at about 20 C)"
+
+ti64:
+  name: "Ti-6Al-4V"
+  velocity_m_s: 6100.0
+  density_kg_m3: 4430.0
+  attenuation_db_mm_mhz: 0.004
+  grain_noise: 0.035
+  source: "UNVERIFIED - Ruri to check (velocity/density typical handbook values; attenuation and grain_noise are simulator model choices)"
+
+in718:
+  name: "Inconel 718"
+  velocity_m_s: 5800.0
+  density_kg_m3: 8190.0
+  attenuation_db_mm_mhz: 0.006
+  grain_noise: 0.025
+  source: "UNVERIFIED - Ruri to check (velocity/density typical handbook values; attenuation and grain_noise are simulator model choices)"
+
+maraging250:
+  name: "Maraging steel 250"
+  velocity_m_s: 5900.0
+  density_kg_m3: 8000.0
+  attenuation_db_mm_mhz: 0.003
+  grain_noise: 0.012
+  source: "UNVERIFIED - Ruri to check (velocity/density typical handbook values; attenuation and grain_noise are simulator model choices)"

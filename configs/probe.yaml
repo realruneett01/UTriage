@@ -1,0 +1,33 @@
+# Probe and acquisition defaults for the simulator. These are simulator settings chosen to be
+# plausible for immersion bar inspection, not values from any specific instrument.
+# fractional_bandwidth: -6 dB bandwidth divided by centre frequency.
+# focal_depth_mm: focal depth in metal. focal_zone_mm: focal-zone half-length z_R.
+# beam_sigma_mm: lateral beam half-width (standard deviation) at focus.
+# gain_db: receiver gain. electronic_noise: std of white electronic noise (fraction of full screen).
+# k_fbh: simulator reflector gain constant (echo of a 1 mm FBH before losses), a model choice.
+
+p5:
+  frequency_mhz: 5.0
+  fractional_bandwidth: 0.6
+  water_path_mm: 50.0
+  focal_depth_mm: 15.0
+  focal_zone_mm: 12.0
+  beam_sigma_mm: 0.6
+  sampling_mhz: 100.0
+  gain_db: 0.0
+  electronic_noise: 0.004
+  k_fbh: 0.8
+  source: "simulator defaults (model choice, not from an instrument datasheet)"
+
+p10:
+  frequency_mhz: 10.0
+  fractional_bandwidth: 0.6
+  water_path_mm: 50.0
+  focal_depth_mm: 15.0
+  focal_zone_mm: 8.0
+  beam_sigma_mm: 0.4
+  sampling_mhz: 100.0
+  gain_db: 0.0
+  electronic_noise: 0.004
+  k_fbh: 0.8
+  source: "simulator defaults (model choice, not from an instrument datasheet)"
