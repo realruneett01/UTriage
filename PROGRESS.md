@@ -10,9 +10,16 @@
   configs (`materials.yaml`, `probe.yaml`), `docs/study/01-simulator-physics.md`, ADR 0003,
   sample bar in `data/samples/ti64/`. Gate command runs: `python -m utriage simulate --material ti64 --bars 5`.
 
+- **Phase 2** (tag `phase-2`): `rules/engine.py` (interface-synchronised gates, DAC %, local SNR,
+  wrap-around clustering), `rules/acceptance.py` (categories), `rules/quality.py` (watchdog, 8 fault
+  kinds), `rules/pipeline.py`, `utriage evaluate` CLI, `rules/scoring.py`, `experiments/run_phase2.py`
+  -> `results/rules_baseline.json` + figures. Gate passed (from the JSON): detection at/above
+  reference in low noise = True; all artefact kinds caught = True. Safety fix: data-quality faults
+  never downgrade a rejectable/reportable indication.
+
 ## In progress
-- Phase 2: rules engine, acceptance categories and watchdog merged; baseline experiment and
-  `evaluate` CLI next.
+- Phase 3: real-data ML (loader, model, training) waiting on CUDA torch install.
+
 
 ## Gate items only Ruri can close
 - Phase 0: answer `docs/study/00-ut-primer.md` yourself.

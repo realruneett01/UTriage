@@ -1,0 +1,212 @@
+{
+  "label": "Synthetic data",
+  "sim_settings": {
+    "diameter_mm": 40.0,
+    "length_mm": 48.0,
+    "n_angle": 72,
+    "axial_step_mm": 1.0
+  },
+  "grid": [
+    {
+      "noise_scale": 0.5,
+      "fbh_mm": 0.4,
+      "n_reflectors": 12,
+      "detection_rate": 0.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 0.5,
+      "fbh_mm": 0.6,
+      "n_reflectors": 12,
+      "detection_rate": 0.9166666666666666,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 0.5,
+      "fbh_mm": 0.8,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 0.5,
+      "fbh_mm": 1.0,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 0.5,
+      "fbh_mm": 1.2,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 0.5,
+      "fbh_mm": 1.6,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 1.0,
+      "fbh_mm": 0.4,
+      "n_reflectors": 12,
+      "detection_rate": 0.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 1.0,
+      "fbh_mm": 0.6,
+      "n_reflectors": 12,
+      "detection_rate": 0.8333333333333334,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 1.0,
+      "fbh_mm": 0.8,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 1.0,
+      "fbh_mm": 1.0,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 1.0,
+      "fbh_mm": 1.2,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 1.0,
+      "fbh_mm": 1.6,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 0.0
+    },
+    {
+      "noise_scale": 1.5,
+      "fbh_mm": 0.4,
+      "n_reflectors": 12,
+      "detection_rate": 0.08333333333333333,
+      "false_calls_per_bar": 18.25
+    },
+    {
+      "noise_scale": 1.5,
+      "fbh_mm": 0.6,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 18.75
+    },
+    {
+      "noise_scale": 1.5,
+      "fbh_mm": 0.8,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 21.0
+    },
+    {
+      "noise_scale": 1.5,
+      "fbh_mm": 1.0,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 17.0
+    },
+    {
+      "noise_scale": 1.5,
+      "fbh_mm": 1.2,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 16.75
+    },
+    {
+      "noise_scale": 1.5,
+      "fbh_mm": 1.6,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 19.0
+    },
+    {
+      "noise_scale": 2.0,
+      "fbh_mm": 0.4,
+      "n_reflectors": 12,
+      "detection_rate": 0.3333333333333333,
+      "false_calls_per_bar": 232.5
+    },
+    {
+      "noise_scale": 2.0,
+      "fbh_mm": 0.6,
+      "n_reflectors": 12,
+      "detection_rate": 0.75,
+      "false_calls_per_bar": 222.75
+    },
+    {
+      "noise_scale": 2.0,
+      "fbh_mm": 0.8,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 218.25
+    },
+    {
+      "noise_scale": 2.0,
+      "fbh_mm": 1.0,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 233.0
+    },
+    {
+      "noise_scale": 2.0,
+      "fbh_mm": 1.2,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 229.5
+    },
+    {
+      "noise_scale": 2.0,
+      "fbh_mm": 1.6,
+      "n_reflectors": 12,
+      "detection_rate": 1.0,
+      "false_calls_per_bar": 232.5
+    }
+  ],
+  "watchdog": [
+    {
+      "kind": "bubble",
+      "n": 3,
+      "caught": 3
+    },
+    {
+      "kind": "lost_backwall",
+      "n": 3,
+      "caught": 3
+    },
+    {
+      "kind": "waterpath_drift",
+      "n": 3,
+      "caught": 3
+    },
+    {
+      "kind": "roughness",
+      "n": 3,
+      "caught": 3
+    },
+    {
+      "kind": "missing_coverage",
+      "n": 3,
+      "caught": 3
+    }
+  ],
+  "gate": {
+    "detection_rate_low_noise_at_or_above_reference": true,
+    "all_artefacts_caught": true,
+    "acceptance_limits": "PLACEHOLDER",
+    "passed": true
+  }
+}
