@@ -36,6 +36,30 @@ def sample_workspace(tmp_path: Path) -> tuple[Path, list[Path]]:
     return tmp_path, [file_a, file_b]
 
 
+@pytest.fixture
+def locked_workspace(
+    sample_workspace: tuple[Path, list[Path]],
+) -> tuple[Path, list[Path], Path]:
+    """Workspace with sample files and a written manifest.json."""
+    root, files = sample_workspace
+    manifest_path = write_manifest(files, root, root / "manifest.json")
+    return root, files, manifest_path
+
+
+def _assert_integrity_report(
+    report: IntegrityReport,
+    *,
+    ok: bool,
+    missing: tuple[str, ...] = (),
+    mismatched: tuple[str, ...] = (),
+) -> None:
+    """Assert status, missing files, and mismatched files on an IntegrityReport."""
+    assert isinstance(report, IntegrityReport)
+    assert report.ok is ok
+    assert report.missing == missing
+    assert report.mismatched == mismatched
+
+
 def test_sha256_binary_file(tmp_path: Path) -> None:
     data = b"ultrasonic testing shop floor integrity"
     target = tmp_path / "model.pt"
@@ -80,45 +104,49 @@ def test_manifest_round_trip(sample_workspace: tuple[Path, list[Path]]) -> None:
     assert manifest_path.is_file()
 
     report = verify(manifest_path, root)
-    assert isinstance(report, IntegrityReport)
-    assert report.ok is True
-    assert report.mismatched == ()
-    assert report.missing == ()
+    _assert_integrity_report(report, ok=True)
     assert report.unlisted_checked == ()
 
 
-def test_verify_edited_file_mismatch(
-    sample_workspace: tuple[Path, list[Path]],
+@dataclass(frozen=True)
+class TamperScenario:
+    action: str
+    file_index: int
+    expected_missing: tuple[str, ...]
+    expected_mismatched: tuple[str, ...]
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        TamperScenario("edit", 0, (), ("configs/materials.yaml",)),
+        TamperScenario("delete", 1, ("configs/probe.yaml",), ()),
+    ],
+    ids=["edited_file_mismatch", "deleted_file_missing"],
+)
+def test_verify_tampered_file(
+    locked_workspace: tuple[Path, list[Path], Path],
+    case: TamperScenario,
 ) -> None:
-    root, files = sample_workspace
-    manifest_path = write_manifest(files, root, root / "manifest.json")
-    files[0].write_text("tampered_content: true\n", encoding="utf-8")
+    root, files, manifest_path = locked_workspace
+    if case.action == "edit":
+        files[case.file_index].write_text("tampered_content: true\n", encoding="utf-8")
+    else:
+        files[case.file_index].unlink()
 
     report = verify(manifest_path, root)
-    assert report.ok is False
-    assert report.mismatched == ("configs/materials.yaml",)
-    assert report.missing == ()
-
-
-def test_verify_deleted_file_missing(
-    sample_workspace: tuple[Path, list[Path]],
-) -> None:
-    root, files = sample_workspace
-    manifest_path = write_manifest(files, root, root / "manifest.json")
-    files[1].unlink()
-
-    report = verify(manifest_path, root)
-    assert report.ok is False
-    assert report.missing == ("configs/probe.yaml",)
-    assert report.mismatched == ()
+    _assert_integrity_report(
+        report,
+        ok=False,
+        missing=case.expected_missing,
+        mismatched=case.expected_mismatched,
+    )
 
 
 def test_verify_missing_manifest_file(tmp_path: Path) -> None:
     missing_manifest = tmp_path / "nonexistent.json"
     report = verify(missing_manifest, tmp_path)
-    assert report.ok is False
-    assert report.missing == ("nonexistent.json",)
-    assert report.mismatched == ()
+    _assert_integrity_report(report, ok=False, missing=("nonexistent.json",))
 
 
 @pytest.mark.parametrize(
@@ -158,12 +186,11 @@ class LockFaultScenario:
     ],
 )
 def test_require_locked_raises_naming_files(
-    sample_workspace: tuple[Path, list[Path]],
+    locked_workspace: tuple[Path, list[Path], Path],
     monkeypatch: pytest.MonkeyPatch,
     case: LockFaultScenario,
 ) -> None:
-    root, files = sample_workspace
-    manifest_path = write_manifest(files, root, root / "manifest.json")
+    root, files, manifest_path = locked_workspace
 
     if case.mutate_first:
         files[0].unlink()
@@ -182,12 +209,11 @@ def test_require_locked_raises_naming_files(
 
 @pytest.mark.parametrize("env_val", [None, "0"])
 def test_require_locked_bypassed_when_not_locked(
-    sample_workspace: tuple[Path, list[Path]],
+    locked_workspace: tuple[Path, list[Path], Path],
     monkeypatch: pytest.MonkeyPatch,
     env_val: str | None,
 ) -> None:
-    root, files = sample_workspace
-    manifest_path = write_manifest(files, root, root / "manifest.json")
+    root, files, manifest_path = locked_workspace
     files[0].unlink()
 
     if env_val is None:
@@ -198,11 +224,10 @@ def test_require_locked_bypassed_when_not_locked(
 
 
 def test_require_locked_passes_when_intact(
-    sample_workspace: tuple[Path, list[Path]],
+    locked_workspace: tuple[Path, list[Path], Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    root, files = sample_workspace
-    manifest_path = write_manifest(files, root, root / "manifest.json")
+    root, _, manifest_path = locked_workspace
     monkeypatch.setenv("UTRIAGE_LOCKED", "1")
     require_locked(manifest_path, root)
 
@@ -212,9 +237,7 @@ def test_repo_manifest_integrity(monkeypatch: pytest.MonkeyPatch) -> None:
     assert MANIFEST.is_file()
 
     report = verify(MANIFEST, repo_root)
-    assert report.ok is True
-    assert report.mismatched == ()
-    assert report.missing == ()
+    _assert_integrity_report(report, ok=True)
 
     manifest_data = build_manifest([], repo_root)
     assert isinstance(manifest_data, dict)

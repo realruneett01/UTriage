@@ -94,32 +94,50 @@ def _make_dummy_synthetic(
     }
 
 
-def test_pod_present_path(tmp_path: Path) -> None:
-    """Test real data bullet when pod logistic fit is present."""
+@pytest.fixture
+def dummy_results_dir(tmp_path: Path) -> Path:
+    """Prepare a temporary directory with default baseline, synthetic, and mlndt JSON files."""
     _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
     _write_json(tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic())
-    mlndt_data = {
-        "per_split": {
-            "test": {
-                "pod": {"a90_95": 0.7231},
-                "false_calls": {"n_false": 0, "n": 778},
+    _write_json(
+        tmp_path / "mlndt_metrics.json",
+        {
+            "per_split": {
+                "test": {
+                    "pod": {"a90_95": 0.7231},
+                    "false_calls": {"n_false": 0, "n": 778},
+                }
             }
-        }
-    }
-    _write_json(tmp_path / "mlndt_metrics.json", mlndt_data)
-
-    bullets = build_bullets(tmp_path)
-    real_bullet = bullets[1]
-
-    assert "(real data)" in real_bullet
-    assert "0.73 mm" in real_bullet
-    assert "0 false calls on 778 unflawed scans" in real_bullet
+        },
+    )
+    return tmp_path
 
 
-def test_pod_null_path(tmp_path: Path) -> None:
+def _assert_contains_all(text: str, substrings: tuple[str, ...]) -> None:
+    """Assert all substrings are contained within text."""
+    for s in substrings:
+        assert s in text
+
+
+def _assert_valid_bullet_labels(items: list[str]) -> None:
+    """Assert all items except safety baseline contain a valid label."""
+    valid_labels = ("(real data)", "(synthetic validation)", "(synthetic triage)")
+    for item in items:
+        if "safety baseline" not in item:
+            assert any(label in item for label in valid_labels)
+
+
+def test_pod_present_path(dummy_results_dir: Path) -> None:
+    """Test real data bullet when pod logistic fit is present."""
+    bullets = build_bullets(dummy_results_dir)
+    _assert_contains_all(
+        bullets[1],
+        ("(real data)", "0.73 mm", "0 false calls on 778 unflawed scans"),
+    )
+
+
+def test_pod_null_path(dummy_results_dir: Path) -> None:
     """Test real data bullet when pod is null and binomial block is used."""
-    _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
-    _write_json(tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic())
     mlndt_data = {
         "per_split": {
             "test": {
@@ -129,121 +147,75 @@ def test_pod_null_path(tmp_path: Path) -> None:
             }
         }
     }
-    _write_json(tmp_path / "mlndt_metrics.json", mlndt_data)
+    _write_json(dummy_results_dir / "mlndt_metrics.json", mlndt_data)
 
-    bullets = build_bullets(tmp_path)
-    real_bullet = bullets[1]
-
-    assert "(real data)" in real_bullet
-    assert "1222 of 1222 flaws detected" in real_bullet
-    assert "0.99" in real_bullet
-    assert "0 false calls on 778 unflawed scans" in real_bullet
-
-
-def test_missing_triage_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Test omission notice when triage_metrics.json is missing."""
-    _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
-    _write_json(tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic())
-    _write_json(
-        tmp_path / "mlndt_metrics.json",
-        {
-            "per_split": {
-                "test": {"pod": {"a90_95": 0.7231}, "false_calls": {"n_false": 0, "n": 778}}
-            }
-        },
+    bullets = build_bullets(dummy_results_dir)
+    _assert_contains_all(
+        bullets[1],
+        (
+            "(real data)",
+            "1222 of 1222 flaws detected",
+            "0.99",
+            "0 false calls on 778 unflawed scans",
+        ),
     )
 
-    bullets = build_bullets(tmp_path)
+
+def test_missing_triage_file(dummy_results_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Test omission notice when triage_metrics.json is missing."""
+    bullets = build_bullets(dummy_results_dir)
     captured = capsys.readouterr()
 
     assert len(bullets) == 3
-    assert "triage_metrics.json" in captured.err
-    assert "omitting triage bullet" in captured.err
+    _assert_contains_all(captured.err, ("triage_metrics.json", "omitting triage bullet"))
 
 
-def test_synthetic_validation_detection_fallback(tmp_path: Path) -> None:
+def test_synthetic_validation_detection_fallback(dummy_results_dir: Path) -> None:
     """Test synthetic bullet falls back to 0.6 mm detection rate when a90 is missing."""
-    _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
     _write_json(
-        tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic(a90_rules=None, a90_ml=None)
+        dummy_results_dir / "bar_domain_metrics.json",
+        _make_dummy_synthetic(a90_rules=None, a90_ml=None),
     )
-    _write_json(
-        tmp_path / "mlndt_metrics.json",
-        {
-            "per_split": {
-                "test": {"pod": {"a90_95": 0.7231}, "false_calls": {"n_false": 0, "n": 778}}
-            }
-        },
+    bullets = build_bullets(dummy_results_dir)
+    _assert_contains_all(
+        bullets[2],
+        (
+            "(synthetic validation)",
+            "detection rate at 0.6 mm",
+            "0.75",
+            "0.99",
+            "0.018",
+        ),
     )
 
-    bullets = build_bullets(tmp_path)
-    synth_bullet = bullets[2]
 
-    assert "(synthetic validation)" in synth_bullet
-    assert "detection rate at 0.6 mm" in synth_bullet
-    assert "0.75" in synth_bullet
-    assert "0.99" in synth_bullet
-    assert "0.018" in synth_bullet
-
-
-def test_labels_present(tmp_path: Path) -> None:
+def test_labels_present(dummy_results_dir: Path) -> None:
     """Verify labels (real data) and (synthetic validation) are both present."""
-    _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
-    _write_json(tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic())
-    _write_json(
-        tmp_path / "mlndt_metrics.json",
-        {
-            "per_split": {
-                "test": {"pod": {"a90_95": 0.7231}, "false_calls": {"n_false": 0, "n": 778}}
-            }
-        },
+    bullets = build_bullets(dummy_results_dir)
+    _assert_contains_all(
+        " ".join(bullets),
+        ("(real data)", "(synthetic validation)"),
     )
 
-    bullets = build_bullets(tmp_path)
-    all_text = " ".join(bullets)
 
-    assert "(real data)" in all_text
-    assert "(synthetic validation)" in all_text
-
-
-def test_triage_bullet_label(tmp_path: Path) -> None:
-    """Verify triage bullet contains (synthetic validation) label."""
-    _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
-    _write_json(tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic())
-    _write_json(
-        tmp_path / "mlndt_metrics.json",
-        {
-            "per_split": {
-                "test": {"pod": {"a90_95": 0.7231}, "false_calls": {"n_false": 0, "n": 778}}
-            }
-        },
-    )
-    _write_json(tmp_path / "triage_metrics.json", {"conformal_coverage": 0.85})
-
-    bullets = build_bullets(tmp_path)
+@pytest.mark.parametrize(
+    ("payload", "expected_snippets"),
+    [
+        ({"conformal_coverage": 0.85}, ("(synthetic validation)", "0.85")),
+        ({"bullet": "Custom triage summary."}, ("(synthetic validation)",)),
+    ],
+    ids=["coverage_field", "custom_bullet_field"],
+)
+def test_triage_bullet_label(
+    dummy_results_dir: Path,
+    payload: dict,
+    expected_snippets: tuple[str, ...],
+) -> None:
+    """Verify triage bullet contains expected label and content."""
+    _write_json(dummy_results_dir / "triage_metrics.json", payload)
+    bullets = build_bullets(dummy_results_dir)
     assert len(bullets) == 4
-    triage_bullet = bullets[3]
-    assert "(synthetic validation)" in triage_bullet
-    assert "0.85" in triage_bullet
-
-
-def test_triage_custom_bullet_label(tmp_path: Path) -> None:
-    """Verify custom bullet in triage_metrics gets (synthetic validation) label if missing."""
-    _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
-    _write_json(tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic())
-    _write_json(
-        tmp_path / "mlndt_metrics.json",
-        {
-            "per_split": {
-                "test": {"pod": {"a90_95": 0.7231}, "false_calls": {"n_false": 0, "n": 778}}
-            }
-        },
-    )
-    _write_json(tmp_path / "triage_metrics.json", {"bullet": "Custom triage summary."})
-
-    bullets = build_bullets(tmp_path)
-    assert len(bullets) == 4
-    assert "(synthetic validation)" in bullets[3]
+    _assert_contains_all(bullets[3], expected_snippets)
 
 
 def test_real_results() -> None:
@@ -252,20 +224,19 @@ def test_real_results() -> None:
     bullets = build_bullets(results_dir)
 
     assert len(bullets) >= 3
-    all_text = " ".join(bullets)
-    assert "(real data)" in all_text
-    assert "(synthetic validation)" in all_text
-    assert "1222 of 1222 flaws detected" in all_text
-    assert "0.99" in all_text
-    assert "0.84 mm to 0.72 mm" in all_text
-    assert "0.018" in all_text
-
-    real_bullets = [b for b in bullets if "(real data)" in b]
-    assert len(real_bullets) >= 1
-    valid_labels = ("(real data)", "(synthetic validation)", "(synthetic triage)")
-    for bullet in bullets:
-        if "safety baseline" not in bullet:
-            assert any(label in bullet for label in valid_labels)
+    _assert_contains_all(
+        " ".join(bullets),
+        (
+            "(real data)",
+            "(synthetic validation)",
+            "1222 of 1222 flaws detected",
+            "0.99",
+            "0.84 mm to 0.72 mm",
+            "0.018",
+        ),
+    )
+    assert any("(real data)" in b for b in bullets)
+    _assert_valid_bullet_labels(bullets)
 
 
 def test_main(capsys: pytest.CaptureFixture[str]) -> None:
@@ -276,7 +247,4 @@ def test_main(capsys: pytest.CaptureFixture[str]) -> None:
     assert len(lines) >= 3
     assert any("(real data)" in line for line in lines)
     assert any("(synthetic validation)" in line for line in lines)
-    valid_labels = ("(real data)", "(synthetic validation)", "(synthetic triage)")
-    for line in lines:
-        if "safety baseline" not in line:
-            assert any(label in line for label in valid_labels)
+    _assert_valid_bullet_labels(lines)

@@ -59,15 +59,16 @@ def tiny_scan() -> BarScan:
     return simulate_bar(spec)
 
 
-def _mutate_nan(scan: BarScan) -> BarScan:
-    ascans = scan.ascans.copy()
-    ascans[0, 0, 0] = np.nan
-    return replace(scan, ascans=ascans)
+@pytest.fixture
+def saved_scan_npz(tiny_scan: BarScan, tmp_path: Path) -> Path:
+    """Save a tiny valid scan to disk and return the npz file path."""
+    npz_path, _ = save_scan(tiny_scan, tmp_path / "valid")
+    return npz_path
 
 
-def _mutate_inf(scan: BarScan) -> BarScan:
+def _mutate_ascan_val(scan: BarScan, val: float) -> BarScan:
     ascans = scan.ascans.copy()
-    ascans[0, 0, 0] = np.inf
+    ascans[0, 0, 0] = val
     return replace(scan, ascans=ascans)
 
 
@@ -90,6 +91,18 @@ def _mutate_nan_tif(scan: BarScan) -> BarScan:
     return replace(scan, t_if_us=t_if)
 
 
+def _assert_issue_code(issues: list, level: str, expected_code: str) -> None:
+    """Assert that expected issue code is present in issues for given level."""
+    codes = [i.code for i in issues if i.level == level]
+    assert expected_code in codes
+
+
+def _read_json_lines(path: Path) -> list[dict]:
+    """Read non-empty lines from file and parse each as JSON."""
+    with path.open("r", encoding="utf-8") as fh:
+        return [json.loads(line.strip()) for line in fh if line.strip()]
+
+
 def test_valid_scan_passes(tiny_scan: BarScan) -> None:
     """A valid tiny simulated scan has no errors."""
     issues = validate_scan(tiny_scan)
@@ -102,8 +115,8 @@ def test_valid_scan_passes(tiny_scan: BarScan) -> None:
     [
         (lambda s: replace(s, ascans=s.ascans[0]), ERR_ASCANS_NOT_3D),
         (lambda s: replace(s, ascans=s.ascans.astype(np.int32)), ERR_DTYPE_NOT_FLOATING),
-        (_mutate_nan, ERR_SAMPLES_NAN_OR_INF),
-        (_mutate_inf, ERR_SAMPLES_NAN_OR_INF),
+        (lambda s: _mutate_ascan_val(s, np.nan), ERR_SAMPLES_NAN_OR_INF),
+        (lambda s: _mutate_ascan_val(s, np.inf), ERR_SAMPLES_NAN_OR_INF),
         (lambda s: replace(s, axial_mm=s.axial_mm[:-1]), ERR_AXIAL_LENGTH_MISMATCH),
         (lambda s: replace(s, angle_deg=s.angle_deg[:-1]), ERR_ANGLE_LENGTH_MISMATCH),
         (lambda s: replace(s, fs_mhz=0.0), ERR_NON_POSITIVE_FS),
@@ -119,8 +132,7 @@ def test_validation_errors(
     """Each error case built by mutating a copy is reported with its code."""
     bad_scan = mutator(tiny_scan)
     issues = validate_scan(bad_scan)
-    error_codes = [i.code for i in issues if i.level == "error"]
-    assert expected_code in error_codes
+    _assert_issue_code(issues, "error", expected_code)
 
 
 @pytest.mark.parametrize(
@@ -143,31 +155,25 @@ def test_validation_warnings(
     """Each warning condition is correctly detected and reported."""
     warn_scan = mutator(tiny_scan)
     issues = validate_scan(warn_scan)
-    warning_codes = [i.code for i in issues if i.level == "warning"]
-    assert expected_code in warning_codes
+    _assert_issue_code(issues, "warning", expected_code)
 
 
-def test_load_validated_corrupt_scan(tiny_scan: BarScan, tmp_path: Path) -> None:
+def test_load_validated_corrupt_scan(saved_scan_npz: Path) -> None:
     """load_validated raises ScanValidationError on corrupt npz written to tmp_path."""
-    stem = tmp_path / "corrupt"
-    npz_path, _ = save_scan(tiny_scan, stem)
-
-    with np.load(npz_path) as data:
+    with np.load(saved_scan_npz) as data:
         arrays = dict(data)
     arrays["fs_mhz"] = np.array(-5.0)
-    np.savez_compressed(npz_path, **arrays)
+    np.savez_compressed(saved_scan_npz, **arrays)
 
     with pytest.raises(ScanValidationError) as exc_info:
-        load_validated(npz_path)
+        load_validated(saved_scan_npz)
     assert issubclass(ScanValidationError, ValueError)
-    assert any(i.code == ERR_NON_POSITIVE_FS for i in exc_info.value.issues)
+    _assert_issue_code(exc_info.value.issues, "error", ERR_NON_POSITIVE_FS)
 
 
-def test_load_validated_valid_scan(tiny_scan: BarScan, tmp_path: Path) -> None:
+def test_load_validated_valid_scan(saved_scan_npz: Path, tiny_scan: BarScan) -> None:
     """load_validated successfully returns valid BarScan from disk."""
-    stem = tmp_path / "valid"
-    npz_path, _ = save_scan(tiny_scan, stem)
-    loaded = load_validated(npz_path)
+    loaded = load_validated(saved_scan_npz)
     assert isinstance(loaded, BarScan)
     assert loaded.ascans.shape == tiny_scan.ascans.shape
 
@@ -180,25 +186,22 @@ def test_configure_logging(tmp_path: Path) -> None:
     log_file = tmp_path / "utriage.log"
     assert log_file.exists()
 
-    with log_file.open("r", encoding="utf-8") as fh:
-        lines = [line.strip() for line in fh if line.strip()]
-    assert len(lines) == 1
-    record = json.loads(lines[0])
-    assert record["level"] == "INFO"
-    assert record["name"] == "utriage"
-    assert record["message"] == "First event"
-    assert record["scan_id"] == "test_scan"
-    assert record["step"] == 1
-    assert "ts" in record
+    records = _read_json_lines(log_file)
+    assert len(records) == 1
+    rec1 = records[0]
+    assert rec1["level"] == "INFO"
+    assert rec1["name"] == "utriage"
+    assert rec1["message"] == "First event"
+    assert rec1["scan_id"] == "test_scan"
+    assert rec1["step"] == 1
+    assert "ts" in rec1
 
     # Test idempotence: calling again retains 2 handlers and does not duplicate lines
     logger2 = configure_logging(log_dir=tmp_path, level="INFO")
     assert len(logger2.handlers) == 2
     logger2.warning("Second event")
 
-    with log_file.open("r", encoding="utf-8") as fh:
-        lines = [line.strip() for line in fh if line.strip()]
-    assert len(lines) == 2
-    rec2 = json.loads(lines[1])
-    assert rec2["level"] == "WARNING"
-    assert rec2["message"] == "Second event"
+    records2 = _read_json_lines(log_file)
+    assert len(records2) == 2
+    assert records2[1]["level"] == "WARNING"
+    assert records2[1]["message"] == "Second event"
