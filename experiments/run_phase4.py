@@ -210,6 +210,21 @@ def _get_test_data(quick: bool) -> TestRunData:
     return TestRunData(t_1d, t_2d, settings)
 
 
+def _sync_cuda(device: torch.device) -> None:
+    """Synchronize CUDA stream if device is a CUDA GPU."""
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+
+
+def _time_window_pass(model: nn.Module, dummy: torch.Tensor, device: torch.device) -> float:
+    """Time a single forward pass with CUDA sync."""
+    _sync_cuda(device)
+    t0 = time.perf_counter()
+    _ = model(dummy)
+    _sync_cuda(device)
+    return time.perf_counter() - t0
+
+
 def _bench_latency(
     model: nn.Module,
     in_channels: int,
@@ -223,19 +238,23 @@ def _bench_latency(
     with torch.no_grad():
         for _ in range(10):
             _ = model(dummy)
-        if device.type == "cuda":
-            torch.cuda.synchronize(device)
-        timings: list[float] = []
-        for _ in range(50):
-            if device.type == "cuda":
-                torch.cuda.synchronize(device)
-            t0 = time.perf_counter()
-            _ = model(dummy)
-            if device.type == "cuda":
-                torch.cuda.synchronize(device)
-            t1 = time.perf_counter()
-            timings.append(((t1 - t0) * 1000.0) / batch)
+        _sync_cuda(device)
+        timings = [(_time_window_pass(model, dummy, device) * 1000.0) / batch for _ in range(50)]
     return float(np.median(timings))
+
+
+def _model_latencies(
+    model: nn.Module,
+    in_channels: int,
+    dev_gpu: torch.device,
+    dev_cpu: torch.device,
+) -> dict[str, float]:
+    """Measure latencies for one model across GPU and CPU."""
+    return {
+        "gpu_batch_1_ms": _bench_latency(model, in_channels, dev_gpu, 1),
+        "gpu_batch_256_ms": _bench_latency(model, in_channels, dev_gpu, 256),
+        "cpu_batch_1_ms": _bench_latency(model, in_channels, dev_cpu, 1),
+    }
 
 
 def _measure_all_latencies(models: ModelPair) -> dict[str, dict[str, float]]:
@@ -243,17 +262,10 @@ def _measure_all_latencies(models: ModelPair) -> dict[str, dict[str, float]]:
     has_cuda = torch.cuda.is_available()
     dev_gpu = torch.device("cuda") if has_cuda else torch.device("cpu")
     dev_cpu = torch.device("cpu")
-    lat_1d = {
-        "gpu_batch_1_ms": _bench_latency(models.adapter_1d.net, 1, dev_gpu, 1),
-        "gpu_batch_256_ms": _bench_latency(models.adapter_1d.net, 1, dev_gpu, 256),
-        "cpu_batch_1_ms": _bench_latency(models.adapter_1d.net, 1, dev_cpu, 1),
+    return {
+        "ml_1d": _model_latencies(models.adapter_1d.net, 1, dev_gpu, dev_cpu),
+        "ml_2d": _model_latencies(models.adapter_2d.net, 9, dev_gpu, dev_cpu),
     }
-    lat_2d = {
-        "gpu_batch_1_ms": _bench_latency(models.adapter_2d.net, 9, dev_gpu, 1),
-        "gpu_batch_256_ms": _bench_latency(models.adapter_2d.net, 9, dev_gpu, 256),
-        "cpu_batch_1_ms": _bench_latency(models.adapter_2d.net, 9, dev_cpu, 1),
-    }
-    return {"ml_1d": lat_1d, "ml_2d": lat_2d}
 
 
 def _eval_method_at_noise(
@@ -283,7 +295,10 @@ def _fit_rules_ahat(
     try:
         fit = fit_ahat(sizes, scores, decision=decision, censor=censor)
         return {"fit": ahat_to_dict(fit), "reason": None}
-    except Exception as exc:  # broad except because MLE optimization or Hessian inversion may fail
+    except (
+        ValueError,
+        RuntimeError,
+    ) as exc:  # MLE optimization failure, singular Hessian, or invalid sample data
         return {"fit": None, "reason": str(exc)}
 
 
@@ -378,6 +393,65 @@ def _evaluate_all_methods(
     return EvalContext(all_eval, thresh_all, ahat_info, {}, kept)
 
 
+_METHOD_STYLES: tuple[tuple[str, str, str, str], ...] = (
+    ("rules", "Rules", "black", "s"),
+    ("ml_1d", "ML 1D", "blue", "o"),
+    ("ml_2d", "ML 2D", "red", "^"),
+)
+
+
+def _style_detection_axis(ax: plt.Axes, title: str, xlabel: str) -> None:
+    """Apply standard formatting, labels, limits, and grid to a rate axis."""
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylim(-0.05, 1.05)
+    ax.grid(True, linestyle="--", alpha=0.6)
+    ax.legend()
+
+
+def _finish_detection_plot(
+    fig: plt.Figure,
+    axes: np.ndarray,
+    title: str,
+    out_path: Path,
+) -> None:
+    """Apply overall labels, save figure to disk, and close figure."""
+    axes[0].set_ylabel("Detection Rate")
+    fig.suptitle(title, fontsize=13)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
+def _rate_at_size(table: list[dict[str, Any]], target_size: float) -> float:
+    """Find detection rate for a target flaw size from detection table."""
+    matches = [float(row["rate"]) for row in table if np.isclose(row["size"], target_size)]
+    return matches[0] if matches else 0.0
+
+
+def _method_rates_for_size(
+    eval_by_scale: dict[float, Any],
+    scales: tuple[float, ...],
+    size: float,
+) -> list[float]:
+    """Collect detection rates for one method at a target size across noise scales."""
+    return [_rate_at_size(eval_by_scale[sc]["detection_table"], size) for sc in scales]
+
+
+def _plot_size_detection_axis(
+    ax: plt.Axes,
+    eval_by_method: dict[str, dict[float, Any]],
+    scales: tuple[float, ...],
+    size: float,
+) -> None:
+    """Plot detection rate curves for all methods on one flaw size axis."""
+    for m_key, m_lbl, col, mk in _METHOD_STYLES:
+        rates = _method_rates_for_size(eval_by_method[m_key], scales, size)
+        ax.plot(scales, rates, label=m_lbl, color=col, marker=mk, linewidth=2)
+    _style_detection_axis(ax, f"Flaw Size {size:.1f} mm", "Noise Scale")
+
+
 def _plot_detection_vs_noise(
     eval_by_method: dict[str, dict[float, Any]],
     scales: tuple[float, ...],
@@ -385,31 +459,26 @@ def _plot_detection_vs_noise(
 ) -> None:
     """Plot detection rate vs noise scale at matched FCR for 0.4 and 0.8 mm flaws."""
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
-    target_sizes = [0.4, 0.8]
-    methods = [
-        ("rules", "Rules", "black", "s"),
-        ("ml_1d", "ML 1D", "blue", "o"),
-        ("ml_2d", "ML 2D", "red", "^"),
-    ]
+    target_sizes = (0.4, 0.8)
     for ax, sz in zip(axes, target_sizes, strict=True):
-        for m_key, m_lbl, col, mk in methods:
-            rates = []
-            for sc in scales:
-                tbl = eval_by_method[m_key][sc]["detection_table"]
-                match = [row["rate"] for row in tbl if np.isclose(row["size"], sz)]
-                rates.append(match[0] if match else 0.0)
-            ax.plot(scales, rates, label=m_lbl, color=col, marker=mk, linewidth=2)
-        ax.set_title(f"Flaw Size {sz:.1f} mm")
-        ax.set_xlabel("Noise Scale")
-        ax.set_ylim(-0.05, 1.05)
-        ax.grid(True, linestyle="--", alpha=0.6)
-        ax.legend()
-    axes[0].set_ylabel("Detection Rate")
-    fig.suptitle("Detection Rate vs Noise Scale at Matched FCR (Synthetic data)", fontsize=13)
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
+        _plot_size_detection_axis(ax, eval_by_method, scales, sz)
+    title = "Detection Rate vs Noise Scale at Matched FCR (Synthetic data)"
+    _finish_detection_plot(fig, axes, title, out_path)
+
+
+def _plot_scale_pod_axis(
+    ax: plt.Axes,
+    eval_by_method: dict[str, dict[float, Any]],
+    scale: float,
+    sizes: tuple[float, ...],
+) -> None:
+    """Plot detection rate vs flaw size for all methods at one noise scale."""
+    for m_key, m_lbl, col, mk in _METHOD_STYLES:
+        tbl = eval_by_method[m_key][scale]["detection_table"]
+        sz_map = {row["size"]: row["rate"] for row in tbl}
+        rates = [sz_map.get(s, 0.0) for s in sizes]
+        ax.plot(sizes, rates, label=m_lbl, color=col, marker=mk, linewidth=2)
+    _style_detection_axis(ax, f"Noise Scale {scale:.1f}x", "Flaw Diameter (mm)")
 
 
 def _plot_pod_curves(
@@ -419,29 +488,11 @@ def _plot_pod_curves(
 ) -> None:
     """Plot detection rate vs flaw size at noise scales 1.5 and 2.0."""
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
-    target_scales = [1.5, 2.0]
-    methods = [
-        ("rules", "Rules", "black", "s"),
-        ("ml_1d", "ML 1D", "blue", "o"),
-        ("ml_2d", "ML 2D", "red", "^"),
-    ]
+    target_scales = (1.5, 2.0)
     for ax, sc in zip(axes, target_scales, strict=True):
-        for m_key, m_lbl, col, mk in methods:
-            tbl = eval_by_method[m_key][sc]["detection_table"]
-            sz_map = {row["size"]: row["rate"] for row in tbl}
-            rates = [sz_map.get(s, 0.0) for s in sizes]
-            ax.plot(sizes, rates, label=m_lbl, color=col, marker=mk, linewidth=2)
-        ax.set_title(f"Noise Scale {sc:.1f}x")
-        ax.set_xlabel("Flaw Diameter (mm)")
-        ax.set_ylim(-0.05, 1.05)
-        ax.grid(True, linestyle="--", alpha=0.6)
-        ax.legend()
-    axes[0].set_ylabel("Detection Rate")
-    fig.suptitle("Detection Rate vs Flaw Size by Method (Synthetic data)", fontsize=13)
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
+        _plot_scale_pod_axis(ax, eval_by_method, sc, sizes)
+    title = "Detection Rate vs Flaw Size by Method (Synthetic data)"
+    _finish_detection_plot(fig, axes, title, out_path)
 
 
 def _save_metrics_and_figures(

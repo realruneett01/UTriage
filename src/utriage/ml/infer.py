@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
@@ -12,6 +14,15 @@ import torch.nn as nn
 from utriage.ml.datasets import standardise
 from utriage.ml.models import MlNdtNet
 from utriage.ml.train import pick_device
+
+
+@dataclass(frozen=True)
+class LatencySpec:
+    """Benchmark parameters for latency measurement."""
+
+    batch: int = 1
+    size: int = 256
+    repeats: int = 50
 
 
 def save_model(model: nn.Module, path: Path, meta: dict) -> Path:
@@ -64,30 +75,47 @@ def predict_images(
     return np.concatenate(probs_list, axis=0), np.concatenate(sizes_list, axis=0)
 
 
+def _sync_cuda(device: torch.device) -> None:
+    """Synchronize CUDA stream if device is a CUDA GPU."""
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+
+
+def _time_one_pass(model: nn.Module, dummy: torch.Tensor, device: torch.device) -> float:
+    """Time a single forward pass in seconds with proper CUDA synchronization."""
+    _sync_cuda(device)
+    t0 = time.perf_counter()
+    _ = model(dummy)
+    _sync_cuda(device)
+    return time.perf_counter() - t0
+
+
+def _resolve_spec(spec: LatencySpec | int | None, kwargs: dict[str, Any]) -> LatencySpec:
+    """Resolve LatencySpec supporting backward-compatible positional or keyword arguments."""
+    if isinstance(spec, LatencySpec):
+        return spec
+    batch = spec if isinstance(spec, int) else int(kwargs.get("batch", 1))
+    size = int(kwargs.get("size", 256))
+    repeats = int(kwargs.get("repeats", 50))
+    return LatencySpec(batch=batch, size=size, repeats=repeats)
+
+
 def measure_latency(
     model: nn.Module,
     device: torch.device,
-    batch: int,
-    size: int = 256,
-    repeats: int = 50,
+    spec: LatencySpec | int | None = None,
+    **kwargs: Any,
 ) -> float:
     """Measure median milliseconds per image after 10 warmup runs."""
+    cfg = _resolve_spec(spec, kwargs)
     model.eval()
     model.to(device)
-    dummy = torch.zeros((batch, 1, size, size), dtype=torch.float32, device=device)
+    dummy = torch.zeros((cfg.batch, 1, cfg.size, cfg.size), dtype=torch.float32, device=device)
     with torch.no_grad():
         for _ in range(10):
             _ = model(dummy)
-        if device.type == "cuda":
-            torch.cuda.synchronize(device)
-        timings: list[float] = []
-        for _ in range(repeats):
-            if device.type == "cuda":
-                torch.cuda.synchronize(device)
-            t0 = time.perf_counter()
-            _ = model(dummy)
-            if device.type == "cuda":
-                torch.cuda.synchronize(device)
-            t1 = time.perf_counter()
-            timings.append(((t1 - t0) * 1000.0) / batch)
+        _sync_cuda(device)
+        timings = [
+            (_time_one_pass(model, dummy, device) * 1000.0) / cfg.batch for _ in range(cfg.repeats)
+        ]
     return float(np.median(timings))
