@@ -90,7 +90,7 @@ SINGLE_CASES = (
         snr_db=12.0,
         on_fault=True,
         expected_cat="data_quality_fault",
-        expected_reason="data quality fault at this location",
+        expected_reason="data quality fault at this location (re-scan)",
     ),
     SingleRuleCase(
         name="low_snr_insignificant",
@@ -180,14 +180,15 @@ def test_multiple_rule_behaviour(case: MultipleCase) -> None:
         assert has_reason == case.should_have_reason
 
 
-def test_fault_mask_wins_over_amplitude() -> None:
+def test_fault_never_downgrades_rejectable() -> None:
+    """Safety: a data-quality fault must not hide a rejectable indication."""
     cfg = load_acceptance()
     ind = _make_ind(1, 10.0, 150.0, 12.0)
     mask = np.ones((1, 1), dtype=bool)
     result = categorise([ind], cfg, fault_mask=mask)
-    assert result[0].category == "data_quality_fault"
-    assert "data quality fault at this location" in result[0].reasons
-    assert "amplitude" not in result[0].reasons[0]
+    assert result[0].category == "rejectable"
+    assert "re-scan" in result[0].reasons[0]
+    assert "amplitude" in result[0].reasons[0]
 
 
 def test_categorise_preserves_length_and_ids() -> None:

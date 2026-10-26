@@ -9,6 +9,8 @@ import numpy as np
 from utriage.rules.config import AcceptanceConfig
 from utriage.rules.types import CATEGORIES, Indication
 
+_FAULT_REASON = "data quality fault at this location (re-scan)"
+
 
 def _is_fault(fault_mask: np.ndarray | None, ind: Indication) -> bool:
     """Return True if the indication falls on a flagged data quality fault."""
@@ -60,9 +62,22 @@ def _classify_indication(
     is_fault: bool,
     is_multiple: bool,
 ) -> tuple[str, str | None]:
-    """Determine the primary category and primary reason."""
-    if is_fault:
-        return "data_quality_fault", "data quality fault at this location"
+    """Determine the primary category and primary reason.
+
+    Safety: a data-quality fault never downgrades a rejectable or reportable indication; it
+    only adds a re-scan reason. Only indications below the recording level become faults.
+    """
+    category, reason = _amplitude_category(ind, cfg, is_multiple)
+    if not is_fault:
+        return category, reason
+    if category == "insignificant":
+        return "data_quality_fault", _FAULT_REASON
+    return category, f"{reason}; {_FAULT_REASON}" if reason else _FAULT_REASON
+
+
+def _amplitude_category(
+    ind: Indication, cfg: AcceptanceConfig, is_multiple: bool
+) -> tuple[str, str | None]:
     reject_reason = _check_reject(ind, cfg, is_multiple)
     if reject_reason is not None:
         return "rejectable", reject_reason

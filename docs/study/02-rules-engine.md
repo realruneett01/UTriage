@@ -61,7 +61,7 @@ Every indication gets exactly one category (limits come from `acceptance.yaml`):
 | rejectable | `a% ≥ reject_pct`, or length ≥ `max_length_mm`, or too many indications within `multiple_window_mm` |
 | reportable | `record_pct ≤ a% < reject_pct` |
 | insignificant | `a% < record_pct` |
-| data-quality fault | the indication lies where the watchdog flags the data as unreliable |
+| data-quality fault | below recording level and where the watchdog flags the data as unreliable. A fault never downgrades a rejectable or reportable indication; it adds a re-scan reason |
 
 ## 7. Data-quality watchdog
 
@@ -70,7 +70,7 @@ Every indication gets exactly one category (limits come from `acceptance.yaml`):
 | interface missing | no interface crossing in the A-scan |
 | interface unstable / water-path drift | `|t_if − median(t_if)|` above a tolerance (in mm of water) |
 | back-wall drop (loss of back reflection) | back-wall peak below a fraction of the bar's median back-wall peak |
-| noise above limit | flaw-gate noise RMS above `noise_limit` × median |
+| noise above limit | flaw-gate median envelope (robust noise level) above `noise_limit` × its bar median |
 | coverage gap | A-scan is all (near) zero |
 | saturation | any sample at the receiver's full scale |
 | bubble / early echo | an echo before the interface echo |

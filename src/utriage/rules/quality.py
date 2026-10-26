@@ -34,11 +34,9 @@ def _detect_first_crossing(env: np.ndarray, time_us: np.ndarray, threshold: floa
     return time_us[idx]
 
 
-def _gate_rms(env: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    counts = np.sum(mask, axis=-1)
-    sq_sum = np.sum(np.where(mask, env**2, 0.0), axis=-1)
-    mean_sq = np.divide(sq_sum, counts, out=np.zeros_like(sq_sum), where=counts > 0)
-    return np.sqrt(mean_sq)
+def _gate_noise(env: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """Robust noise level: median envelope in the gate, so one flaw echo does not count as noise."""
+    return np.nan_to_num(np.nanmedian(np.where(mask, env, np.nan), axis=-1))
 
 
 def _mask_to_faults(kind: str, mask: np.ndarray, scan: BarScan) -> list[QualityFault]:
@@ -91,7 +89,7 @@ def _check_interface_drop(ctx: _QualityContext) -> np.ndarray:
     time_3d = ctx.scan.time_us[None, None, :]
     in_win = (time_3d >= ctx.t_if[..., None]) & (time_3d <= ctx.t_if[..., None] + 0.3)
     if_peak = np.max(np.where(in_win, ctx.env, 0.0), axis=-1)
-    return _relative_to_median(if_peak, ctx) < 0.5
+    return _relative_to_median(if_peak, ctx) < ctx.cfg.quality.interface_drop_ratio
 
 
 def _check_waterpath_drift(ctx: _QualityContext) -> np.ndarray:
@@ -121,7 +119,7 @@ def _check_noise_above_limit(ctx: _QualityContext) -> np.ndarray:
     depth = _depth(ctx)
     z_end = ctx.scan.spec.diameter_mm - ctx.cfg.gates.back_margin_mm
     in_flaw = (depth >= ctx.cfg.gates.front_dead_zone_mm) & (depth <= z_end)
-    rms = _gate_rms(ctx.env, in_flaw)
+    rms = _gate_noise(ctx.env, in_flaw)
     return _relative_to_median(rms, ctx) > ctx.cfg.quality.noise_limit_ratio
 
 

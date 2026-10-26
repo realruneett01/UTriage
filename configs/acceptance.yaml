@@ -29,8 +29,9 @@ snr:
 
 quality:
   waterpath_tolerance_mm: 1.0   # interface drift tolerance (mm of water path)
+  interface_drop_ratio: 0.75    # interface peak below this x median -> interface drop (unstable coupling)
   backwall_drop_ratio: 0.5      # back-wall peak below this x median -> back-wall loss
-  noise_limit_ratio: 2.5        # flaw-gate noise RMS above this x median -> noise above limit
+  noise_limit_ratio: 2.5        # flaw-gate median envelope above this x median -> noise above limit
   coverage_floor: 0.001         # A-scan max |amplitude| below this -> no data (coverage gap)
   saturation_level: 0.999       # |sample| at or above this -> saturation
   early_echo_threshold: 0.15    # envelope above this before the interface -> bubble / early echo

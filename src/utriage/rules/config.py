@@ -54,6 +54,7 @@ class Quality(_Frozen):
     """Data-quality watchdog limits."""
 
     waterpath_tolerance_mm: float
+    interface_drop_ratio: float
     backwall_drop_ratio: float
     noise_limit_ratio: float
     coverage_floor: float
