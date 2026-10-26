@@ -19,6 +19,8 @@ from utriage.ml.datasets import (  # noqa: E402
     MlNdtDataset,
     list_batches,
     read_batch,
+    read_image,
+    read_labels,
     split_holdout,
     standardise,
 )
@@ -159,18 +161,28 @@ def test_dataset_size_128_pooling(fake_dataset_root: Path) -> None:
     assert torch.allclose(x_128, expected, atol=1e-6)
 
 
-def test_dataset_lazy_caching(fake_dataset_root: Path) -> None:
-    """Memmaps and labels are opened lazily and cached per batch index."""
+def test_dataset_lazy_label_cache(fake_dataset_root: Path) -> None:
+    """Labels are read lazily and cached per batch; images are never cached."""
     train_batches = list_batches("training", root=fake_dataset_root)
     dataset = MlNdtDataset(train_batches, size=256)
 
-    assert len(dataset._cache) == 0
+    assert len(dataset._labels) == 0
     _ = dataset[5]
-    assert set(dataset._cache.keys()) == {0}
+    assert set(dataset._labels.keys()) == {0}
     _ = dataset[95]
-    assert set(dataset._cache.keys()) == {0}
+    assert set(dataset._labels.keys()) == {0}
     _ = dataset[105]
-    assert set(dataset._cache.keys()) == {0, 1}
+    assert set(dataset._labels.keys()) == {0, 1}
+    assert not hasattr(dataset, "_cache")
+
+
+def test_read_image_matches_batch(fake_dataset_root: Path) -> None:
+    """Offset reads return exactly the image the memmap batch view returns."""
+    bins = list_batches("training", root=fake_dataset_root)[0]
+    mmap, labels = read_batch(bins)
+    for idx in (0, 37, 99):
+        np.testing.assert_array_equal(read_image(bins, idx), np.asarray(mmap[idx]))
+    np.testing.assert_array_equal(read_labels(bins), labels)
 
 
 @pytest.mark.skipif(not MLNDT_ROOT.exists(), reason="MLNDT_ROOT does not exist")

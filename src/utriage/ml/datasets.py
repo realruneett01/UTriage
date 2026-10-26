@@ -66,24 +66,40 @@ def standardise(img: np.ndarray) -> np.ndarray:
     return ((x - mean) / (std + 1e-5)).astype(np.float32)
 
 
+_IMG_PIXELS = 256 * 256
+
+
+def read_image(bins: Path, image_idx: int) -> np.ndarray:
+    """Read one uint16 256x256 image straight from disk (no memory map kept open)."""
+    offset = image_idx * _IMG_PIXELS * np.dtype(np.uint16).itemsize
+    flat = np.fromfile(bins, dtype=np.uint16, count=_IMG_PIXELS, offset=offset)
+    return flat.reshape(256, 256)
+
+
+def read_labels(bins: Path) -> np.ndarray:
+    """Labels (100, 2) float32 for the batch whose .bins path is given."""
+    labels = np.loadtxt(Path(bins).with_suffix(".labels"), dtype=np.float32)
+    return labels.reshape(-1, 2)
+
+
 class MlNdtDataset(Dataset):
-    """PyTorch Dataset streaming ML-NDT batches lazily via memmaps."""
+    """PyTorch Dataset streaming ML-NDT images from disk one at a time (bounded RAM)."""
 
     def __init__(self, batches: list[Path], size: int = 256) -> None:
         if size not in (128, 256):
             raise ValueError(f"Unsupported size: {size}. Expected 128 or 256.")
         self.batches: list[Path] = [Path(b) for b in batches]
         self.size: int = size
-        self._cache: dict[int, tuple[np.memmap, np.ndarray]] = {}
+        self._labels: dict[int, np.ndarray] = {}
 
     def __len__(self) -> int:
         return 100 * len(self.batches)
 
-    def _get_batch(self, batch_idx: int) -> tuple[np.memmap, np.ndarray]:
-        """Fetch or lazily load and cache a batch memmap and its labels."""
-        if batch_idx not in self._cache:
-            self._cache[batch_idx] = read_batch(self.batches[batch_idx])
-        return self._cache[batch_idx]
+    def _get_labels(self, batch_idx: int) -> np.ndarray:
+        """Labels of one batch, cached (small). Images are never cached."""
+        if batch_idx not in self._labels:
+            self._labels[batch_idx] = read_labels(self.batches[batch_idx])
+        return self._labels[batch_idx]
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if index < 0:
@@ -93,9 +109,9 @@ class MlNdtDataset(Dataset):
 
         batch_idx = index // 100
         image_idx = index % 100
-        mmap, labels = self._get_batch(batch_idx)
+        labels = self._get_labels(batch_idx)
 
-        img_std = standardise(mmap[image_idx])
+        img_std = standardise(read_image(self.batches[batch_idx], image_idx))
         x = torch.from_numpy(img_std).unsqueeze(0)
         if self.size == 128:
             x = F.avg_pool2d(x.unsqueeze(0), kernel_size=2, stride=2).squeeze(0)
