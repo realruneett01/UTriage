@@ -42,7 +42,12 @@ from utriage.rules.config import load_acceptance
 from utriage.rules.pipeline import evaluate_scan
 from utriage.rules.scoring import MatchTol, matches
 from utriage.rules.types import Indication
-from utriage.triage.campaign import item_is_real, random_order_effort, review_effort
+from utriage.triage.campaign import (
+    item_is_real,
+    random_order_effort,
+    review_effort,
+    split_exchangeable,
+)
 from utriage.triage.fusion import FusionConfig, TriageItem, fuse, rank, rules_flags_preserved
 from utriage.triage.operating_point import OperatingPoint, choose_operating_point
 from utriage.triage.uncertainty import (
@@ -62,9 +67,16 @@ class _CalData:
 
 
 @dataclass(frozen=True)
+class _WindowData:
+    wset: Any
+    cal_mask: np.ndarray
+    eval_mask: np.ndarray
+
+
+@dataclass(frozen=True)
 class _RankingContext:
     model: WindowNet
-    op: OperatingPoint
+    threshold: float
     rng: np.random.Generator
     bar_idx: int
     device: str
@@ -111,6 +123,23 @@ def _find_model_path() -> Path:
     return Path("models") / model_name
 
 
+def _load_matched_threshold() -> float:
+    """Read Phase 4 matched-false-call threshold for the kept model."""
+    path = Path("results/bar_domain_metrics.json")
+    if path.exists():
+        try:
+            with open(path, encoding="utf-8") as fh:
+                meta = json.load(fh)
+            choice = meta.get("kept_model", {}).get("choice", "ml_2d")
+            thresh = meta.get("thresholds", {}).get(choice, {}).get("overall")
+            if thresh is not None:
+                return float(thresh)
+        except (json.JSONDecodeError, KeyError, OSError):
+            # Fall back to default matched threshold if metrics cannot be parsed
+            return 0.8373624086380005
+    return 0.8373624086380005
+
+
 @torch.no_grad()
 def _predict_flaw_probs(
     model: WindowNet,
@@ -134,13 +163,14 @@ def _predict_flaw_probs(
 def _run_conformal(
     all_probs: np.ndarray,
     all_labels: np.ndarray,
-    split_idx: int,
+    cal_mask: np.ndarray,
+    eval_mask: np.ndarray,
 ) -> tuple[Conformal, dict[str, Any]]:
-    """Calibrate conformal prediction on first half and evaluate on second."""
-    cal_probs = all_probs[:split_idx]
-    cal_labels = all_labels[:split_idx]
-    eval_probs = all_probs[split_idx:]
-    eval_labels = all_labels[split_idx:]
+    """Calibrate conformal prediction on cal_mask and evaluate on eval_mask."""
+    cal_probs = all_probs[cal_mask]
+    cal_labels = all_labels[cal_mask]
+    eval_probs = all_probs[eval_mask]
+    eval_labels = all_labels[eval_mask]
 
     conf = fit_conformal(cal_probs, cal_labels, alpha=0.1)
     sets = prediction_sets(conf, eval_probs)
@@ -283,10 +313,10 @@ def _run_single_bar_ranking(ctx: _RankingContext) -> dict[str, Any]:
     eval_res = evaluate_scan(scan, acceptance_cfg)
     rule_inds = eval_res.indications
 
-    settings = ScanSettings(threshold=ctx.op.threshold)
+    settings = ScanSettings(threshold=ctx.threshold)
     findings = scan_bar(ctx.model, scan, settings=settings, device=ctx.device)
 
-    fused_items = fuse(rule_inds, findings, FusionConfig(ml_threshold=ctx.op.threshold))
+    fused_items = fuse(rule_inds, findings, FusionConfig(ml_threshold=ctx.threshold))
     ranked_items = rank(fused_items)
 
     preserved = rules_flags_preserved(rule_inds, ranked_items)
@@ -299,6 +329,11 @@ def _run_single_bar_ranking(ctx: _RankingContext) -> dict[str, Any]:
     effort_rand = random_order_effort(ranked_real, n_real, n_perm=200, seed=bar_seed)
 
     rules_found, union_found = _evaluate_bar_flaws(ranked_items, rule_inds, scan.spec, scan)
+    ml_fc = sum(
+        1
+        for it, is_real in zip(ranked_items, ranked_real, strict=True)
+        if it.category == "ml_flag" and not is_real
+    )
 
     return {
         "bar_idx": ctx.bar_idx,
@@ -310,13 +345,42 @@ def _run_single_bar_ranking(ctx: _RankingContext) -> dict[str, Any]:
         "n_items": len(ranked_items),
         "n_rules": len(rule_inds),
         "n_ml_only": len(ranked_items) - len(rule_inds),
+        "ml_flag_false_calls": ml_fc,
         "preserved": preserved,
+    }
+
+
+def _summarize_ranking(
+    per_bar: list[dict[str, Any]],
+    threshold: float,
+    union_violations: int,
+) -> dict[str, Any]:
+    """Aggregate per-bar ranking metrics into summary dict."""
+    valid_ranked = [r["effort_ranked"] for r in per_bar if r["effort_ranked"] is not None]
+    valid_rand = [r["effort_random"] for r in per_bar if r["effort_random"] is not None]
+    total_planted = sum(r["n_planted"] for r in per_bar)
+    total_rules = sum(r["rules_found"] for r in per_bar)
+    total_union = sum(r["union_found"] for r in per_bar)
+    total_ml_fc = sum(r["ml_flag_false_calls"] for r in per_bar)
+    n = len(per_bar)
+
+    return {
+        "mean_effort_ranked": float(np.mean(valid_ranked)) if valid_ranked else None,
+        "mean_effort_random": float(np.mean(valid_rand)) if valid_rand else None,
+        "flaws_found_rules_only": float(total_rules / total_planted) if total_planted > 0 else 0.0,
+        "flaws_found_union": float(total_union / total_planted) if total_planted > 0 else 0.0,
+        "ml_false_calls_per_bar": float(total_ml_fc / n) if n > 0 else 0.0,
+        "ml_flag_false_calls_per_bar": float(total_ml_fc / n) if n > 0 else 0.0,
+        "threshold": float(threshold),
+        "n_bars": n,
+        "per_bar": per_bar,
+        "union_violations": union_violations,
     }
 
 
 def _run_ranking_campaign(
     model: WindowNet,
-    op: OperatingPoint,
+    threshold: float,
     cfg: _RunConfig,
 ) -> dict[str, Any]:
     """Execute ranking evaluation across synthetic bars."""
@@ -326,7 +390,13 @@ def _run_ranking_campaign(
     union_violations = 0
 
     for idx in range(n_bars):
-        ctx = _RankingContext(model=model, op=op, rng=rng, bar_idx=idx, device=cfg.device)
+        ctx = _RankingContext(
+            model=model,
+            threshold=threshold,
+            rng=rng,
+            bar_idx=idx,
+            device=cfg.device,
+        )
         res = _run_single_bar_ranking(ctx)
         if not res["preserved"]:
             union_violations += 1
@@ -336,21 +406,101 @@ def _run_ranking_campaign(
             f"rand effort={res['effort_random']}, flaws={res['union_found']}/{res['n_planted']}"
         )
 
-    valid_ranked = [r["effort_ranked"] for r in per_bar if r["effort_ranked"] is not None]
-    valid_rand = [r["effort_random"] for r in per_bar if r["effort_random"] is not None]
-    total_planted = sum(r["n_planted"] for r in per_bar)
-    total_rules = sum(r["rules_found"] for r in per_bar)
-    total_union = sum(r["union_found"] for r in per_bar)
+    return _summarize_ranking(per_bar, threshold, union_violations)
 
-    return {
-        "mean_effort_ranked": float(np.mean(valid_ranked)) if valid_ranked else None,
-        "mean_effort_random": float(np.mean(valid_rand)) if valid_rand else None,
-        "flaws_found_rules_only": float(total_rules / total_planted) if total_planted > 0 else 0.0,
-        "flaws_found_union": float(total_union / total_planted) if total_planted > 0 else 0.0,
-        "n_bars": len(per_bar),
-        "per_bar": per_bar,
-        "union_violations": union_violations,
+
+def _prepare_test_windows(cfg: _RunConfig, is_patch: bool) -> _WindowData:
+    """Create synthetic test set and stratified exchangeable split masks."""
+    n_test_bars = 2 if cfg.quick else 12
+    wcfg = WindowConfig(patch=is_patch, seed=cfg.seed)
+    sizes_mm = (0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2)
+    noise_scales = (0.5, 1.0, 1.5, 2.0)
+    print(f"Generating test windows (n_bars={n_test_bars}, patch={is_patch})...")
+    wset = make_test_set(wcfg, n_bars=n_test_bars, sizes_mm=sizes_mm, noise_scales=noise_scales)
+
+    bar_noise = np.repeat(noise_scales, n_test_bars)
+    cal_bar_m, eval_bar_m = split_exchangeable(bar_noise, seed=cfg.seed)
+    win_per_bar = 2 * len(sizes_mm)
+    cal_mask = np.repeat(cal_bar_m, win_per_bar)
+    eval_mask = np.repeat(eval_bar_m, win_per_bar)
+    return _WindowData(wset=wset, cal_mask=cal_mask, eval_mask=eval_mask)
+
+
+def _calibrate_and_select_op(
+    model: WindowNet,
+    data: _WindowData,
+    device: str,
+) -> tuple[dict[str, Any], OperatingPoint]:
+    """Fit conformal prediction and select operating point."""
+    dev = torch.device(device)
+    all_probs = _predict_flaw_probs(model, data.wset.x, dev)
+    all_labels = (data.wset.y == 1).astype(int)
+
+    _, conf_res = _run_conformal(all_probs, all_labels, data.cal_mask, data.eval_mask)
+    cal_data = _CalData(
+        probs=all_probs[data.cal_mask],
+        labels=all_labels[data.cal_mask],
+        sizes=data.wset.size_mm[data.cal_mask],
+    )
+    eval_noise = all_probs[data.eval_mask][all_labels[data.eval_mask] == 0]
+    op, eval_fcr = _run_operating_point(cal_data, eval_noise)
+    print(
+        f"Conformal: coverage={conf_res['coverage']:.3f}, "
+        f"uncertain={conf_res['uncertain_fraction']:.3f}"
+    )
+    print(
+        f"Operating point: threshold={op.threshold:.4f}, method={op.method}, "
+        f"eval FCR={eval_fcr:.4f}"
+    )
+    return conf_res, op
+
+
+def _run_both_rankings(
+    model: WindowNet,
+    op_thresh: float,
+    cfg: _RunConfig,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run ranking campaigns at operating point and matched false-call threshold."""
+    print("Running ranking campaign at operating point...")
+    ranking_op = _run_ranking_campaign(model, op_thresh, cfg)
+    print(
+        f"Ranking (op): mean ranked={ranking_op['mean_effort_ranked']}, "
+        f"mean random={ranking_op['mean_effort_random']}"
+    )
+
+    matched_thresh = _load_matched_threshold()
+    print(f"Running ranking campaign at matched FCR threshold ({matched_thresh:.4f})...")
+    ranking_matched = _run_ranking_campaign(model, matched_thresh, cfg)
+    print(
+        f"Ranking (matched FCR): mean ranked={ranking_matched['mean_effort_ranked']}, "
+        f"mean random={ranking_matched['mean_effort_random']}"
+    )
+    return ranking_op, ranking_matched
+
+
+def _save_phase5_metrics(
+    conf_res: dict[str, Any],
+    op: OperatingPoint,
+    rank_op: dict[str, Any],
+    rank_matched: dict[str, Any],
+) -> None:
+    """Save combined Phase 5 triage metrics to JSON."""
+    output = {
+        "label": "Synthetic data",
+        "conformal": conf_res,
+        "operating_point": asdict(op),
+        "ranking": {
+            "operating_point": rank_op,
+            "matched_fcr": rank_matched,
+        },
+        "union_violations": rank_op["union_violations"] + rank_matched["union_violations"],
+        "property_test": "tests/test_fusion.py 10,000 examples",
     }
+    out_path = Path("results/triage_metrics.json")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as fh:
+        json.dump(output, fh, indent=2)
+    print(f"Results written to {out_path}")
 
 
 def _execute_phase5(cfg: _RunConfig) -> None:
@@ -361,66 +511,10 @@ def _execute_phase5(cfg: _RunConfig) -> None:
     model, _ = load_window_model(model_path, device=device)
     is_patch = getattr(model.stem[0], "in_channels", 1) == 9
 
-    n_test_bars = 2 if cfg.quick else 12
-    wcfg = WindowConfig(patch=is_patch, seed=cfg.seed)
-    sizes_mm = (0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2)
-    noise_scales = (0.5, 1.0, 1.5, 2.0)
-    print(f"Generating test windows (n_bars={n_test_bars}, patch={is_patch})...")
-    wset = make_test_set(wcfg, n_bars=n_test_bars, sizes_mm=sizes_mm, noise_scales=noise_scales)
-
-    total_bars = len(noise_scales) * n_test_bars
-    windows_per_bar = 2 * len(sizes_mm)
-    split_idx = (total_bars // 2) * windows_per_bar
-
-    dev = torch.device(device)
-    all_probs = _predict_flaw_probs(model, wset.x, dev)
-    all_labels = (wset.y == 1).astype(int)
-
-    conf, conformal_res = _run_conformal(all_probs, all_labels, split_idx)
-    print(
-        f"Conformal: coverage={conformal_res['coverage']:.3f}, "
-        f"uncertain={conformal_res['uncertain_fraction']:.3f}"
-    )
-
-    cal_data = _CalData(
-        probs=all_probs[:split_idx],
-        labels=all_labels[:split_idx],
-        sizes=wset.size_mm[:split_idx],
-    )
-    eval_noise = all_probs[split_idx:][all_labels[split_idx:] == 0]
-    op, eval_fcr = _run_operating_point(cal_data, eval_noise)
-    print(
-        f"Operating point: threshold={op.threshold:.4f}, method={op.method}, "
-        f"eval FCR={eval_fcr:.4f}"
-    )
-
-    ranking_summary = _run_ranking_campaign(model, op, cfg)
-    print(
-        f"Ranking: mean ranked={ranking_summary['mean_effort_ranked']}, "
-        f"mean random={ranking_summary['mean_effort_random']}"
-    )
-
-    output = {
-        "label": "Synthetic data",
-        "conformal": conformal_res,
-        "operating_point": asdict(op),
-        "ranking": {
-            "mean_effort_ranked": ranking_summary["mean_effort_ranked"],
-            "mean_effort_random": ranking_summary["mean_effort_random"],
-            "flaws_found_rules_only": ranking_summary["flaws_found_rules_only"],
-            "flaws_found_union": ranking_summary["flaws_found_union"],
-            "n_bars": ranking_summary["n_bars"],
-            "per_bar": ranking_summary["per_bar"],
-        },
-        "union_violations": ranking_summary["union_violations"],
-        "property_test": "tests/test_fusion.py 10,000 examples",
-    }
-
-    out_path = Path("results/triage_metrics.json")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", encoding="utf-8") as fh:
-        json.dump(output, fh, indent=2)
-    print(f"Results written to {out_path}")
+    data = _prepare_test_windows(cfg, is_patch)
+    conf_res, op = _calibrate_and_select_op(model, data, device)
+    rank_op, rank_matched = _run_both_rankings(model, op.threshold, cfg)
+    _save_phase5_metrics(conf_res, op, rank_op, rank_matched)
 
 
 def main() -> None:

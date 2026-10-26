@@ -21,7 +21,12 @@ from utriage.physics.simulator import (
 )
 from utriage.rules.scoring import MatchTol
 from utriage.rules.types import Indication
-from utriage.triage.campaign import item_is_real, random_order_effort, review_effort
+from utriage.triage.campaign import (
+    item_is_real,
+    random_order_effort,
+    review_effort,
+    split_exchangeable,
+)
 from utriage.triage.fusion import MlFinding, TriageItem
 
 
@@ -186,3 +191,30 @@ def test_item_is_real_empty_item_and_custom_tol() -> None:
     item = TriageItem(source="rules", category="rejectable", indication=ind, ml=None)
     strict_tol = MatchTol(axial_mm=0.5, arc_mm=0.5, depth_mm=0.5)
     assert item_is_real(item, spec, scan, tol=strict_tol) is False
+
+
+def test_split_exchangeable_determinism() -> None:
+    """Verify split_exchangeable produces identical boolean masks for fixed seed."""
+    groups = np.repeat([0.5, 1.0, 1.5, 2.0], 12)
+    mask_a1, mask_b1 = split_exchangeable(groups, seed=42)
+    mask_a2, mask_b2 = split_exchangeable(groups, seed=42)
+    np.testing.assert_array_equal(mask_a1, mask_a2)
+    np.testing.assert_array_equal(mask_b1, mask_b2)
+    assert not np.any(mask_a1 & mask_b1)
+    assert np.all(mask_a1 | mask_b1)
+
+
+@pytest.mark.parametrize("n_per_group", [2, 12, 13])
+def test_split_exchangeable_50_50_split(n_per_group: int) -> None:
+    """Verify each noise group is split ~50/50 between calibration and test."""
+    scales = [0.5, 1.0, 1.5, 2.0]
+    groups = np.repeat(scales, n_per_group)
+    mask_a, mask_b = split_exchangeable(groups, seed=0)
+    for s in scales:
+        g_idx = groups == s
+        count_a = int(np.sum(mask_a[g_idx]))
+        count_b = int(np.sum(mask_b[g_idx]))
+        assert count_a + count_b == n_per_group
+        assert abs(count_a - count_b) <= 1
+        if n_per_group % 2 == 0:
+            assert count_a == n_per_group // 2

@@ -97,8 +97,25 @@ def random_order_effort(
     return float(np.mean(efforts)) if efforts else float("nan")
 
 
+def split_exchangeable(groups: np.ndarray, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    """Stratified 50/50 split of groups using a seeded random permutation."""
+    arr = np.asarray(groups)
+    n = len(arr)
+    mask_a = np.zeros(n, dtype=bool)
+    mask_b = np.zeros(n, dtype=bool)
+    rng = np.random.default_rng(seed)
+    for g in np.unique(arr):
+        idx = np.where(arr == g)[0]
+        perm = rng.permutation(idx)
+        half = len(perm) // 2
+        mask_a[perm[:half]] = True
+        mask_b[perm[half:]] = True
+    return mask_a, mask_b
+
+
 __all__ = [
     "item_is_real",
     "random_order_effort",
     "review_effort",
+    "split_exchangeable",
 ]
