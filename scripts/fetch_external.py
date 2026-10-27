@@ -14,6 +14,7 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -23,6 +24,8 @@ _UNIT_FACTORS = {
     "kb": 1.0 / (1024.0 * 1024.0),
     "tb": 1024.0,
 }
+
+HONEST_USER_AGENT = "utriage-research-fetch (research project; contact: github.com/utriage)"
 
 
 @dataclass(frozen=True)
@@ -88,7 +91,11 @@ def write_sha256sums(directory: Path) -> Path:
     return out_file
 
 
-def write_source_txt(directory: Path, entry: dict) -> Path:
+def write_source_txt(
+    directory: Path,
+    entry: dict,
+    extra_lines: list[str] | None = None,
+) -> Path:
     """Write provenance information (url, doi, licence, access date) to SOURCE.txt."""
     lines = [
         f"url: {entry.get('url')}",
@@ -96,6 +103,8 @@ def write_source_txt(directory: Path, entry: dict) -> Path:
         f"licence: {entry.get('licence')}",
         f"accessed: {entry.get('accessed')}",
     ]
+    if extra_lines:
+        lines.extend(extra_lines)
     out_file = directory / "SOURCE.txt"
     out_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return out_file
@@ -135,7 +144,7 @@ def download_file(url: str, dest_path: Path, timeout: int = 60) -> None:
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     req = urllib.request.Request(  # noqa: S310
         url,
-        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) UTriage/1.0"},
+        headers={"User-Agent": HONEST_USER_AGENT},
     )
     with (
         urllib.request.urlopen(req, timeout=timeout) as resp,  # noqa: S310
@@ -150,7 +159,7 @@ def fetch_tubers(entry: dict, target_dir: Path, timeout: int) -> None:
     api_url = "https://zenodo.org/api/records/11239514"
     req = urllib.request.Request(  # noqa: S310
         api_url,
-        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) UTriage/1.0"},
+        headers={"User-Agent": HONEST_USER_AGENT},
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
         data = json.loads(resp.read().decode("utf-8"))
@@ -163,22 +172,148 @@ def fetch_tubers(entry: dict, target_dir: Path, timeout: int) -> None:
         zf.extractall(target_dir)
 
 
-def fetch_strathclyde(entry: dict, target_dir: Path, timeout: int) -> None:
-    """Parse Pure portal dataset page and download 260 MB lack-of-fusion .mat file."""
-    page_url = entry.get("url")
-    if not page_url:
-        raise ValueError("Strathclyde dataset entry has no URL")
+def _is_challenge_or_html(content_type: str, initial_chunk: bytes) -> bool:
+    """Check if response is HTML or a challenge/login page."""
+    if "text/html" in content_type:
+        return True
+    lowered = initial_chunk.lower()
+    markers = (b"<!doctype html", b"<html", b"<head", b"challenge", b"login")
+    return any(marker in lowered for marker in markers)
+
+
+def _save_stream_or_detect_page(
+    resp: Any,
+    dest_path: Path,
+) -> tuple[bool, str]:
+    """Inspect response and either save binary stream or detect challenge/HTML page."""
+    status_code = getattr(resp, "status", 200)
+    if status_code in (401, 403, 429):
+        return False, f"HTTP {status_code}"
+    content_type = str(resp.headers.get("Content-Type", "")).lower()
+    first_chunk = resp.read(65536)
+    if _is_challenge_or_html(content_type, first_chunk):
+        return False, "login/challenge page (HTML content)"
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    with dest_path.open("wb") as fh:
+        fh.write(first_chunk)
+        while chunk := resp.read(65536):
+            fh.write(chunk)
+    return True, "downloaded"
+
+
+def _attempt_doi_route(
+    doi: str,
+    dest_path: Path,
+    timeout: int,
+) -> tuple[bool, str]:
+    """Route A: Resolve DOI following normal redirects."""
+    if not doi:
+        return False, "missing DOI"
+    url = f"https://doi.org/{doi}"
     req = urllib.request.Request(  # noqa: S310
-        page_url,
-        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) UTriage/1.0"},
+        url,
+        headers={"User-Agent": HONEST_USER_AGENT},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-        html = resp.read().decode("utf-8", errors="ignore")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            return _save_stream_or_detect_page(resp, dest_path)
+    except urllib.error.HTTPError as exc:
+        return False, f"HTTP {exc.code} {exc.reason}"
+    except Exception as exc:  # reason: network or socket error during DOI resolution
+        return False, str(exc)
+
+
+def _fetch_page_html(url: str, timeout: int) -> tuple[str | None, str]:
+    """Fetch HTML content from dataset page with honest user agent."""
+    req = urllib.request.Request(  # noqa: S310
+        url,
+        headers={"User-Agent": HONEST_USER_AGENT},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            if getattr(resp, "status", 200) in (401, 403, 429):
+                return None, f"HTTP {resp.status}"
+            html = resp.read().decode("utf-8", errors="ignore")
+            return html, "ok"
+    except urllib.error.HTTPError as exc:
+        return None, f"HTTP {exc.code} {exc.reason}"
+    except Exception as exc:  # reason: network failure during page fetch
+        return None, str(exc)
+
+
+def _attempt_file_link_route(
+    page_url: str,
+    dest_path: Path,
+    timeout: int,
+) -> tuple[bool, str]:
+    """Route B: Fetch file link published on dataset page."""
+    html, status = _fetch_page_html(page_url, timeout)
+    if html is None:
+        return False, status
     file_url = extract_strathclyde_download_url(html, page_url)
     if not file_url:
-        raise ValueError("Could not find Lack_of_fusion_FMC_DORT_2016 link on Pure page")
+        return False, "file link not found on dataset page"
+    req = urllib.request.Request(  # noqa: S310
+        file_url,
+        headers={"User-Agent": HONEST_USER_AGENT},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            return _save_stream_or_detect_page(resp, dest_path)
+    except urllib.error.HTTPError as exc:
+        return False, f"HTTP {exc.code} {exc.reason}"
+    except Exception as exc:  # reason: network failure during file download
+        return False, str(exc)
+
+
+def _record_strathclyde_success(
+    target_dir: Path,
+    entry: dict,
+    route_name: str,
+) -> None:
+    """Record successful download route and print confirmation."""
+    extra = ["download_status: downloaded", f"route_worked: {route_name}"]
+    write_source_txt(target_dir, entry, extra)
+    print(f"[strathclyde] downloaded via {route_name}")
+
+
+def _record_strathclyde_failure(
+    target_dir: Path,
+    entry: dict,
+    status_a: str,
+    status_b: str,
+) -> None:
+    """Record failing route statuses and print access notice."""
+    extra = [
+        "download_status: not_downloaded",
+        f"route_a_doi: {status_a}",
+        f"route_b_file_link: {status_b}",
+        "action: request access from the data owner (Strathclyde Pure dataset page contact)",
+    ]
+    write_source_txt(target_dir, entry, extra)
+    content = (target_dir / "SOURCE.txt").read_text(encoding="utf-8")
+    print(content)
+    print("request access from the data owner (Strathclyde Pure dataset page contact)")
+
+
+def fetch_strathclyde(entry: dict, target_dir: Path, timeout: int) -> bool:
+    """Fetch Strathclyde FMC dataset trying DOI and published file link routes."""
+    page_url = entry.get("url", "")
+    doi = entry.get("doi", "")
     dest_file = target_dir / "Lack_of_fusion_FMC_DORT_2016.mat"
-    download_file(file_url, dest_file, timeout=timeout)
+
+    route_a_ok, status_a = _attempt_doi_route(doi, dest_file, timeout)
+    if route_a_ok:
+        _record_strathclyde_success(target_dir, entry, "route_a (doi_resolve)")
+        return True
+
+    route_b_ok, status_b = _attempt_file_link_route(page_url, dest_file, timeout)
+    if route_b_ok:
+        _record_strathclyde_success(target_dir, entry, "route_b (file_link)")
+        return True
+
+    _record_strathclyde_failure(target_dir, entry, status_a, status_b)
+    return False
 
 
 def fetch_ndt_ml_flaw(entry: dict, target_dir: Path, timeout: int) -> None:
@@ -251,7 +386,13 @@ def process_dataset(entry: dict, options: FetchOptions) -> FetchResult:
     target_dir.mkdir(parents=True, exist_ok=True)
     try:
         recipe_fn = RECIPES[name]
-        recipe_fn(entry, target_dir, options.timeout)
+        outcome = recipe_fn(entry, target_dir, options.timeout)
+        if outcome is False:
+            return FetchResult(
+                name=name,
+                status="not_downloaded",
+                reason="request access from the data owner (Strathclyde Pure dataset page contact)",
+            )
         write_source_txt(target_dir, entry)
         write_sha256sums(target_dir)
         size, files = compute_dir_metrics(target_dir)
