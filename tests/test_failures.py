@@ -399,3 +399,86 @@ def test_summary_text_built_from_counts_no_fixed_prose() -> None:
     assert "acoustic interface reflections" not in md
     assert "Rayleigh scattering" not in md
     assert "Background grain scattering peaks" not in md
+
+
+def test_false_calls_only_at_or_above_threshold(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify false calls are counted and collected only when clean score >= 0.5."""
+    from experiments.run_failures import FoldContext, _process_false_calls
+
+    fake_img = _make_test_image(peak_row=128, peak_val=500.0, noise_amp=10.0)
+    monkeypatch.setattr("experiments.run_failures.read_image", lambda path, idx: fake_img)
+    monkeypatch.setattr("experiments.run_failures.read_flaw_meta", lambda path: [{}] * 6)
+
+    test_items = [(Path("batch_01.bins"), i) for i in range(6)]
+    flawed = np.array([True, True, False, False, False, False])
+    probs = np.array([0.90, 0.30, 0.80, 0.55, 0.48, 0.10])
+    ctx = FoldContext("f1", test_items, flawed, ~flawed, probs >= 0.5, probs, tmp_path)
+
+    fc_recs, fc_counts = _process_false_calls(ctx, max_cases=20)
+    assert sum(fc_counts.values()) == 2
+    assert len(fc_recs) == 2
+    assert all(r["kind"] == "false_call" and r["score"] >= 0.5 for r in fc_recs)
+
+    zero_probs = np.array([0.90, 0.30, 0.49, 0.40, 0.30, 0.10])
+    zero_ctx = FoldContext(
+        "f0", test_items, flawed, ~flawed, zero_probs >= 0.5, zero_probs, tmp_path
+    )
+    zero_recs, zero_counts = _process_false_calls(zero_ctx, max_cases=20)
+    assert zero_recs == []
+    assert zero_counts == {}
+
+
+def test_near_misses_clean_saved_separately(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify clean images below threshold are saved as near misses and not false calls."""
+    from experiments.run_failures import (
+        FoldContext,
+        _process_near_misses_clean,
+        _write_cases_json,
+    )
+
+    fake_img = _make_test_image(peak_row=128, peak_val=500.0, noise_amp=10.0)
+    monkeypatch.setattr("experiments.run_failures.read_image", lambda path, idx: fake_img)
+    monkeypatch.setattr("experiments.run_failures.read_flaw_meta", lambda path: [{}] * 6)
+
+    test_items = [(Path("batch_01.bins"), i) for i in range(6)]
+    flawed = np.array([True, True, False, False, False, False])
+    probs = np.array([0.90, 0.30, 0.80, 0.55, 0.48, 0.10])
+    ctx = FoldContext("f1", test_items, flawed, ~flawed, probs >= 0.5, probs, tmp_path)
+
+    clean_recs = _process_near_misses_clean(ctx, max_cases=2)
+    assert len(clean_recs) == 2
+    assert [r["score"] for r in clean_recs] == [pytest.approx(0.48), pytest.approx(0.10)]
+    assert all(r["kind"] == "near_miss_clean" for r in clean_recs)
+
+    cases_file = _write_cases_json(tmp_path, [], [], clean_recs)
+    data = json.loads(cases_file.read_text(encoding="utf-8"))
+    assert len(data["false_calls"]) == 0
+    assert len(data["near_misses_clean"]) == 2
+
+
+def test_zero_false_calls_markdown_summary() -> None:
+    """Verify markdown states '0 false calls; top clean scores listed as near misses.'"""
+    summaries = [
+        {
+            "fold": "crack_1.6",
+            "n_misses": 5,
+            "miss_causes": {"small_flaw": 5},
+            "n_false_calls": 0,
+            "false_call_causes": {},
+        }
+    ]
+    md = build_failure_modes_md(summaries, [], png_count=0)
+    assert "0 false calls; top clean scores listed as near misses." in md
+
+
+def test_png_file_size_under_60kb(tmp_path: Path) -> None:
+    """Verify generated failure case PNG is under 60 KB for 256x256 image."""
+    img = _make_test_image(peak_row=128, peak_val=1000.0, noise_amp=10.0)
+    meta = {"max_amplitude": "1000", "noise_threshold": "500"}
+    png_path = save_failure_case(img, meta, score=0.45, out_dir=tmp_path, name="size_check")
+    assert png_path.exists()
+    assert 0 < png_path.stat().st_size < 60 * 1024

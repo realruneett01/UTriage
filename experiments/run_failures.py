@@ -208,11 +208,14 @@ def _evaluate_case(
     bins_path, img_idx = ctx.test_items[idx]
     img = read_image(bins_path, img_idx)
     meta = read_flaw_meta(bins_path)[img_idx]
-    cause = (
-        classify_failure(meta, "miss", p10_threshold=p10, img=img)
-        if kind == "miss"
-        else classify_failure(meta, "false_call", img=img)
-    )
+    if kind == "miss":
+        cause = classify_failure(meta, "miss", p10_threshold=p10, img=img)
+    elif kind == "false_call":
+        cause = classify_failure(meta, "false_call", img=img)
+    elif kind == "near_miss_clean":
+        cause = "clean_near_miss"
+    else:
+        cause = "unclassified"
     return cause, img, meta
 
 
@@ -259,15 +262,30 @@ def _process_false_calls(
     ctx: FoldContext,
     max_cases: int | bool = 20,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Collect false calls, saving only top cases while counting all."""
+    """Collect false calls (clean with score >= 0.5), saving top while counting all."""
     actual_fc = np.where(ctx.unflawed_mask & ctx.hits)[0]
-    candidates = actual_fc if len(actual_fc) > 0 else np.where(ctx.unflawed_mask)[0]
-    if len(candidates) == 0:
+    if len(actual_fc) == 0:
         return [], {}
     limit = _resolve_limit(max_cases)
-    sorted_order = np.argsort(-ctx.probs[candidates])
+    sorted_order = np.argsort(-ctx.probs[actual_fc])
     target = ProcessTarget(kind="false_call", limit=limit)
-    return _collect_top_cases(ctx, candidates[sorted_order], target)
+    return _collect_top_cases(ctx, actual_fc[sorted_order], target)
+
+
+def _process_near_misses_clean(
+    ctx: FoldContext,
+    max_cases: int | bool = 20,
+) -> list[dict[str, Any]]:
+    """Collect top clean images below threshold as near misses (not false calls)."""
+    clean_indices = np.where(ctx.unflawed_mask & (~ctx.hits))[0]
+    if len(clean_indices) == 0:
+        return []
+    limit = _resolve_limit(max_cases)
+    sorted_order = np.argsort(-ctx.probs[clean_indices])
+    top_indices = clean_indices[sorted_order][:limit]
+    target = ProcessTarget(kind="near_miss_clean", limit=limit)
+    saved, _ = _collect_top_cases(ctx, top_indices, target)
+    return saved
 
 
 def _score_fold_test(
@@ -288,12 +306,15 @@ def _write_cases_json(
     fold_dir: Path,
     misses: list[dict[str, Any]],
     false_calls: list[dict[str, Any]],
+    near_misses_clean: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Save top failure cases to cases.json in fold directory."""
+    clean = near_misses_clean or []
     data = {
         "misses": misses,
         "false_calls": false_calls,
-        "cases": misses + false_calls,
+        "near_misses_clean": clean,
+        "cases": misses + false_calls + clean,
     }
     cases_path = fold_dir / "cases.json"
     cases_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -319,7 +340,8 @@ def _eval_single_fold(
     ctx = FoldContext(fold.held_out, fold.test, flawed, unflawed, hits, probs, fold_dir)
     miss_recs, miss_counts = _process_misses(ctx, p10, cfg.max_cases)
     fc_recs, fc_counts = _process_false_calls(ctx, cfg.max_cases)
-    _write_cases_json(fold_dir, miss_recs, fc_recs)
+    clean_recs = _process_near_misses_clean(ctx, cfg.max_cases)
+    _write_cases_json(fold_dir, miss_recs, fc_recs, clean_recs)
 
     summary = {
         "fold": fold.held_out,
@@ -328,7 +350,7 @@ def _eval_single_fold(
         "n_false_calls": sum(fc_counts.values()),
         "false_call_causes": fc_counts,
     }
-    return summary, miss_recs + fc_recs
+    return summary, miss_recs + fc_recs + clean_recs
 
 
 def _load_sim_gen(sim_path: Path) -> dict:

@@ -176,6 +176,8 @@ def classify_failure(
     if k in ("miss", "missed", "fn"):
         thresh = _extract_float(meta.get("p10_threshold")) or p10_threshold
         return _classify_miss(meta, thresh, target_img)
+    if k in ("near_miss_clean", "clean_near_miss"):
+        return "clean_near_miss"
     return "unclassified"
 
 
@@ -187,24 +189,25 @@ def _plot_failure_case(
 ) -> None:
     """Render and save 2D B-scan and A-scan column figure."""
     r_max = int(np.argmax(img[:, c_max]))
-    fig, (ax_img, ax_scan) = plt.subplots(1, 2, figsize=(10, 4.5))
-    im = ax_img.imshow(img, cmap="viridis", aspect="auto")
+    fig, (ax_img, ax_scan) = plt.subplots(1, 2, figsize=(5.5, 2.8))
+    ax_img.imshow(img, cmap="viridis", aspect="auto")
     ax_img.axvline(x=c_max, color="red", linestyle="--", alpha=0.7)
-    ax_img.scatter([c_max], [r_max], color="red", marker="x", s=40)
-    ax_img.set_title(title, fontsize=10)
-    ax_img.set_xlabel("Scan column")
-    ax_img.set_ylabel("Depth sample")
-    fig.colorbar(im, ax=ax_img, fraction=0.046, pad=0.04)
+    ax_img.scatter([c_max], [r_max], color="red", marker="x", s=30)
+    ax_img.set_title(title, fontsize=8)
+    ax_img.set_xlabel("Scan column", fontsize=8)
+    ax_img.set_ylabel("Depth sample", fontsize=8)
+    ax_img.tick_params(labelsize=7)
 
-    ax_scan.plot(img[:, c_max], color="navy", lw=1.2)
-    ax_scan.scatter([r_max], [img[r_max, c_max]], color="red", s=40, zorder=3)
-    ax_scan.set_title(f"A-scan column {c_max} (max={img[r_max, c_max]:.1f})", fontsize=10)
-    ax_scan.set_xlabel("Depth sample")
-    ax_scan.set_ylabel("Amplitude")
+    ax_scan.plot(img[:, c_max], color="navy", lw=1.0)
+    ax_scan.scatter([r_max], [img[r_max, c_max]], color="red", s=25, zorder=3)
+    ax_scan.set_title(f"A-scan col {c_max} (max={img[r_max, c_max]:.1f})", fontsize=8)
+    ax_scan.set_xlabel("Depth sample", fontsize=8)
+    ax_scan.set_ylabel("Amplitude", fontsize=8)
+    ax_scan.tick_params(labelsize=7)
     ax_scan.grid(True, alpha=0.3)
 
     fig.tight_layout()
-    fig.savefig(png_path, dpi=120)
+    fig.savefig(png_path, dpi=72, pil_kwargs={"optimize": True})
     plt.close(fig)
 
 
@@ -258,11 +261,14 @@ def _format_fold_summary(s: dict) -> str:
     n_m = s.get("n_misses", 0)
     m_cause, m_cnt, m_pct = _top_cause(s.get("miss_causes", {}), n_m)
     n_fc = s.get("n_false_calls", 0)
-    fc_cause, fc_cnt, fc_pct = _top_cause(s.get("false_call_causes", {}), n_fc)
+    if n_fc == 0:
+        fc_part = "0 false calls; top clean scores listed as near misses."
+    else:
+        fc_cause, fc_cnt, fc_pct = _top_cause(s.get("false_call_causes", {}), n_fc)
+        fc_part = f"{n_fc} false calls (top cause: {fc_cause} with {fc_cnt} cases, {fc_pct:.1f}%)."
     return (
         f"- **Fold {fold}**: {n_m} misses (top cause: {m_cause} "
-        f"with {m_cnt} cases, {m_pct:.1f}%), {n_fc} false calls "
-        f"(top cause: {fc_cause} with {fc_cnt} cases, {fc_pct:.1f}%)."
+        f"with {m_cnt} cases, {m_pct:.1f}%), {fc_part}"
     )
 
 
