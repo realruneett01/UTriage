@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import scipy.ndimage as ndi
 import torch
 import torch.nn as nn
 
@@ -118,23 +118,31 @@ def load_window_model(path: Path | str, device: str = "auto") -> tuple[WindowNet
     return model, meta
 
 
-def _make_grid_sites(scan: BarScan, settings: ScanSettings) -> np.ndarray:
-    n_ax, n_an = scan.ascans.shape[0], scan.ascans.shape[1]
+def _grid_depths(scan: BarScan, settings: ScanSettings) -> np.ndarray:
     d_min = settings.front_mm
     d_max = scan.spec.diameter_mm - settings.back_margin_mm
-    if d_max < d_min or n_ax == 0 or n_an == 0:
-        return np.zeros((0, 3), dtype=np.float64)
+    if d_max < d_min:
+        return np.zeros(0, dtype=np.float64)
     depths = np.arange(d_min, d_max + 0.5 * settings.depth_step_mm, settings.depth_step_mm)
-    depths = depths[depths <= d_max + 1e-6]
-    if len(depths) == 0:
-        return np.zeros((0, 3), dtype=np.float64)
+    return depths[depths <= d_max + 1e-6]
+
+
+def _make_grid_sites(
+    scan: BarScan,
+    settings: ScanSettings,
+) -> tuple[np.ndarray, np.ndarray]:
+    n_ax, n_an = scan.ascans.shape[0], scan.ascans.shape[1]
+    depths = _grid_depths(scan, settings)
+    if len(depths) == 0 or n_ax == 0 or n_an == 0:
+        return np.zeros((0, 3), dtype=np.float64), depths
     ax_grid, an_grid, d_grid = np.meshgrid(
         np.arange(n_ax, dtype=np.float64),
         np.arange(n_an, dtype=np.float64),
         depths,
         indexing="ij",
     )
-    return np.column_stack([ax_grid.ravel(), an_grid.ravel(), d_grid.ravel()])
+    sites = np.column_stack([ax_grid.ravel(), an_grid.ravel(), d_grid.ravel()])
+    return sites, depths
 
 
 def _activate_mc_dropout(model: nn.Module) -> None:
@@ -174,31 +182,6 @@ def _eval_batches(
         uncertainty=unc.astype(np.float64),
         std=std.astype(np.float64),
     )
-
-
-def _build_candidates(
-    sites: np.ndarray,
-    stats: _InferStats,
-    threshold: float,
-) -> list[_Candidate]:
-    if threshold > 1.0:
-        return []
-    thresh_logit = _prob_to_logit(threshold)
-    indices = np.where(stats.logit >= thresh_logit)[0]
-    cands: list[_Candidate] = []
-    for idx in indices:
-        cands.append(
-            _Candidate(
-                axial_idx=int(sites[idx, 0]),
-                angle_idx=int(sites[idx, 1]),
-                depth_mm=float(sites[idx, 2]),
-                score=float(stats.score[idx]),
-                logit=float(stats.logit[idx]),
-                uncertainty=float(stats.uncertainty[idx]),
-                std=float(stats.std[idx]),
-            )
-        )
-    return cands
 
 
 def _connect_cell(
@@ -278,37 +261,134 @@ def _suppress_candidates(cands: list[_Candidate], n_angle: int) -> list[_Candida
     return kept
 
 
-def _candidate_to_finding(c: _Candidate) -> MlFinding:
-    return MlFinding(
-        axial_idx=c.axial_idx,
-        angle_idx=c.angle_idx,
-        depth_mm=c.depth_mm,
-        score=c.score,
-        uncertainty=c.uncertainty,
-        grain_noise_prob=float(1.0 - c.score),
-        evidence=(
-            f"ML window score {c.score:.2f}",
-            f"MC-dropout std {c.std:.2f}",
-        ),
-    )
+def _find_root(parent: list[int], i: int) -> int:
+    while parent[i] != i:
+        parent[i] = parent[parent[i]]
+        i = parent[i]
+    return i
 
 
-def _scan_candidates(
+def _union(parent: list[int], i: int, j: int) -> None:
+    ri, rj = _find_root(parent, i), _find_root(parent, j)
+    if ri != rj:
+        parent[ri] = rj
+
+
+def _merge_angle_boundary(
+    labeled: np.ndarray,
+    parent: list[int],
+    n_ax: int,
+    n_d: int,
+) -> None:
+    s0 = labeled[:, 0, :]
+    slast = labeled[:, -1, :]
+    for ax, d in np.argwhere(s0 > 0):
+        l0 = s0[ax, d]
+        ax_min = max(0, ax - 1)
+        ax_max = min(n_ax, ax + 2)
+        d_min = max(0, d - 1)
+        d_max = min(n_d, d + 2)
+        sub = slast[ax_min:ax_max, d_min:d_max]
+        for l1 in sub[sub > 0]:
+            _union(parent, int(l0), int(l1))
+
+
+def _build_component_grid(
+    labeled: np.ndarray,
+    parent: list[int],
+    num_features: int,
+) -> tuple[int, np.ndarray]:
+    roots: dict[int, int] = {}
+    for i in range(1, num_features + 1):
+        r = _find_root(parent, i)
+        if r not in roots:
+            roots[r] = len(roots) + 1
+    remap = np.zeros(num_features + 1, dtype=np.int32)
+    for i in range(1, num_features + 1):
+        remap[i] = roots[_find_root(parent, i)]
+    return len(roots), remap[labeled]
+
+
+def _label_connected(mask: np.ndarray) -> tuple[int, np.ndarray]:
+    if not np.any(mask):
+        return 0, np.zeros_like(mask, dtype=np.int32)
+    structure = np.ones((3, 3, 3), dtype=bool)
+    labeled, num_features = ndi.label(mask, structure=structure)
+    if num_features <= 1 or mask.shape[1] < 3:
+        return num_features, labeled
+    parent = list(range(num_features + 1))
+    _merge_angle_boundary(labeled, parent, mask.shape[0], mask.shape[2])
+    return _build_component_grid(labeled, parent, num_features)
+
+
+def count_findings(logits_grid: np.ndarray, logit_threshold: float) -> int:
+    """Return number of connected groups of sites >= logit_threshold."""
+    if logits_grid.size == 0:
+        return 0
+    mask = logits_grid >= logit_threshold
+    n_comp, _ = _label_connected(mask)
+    return n_comp
+
+
+def _find_component_peaks(
+    logits_grid: np.ndarray,
+    comp_grid: np.ndarray,
+) -> list[tuple[float, tuple[int, int, int]]]:
+    best: dict[int, tuple[float, tuple[int, int, int]]] = {}
+    for ax, an, d_idx in np.argwhere(comp_grid > 0):
+        cid = int(comp_grid[ax, an, d_idx])
+        lg = float(logits_grid[ax, an, d_idx])
+        pos = (int(ax), int(an), int(d_idx))
+        if cid not in best or lg > best[cid][0]:
+            best[cid] = (lg, pos)
+    peaks = list(best.values())
+    peaks.sort(key=lambda p: (p[0], -p[1][0], -p[1][1], -p[1][2]), reverse=True)
+    return peaks
+
+
+def _peaks_to_findings(
+    peaks: list[tuple[float, tuple[int, int, int]]],
+    depths: np.ndarray,
+) -> list[MlFinding]:
+    findings: list[MlFinding] = []
+    for lg, (ax, an, d_idx) in peaks:
+        score = _logit_to_prob(lg)
+        depth_val = float(depths[d_idx]) if d_idx < len(depths) else 0.0
+        findings.append(
+            MlFinding(
+                axial_idx=ax,
+                angle_idx=an,
+                depth_mm=depth_val,
+                score=score,
+                uncertainty=0.0,
+                grain_noise_prob=float(1.0 - score),
+                evidence=(
+                    f"ML window score {score:.2f}",
+                    "MC-dropout std 0.00",
+                ),
+            )
+        )
+    return findings
+
+
+def site_logits(
     model: WindowNet,
     scan: BarScan,
-    settings: ScanSettings,
-    device: str,
-) -> list[_Candidate]:
-    sites = _make_grid_sites(scan, settings)
+    settings: ScanSettings = _DEFAULT_SETTINGS,
+    device: str = "auto",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute per-site flaw logits on the (axial, angle, depth) grid and depth axis."""
+    n_ax, n_an = scan.ascans.shape[0], scan.ascans.shape[1]
+    sites, depths = _make_grid_sites(scan, settings)
     if len(sites) == 0:
-        return []
+        return np.zeros((n_ax, n_an, len(depths)), dtype=np.float64), depths
     dac = dac_for(scan)
     is_patch = getattr(model.stem[0], "in_channels", 1) == 9
     windows = cut_windows(scan, dac, sites, patch=is_patch)
     dev = pick_device(device)
     stats = _eval_batches(model, windows, settings, dev)
-    cands = _build_candidates(sites, stats, settings.threshold)
-    return _suppress_candidates(cands, scan.spec.n_angle)
+    logits_grid = stats.logit.reshape(n_ax, n_an, len(depths))
+    return logits_grid, depths
 
 
 def scan_bar(
@@ -318,34 +398,33 @@ def scan_bar(
     device: str = "auto",
 ) -> list[MlFinding]:
     """Scan a bar with WindowNet, returning non-maximum suppressed findings."""
-    kept = _scan_candidates(model, scan, settings, device)
-    return [_candidate_to_finding(c) for c in kept]
+    if settings.threshold > 1.0:
+        return []
+    logits_grid, depths = site_logits(model, scan, settings, device)
+    if logits_grid.size == 0:
+        return []
+    thresh_logit = _prob_to_logit(settings.threshold)
+    mask = logits_grid >= thresh_logit
+    n_comp, comp_grid = _label_connected(mask)
+    if n_comp == 0:
+        return []
+    peaks = _find_component_peaks(logits_grid, comp_grid)
+    return _peaks_to_findings(peaks, depths)
 
 
-def candidate_scores(
-    model: WindowNet,
-    scan: BarScan,
-    settings: ScanSettings = _DEFAULT_SETTINGS,
-    device: str = "auto",
-) -> np.ndarray:
-    """Return the scores of all NMS-surviving local maxima with threshold 0."""
-    zero_settings = dataclasses.replace(settings, threshold=0.0)
-    kept = _scan_candidates(model, scan, zero_settings, device)
-    if not kept:
+def _extract_grid_maxima(grid: np.ndarray) -> np.ndarray:
+    if grid.size == 0:
         return np.zeros(0, dtype=np.float64)
-    return np.array([c.score for c in kept], dtype=np.float64)
+    mf = ndi.maximum_filter(grid, size=3)
+    return np.unique(grid[grid == mf])
 
 
-def _collect_clean_scores(
-    model: WindowNet,
-    scans: list[BarScan],
-    settings: ScanSettings,
-) -> list[float]:
-    all_scores: list[float] = []
-    for scan in scans:
-        sc = candidate_scores(model, scan, settings)
-        all_scores.extend(float(x) for x in sc)
-    return all_scores
+def _pool_candidate_logits(grids: list[np.ndarray]) -> np.ndarray:
+    maxima_list = [_extract_grid_maxima(g) for g in grids if g.size > 0]
+    if not maxima_list:
+        return np.zeros(0, dtype=np.float64)
+    pooled = np.concatenate(maxima_list)
+    return np.sort(np.unique(pooled))[::-1]
 
 
 def calibrate_bar_threshold(
@@ -357,18 +436,18 @@ def calibrate_bar_threshold(
     """Calibrate the smallest threshold giving <= max_flags_per_bar on clean bars."""
     if not clean_scans:
         return 1.0
-    all_scores = _collect_clean_scores(model, clean_scans, settings)
-    if not all_scores:
+    grids = [site_logits(model, scan, settings)[0] for scan in clean_scans]
+    cands = _pool_candidate_logits(grids)
+    if len(cands) == 0:
         return 0.0
-    max_total = max_flags_per_bar * len(clean_scans)
-    arr = np.asarray(all_scores, dtype=np.float64)
-    if len(arr) <= max_total:
-        return 0.0
-    logits = np.array([_prob_to_logit(float(s)) for s in arr], dtype=np.float64)
-    for val in np.unique(np.sort(logits)):
-        if int(np.sum(logits >= val)) <= max_total:
-            return _logit_to_prob(float(val))
-    return 1.0
+    best_val = float(cands[0]) + 0.1
+    for val in cands:
+        mean_cnt = float(np.mean([count_findings(g, float(val)) for g in grids]))
+        if mean_cnt <= max_flags_per_bar:
+            best_val = float(val)
+        else:
+            break
+    return _logit_to_prob(best_val)
 
 
 def finding_to_dict(finding: MlFinding) -> dict:
@@ -394,9 +473,10 @@ def findings_to_dicts(findings: Sequence[MlFinding]) -> list[dict]:
 __all__ = [
     "ScanSettings",
     "calibrate_bar_threshold",
-    "candidate_scores",
+    "count_findings",
     "findings_to_dicts",
     "load_window_model",
     "save_window_model",
     "scan_bar",
+    "site_logits",
 ]

@@ -30,11 +30,12 @@ from utriage.ml.bar_infer import (  # noqa: E402
     _InferStats,
     _suppress_candidates,
     calibrate_bar_threshold,
-    candidate_scores,
+    count_findings,
     findings_to_dicts,
     load_window_model,
     save_window_model,
     scan_bar,
+    site_logits,
 )
 from utriage.ml.bar_models import WindowNet  # noqa: E402
 from utriage.physics.simulator import (  # noqa: E402
@@ -189,60 +190,88 @@ def test_findings_to_dicts() -> None:
 
 
 @pytest.mark.parametrize(
-    ("max_flags", "expected_threshold"),
+    ("blob_case", "expected_count"),
     [
-        (0.5, 0.9),
-        (1.0, 0.8),
-        (1.5, 0.7),
-        (2.0, 0.6),
+        ("separated_blobs", 2),
+        ("angle_wrap", 1),
+        ("threshold_above_all", 0),
     ],
 )
-def test_calibrate_bar_threshold_quantiles(
+def test_count_findings_handmade_grid(blob_case: str, expected_count: int) -> None:
+    grid = np.full((6, 12, 6), -10.0, dtype=np.float64)
+    thresh = 0.0
+    if blob_case == "separated_blobs":
+        grid[1:3, 2:4, 1:3] = 5.0
+        grid[4:6, 8:10, 4:6] = 4.0
+    elif blob_case == "angle_wrap":
+        grid[2, 0, 2] = 5.0
+        grid[2, 11, 2] = 5.0
+    elif blob_case == "threshold_above_all":
+        grid[1:3, 2:4, 1:3] = 5.0
+        thresh = 10.0
+    assert count_findings(grid, logit_threshold=thresh) == expected_count
+
+
+def test_calibrate_bar_threshold_synthetic_grids(
     monkeypatch: pytest.MonkeyPatch,
     tiny_scan: BarScan,
-    max_flags: float,
-    expected_threshold: float,
 ) -> None:
-    scores_map = {
-        0: np.array([0.9, 0.7, 0.5]),
-        1: np.array([0.8, 0.6, 0.4]),
-    }
-    call_count = 0
+    g0 = np.full((8, 12, 8), -10.0, dtype=np.float64)
+    g0[1, 2, 1] = 5.0
+    g0[4, 6, 4] = 3.0
+    g0[6, 9, 6] = 1.0
 
-    def mock_candidate_scores(
+    g1 = np.full((8, 12, 8), -10.0, dtype=np.float64)
+    g1[1, 3, 1] = 4.5
+    g1[4, 7, 4] = 2.5
+    g1[6, 10, 6] = 0.5
+
+    synthetic_grids = [g0, g1]
+    depths = np.linspace(2.0, 18.0, 8)
+    call_idx = 0
+
+    def mock_site_logits(
         model: Any,
-        scan: Any,
+        scan: BarScan,
         settings: Any = None,
         device: str = "auto",
-    ) -> np.ndarray:
-        nonlocal call_count
-        res = scores_map.get(call_count, np.zeros(0))
-        call_count += 1
-        return res
+    ) -> tuple[np.ndarray, np.ndarray]:
+        nonlocal call_idx
+        grid = synthetic_grids[call_idx % len(synthetic_grids)]
+        call_idx += 1
+        return grid, depths
 
-    monkeypatch.setattr("utriage.ml.bar_infer.candidate_scores", mock_candidate_scores)
+    monkeypatch.setattr("utriage.ml.bar_infer.site_logits", mock_site_logits)
+
     model = WindowNet(in_channels=1, width=4)
-    thresh = calibrate_bar_threshold(
-        model,
-        [tiny_scan, tiny_scan],
-        max_flags_per_bar=max_flags,
-    )
-    assert thresh == pytest.approx(expected_threshold)
+    clean_scans = [tiny_scan, tiny_scan]
+    budget = 1.0
+
+    thresh = calibrate_bar_threshold(model, clean_scans, max_flags_per_bar=budget)
+    assert thresh > 0.0
+
+    prob_3 = 1.0 / (1.0 + np.exp(-3.0))
+    prob_5 = 1.0 / (1.0 + np.exp(-5.0))
+    assert prob_3 <= thresh <= prob_5
+
+    call_idx = 0
+    f0 = scan_bar(model, clean_scans[0], ScanSettings(threshold=thresh), device="cpu")
+    call_idx = 1
+    f1 = scan_bar(model, clean_scans[1], ScanSettings(threshold=thresh), device="cpu")
+    mean_findings = (len(f0) + len(f1)) / 2.0
+    assert mean_findings <= budget
+    assert len(f0) == 1
+    assert len(f1) == 1
 
 
-@pytest.mark.parametrize("threshold", [0.0, 0.2, 0.5, 0.8])
-def test_candidate_scores_count_gte_scan_bar(
-    tiny_model: WindowNet,
-    tiny_scan: BarScan,
-    threshold: float,
-) -> None:
-    settings = ScanSettings(threshold=threshold, depth_step_mm=1.0, mc_passes=1)
-    torch.manual_seed(42)
-    scores = candidate_scores(tiny_model, tiny_scan, settings, device="cpu")
-    torch.manual_seed(42)
-    findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
-    assert len(scores) >= len(findings)
-    assert np.all((scores >= 0.0) & (scores <= 1.0))
+def test_site_logits_shape_and_depths(tiny_model: WindowNet, tiny_scan: BarScan) -> None:
+    settings = ScanSettings(threshold=0.0, depth_step_mm=1.0, mc_passes=2)
+    logits_grid, depths = site_logits(tiny_model, tiny_scan, settings, device="cpu")
+    assert logits_grid.ndim == 3
+    assert logits_grid.shape[0] == tiny_scan.ascans.shape[0]
+    assert logits_grid.shape[1] == tiny_scan.ascans.shape[1]
+    assert logits_grid.shape[2] == len(depths)
+    assert logits_grid.dtype == np.float64
 
 
 def test_blob_3x3_yields_single_finding() -> None:
@@ -299,15 +328,15 @@ def test_two_separated_blobs_yield_two_findings() -> None:
     assert {c.axial_idx for c in kept} == {0, 10}
 
 
-def test_candidate_count_invariant_to_batch(tiny_scan: BarScan) -> None:
-    """Candidate count and findings are invariant to settings.batch."""
+def test_site_logits_and_scan_bar_invariant_to_batch(tiny_scan: BarScan) -> None:
+    """Site logits and scan_bar findings are invariant to settings.batch."""
     model = WindowNet(in_channels=1, width=4, dropout=0.0)
     settings_small = ScanSettings(threshold=0.0, batch=16, mc_passes=1)
     settings_large = ScanSettings(threshold=0.0, batch=256, mc_passes=1)
-    scores_small = candidate_scores(model, tiny_scan, settings_small, device="cpu")
-    scores_large = candidate_scores(model, tiny_scan, settings_large, device="cpu")
-    assert len(scores_small) == len(scores_large)
-    assert np.allclose(scores_small, scores_large)
+    grid_small, _ = site_logits(model, tiny_scan, settings_small, device="cpu")
+    grid_large, _ = site_logits(model, tiny_scan, settings_large, device="cpu")
+    assert grid_small.shape == grid_large.shape
+    assert np.allclose(grid_small, grid_large)
     findings_small = scan_bar(model, tiny_scan, settings_small, device="cpu")
     findings_large = scan_bar(model, tiny_scan, settings_large, device="cpu")
     assert len(findings_small) == len(findings_large)
