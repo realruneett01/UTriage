@@ -44,6 +44,13 @@ from utriage.pod.hitmiss import (  # noqa: E402
     pod_lower_bound,
 )
 
+SUPERSEDED_TEXT = (
+    "Superseded: the random batch split shares all physical cracks between "
+    "train and test (results/leakage_audit.json); see results/loco_metrics.json "
+    "for leave-one-crack-out results."
+)
+SUPERSEDED_NOTICE = f"> {SUPERSEDED_TEXT}"
+
 
 @dataclass(frozen=True)
 class SplitEvalResult:
@@ -76,6 +83,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--quick", action="store_true", help="Quick run with fewer batches")
     parser.add_argument("--epochs", type=int, default=None, help="Override epoch count")
     parser.add_argument("--eval-only", action="store_true", help="Evaluate existing checkpoint")
+    parser.add_argument(
+        "--report-only",
+        action="store_true",
+        help="Rebuild markdown report from existing metrics JSON",
+    )
     return parser.parse_args()
 
 
@@ -393,10 +405,38 @@ def _report_tail_md(m: dict) -> list[str]:
     return lat_lines + comp_lines
 
 
-def _format_report_md(m: dict) -> str:
+def _is_superseded(results_dir: Path) -> bool:
+    """Check whether results/leakage_audit.json flags physical crack leakage."""
+    leak_file = results_dir / "leakage_audit.json"
+    if not leak_file.exists():
+        return False
+    try:
+        with leak_file.open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return bool(data.get("leakage_by_physical_crack", False))
+    except (json.JSONDecodeError, OSError):
+        # Ignore unreadable or corrupt audit file
+        return False
+
+
+def _format_report_md(m: dict, superseded: bool = False) -> str:
     """Generate Markdown report entirely from metrics dictionary."""
-    parts = _report_header_md(m) + _format_detection_table(m) + _report_tail_md(m)
-    return "\n".join(parts) + "\n"
+    body = _report_header_md(m) + _format_detection_table(m) + _report_tail_md(m)
+    if superseded:
+        body.insert(2, SUPERSEDED_NOTICE)
+        body.insert(3, "")
+    return "\n".join(body) + "\n"
+
+
+def write_report(metrics: dict, results_dir: Path) -> Path:
+    """Write markdown report, prepending superseded notice if leakage detected."""
+    results_dir.mkdir(parents=True, exist_ok=True)
+    superseded = _is_superseded(results_dir)
+    report_content = _format_report_md(metrics, superseded=superseded)
+    report_path = results_dir / "mlndt_report.md"
+    with report_path.open("w", encoding="utf-8") as fh:
+        fh.write(report_content)
+    return report_path
 
 
 def _save_artifacts(metrics: dict, test_eval: SplitEvalResult, model: nn.Module) -> None:
@@ -416,11 +456,7 @@ def _save_artifacts(metrics: dict, test_eval: SplitEvalResult, model: nn.Module)
         json.dump(metrics, fh, indent=2)
 
     _plot_pod_figure(test_eval, fig_dir / "mlndt_pod.png")
-
-    report_content = _format_report_md(metrics)
-    report_path = results_dir / "mlndt_report.md"
-    with report_path.open("w", encoding="utf-8") as fh:
-        fh.write(report_content)
+    write_report(metrics, results_dir)
 
 
 def _eval_and_benchmark(
@@ -468,36 +504,47 @@ def _make_splits_dict(
     }
 
 
+def _rebuild_report(results_dir: Path) -> Path:
+    """Rebuild markdown report from existing metrics JSON."""
+    metrics_path = results_dir / "mlndt_metrics.json"
+    with metrics_path.open("r", encoding="utf-8") as fh:
+        metrics = json.load(fh)
+    return write_report(metrics, results_dir)
+
+
+def _get_or_train_model(
+    args: argparse.Namespace,
+    train_ds: MlNdtDataset,
+    val_ds: MlNdtDataset,
+    epochs: int,
+) -> tuple[nn.Module, list[dict], int, int, str]:
+    """Retrieve existing evaluation model or run training restarts."""
+    if args.eval_only:
+        return _load_eval_context()
+    weights, seed, restarts, dev_str = _train_restarts(train_ds, val_ds, args.quick, epochs)
+    model = MlNdtNet(width=32, first_pool=(2, 2))
+    model.load_state_dict(weights)
+    return model, restarts, seed, count_params(model), dev_str
+
+
 def main() -> None:
     """Run Phase 3 ML-NDT training, POD evaluation, and benchmarking."""
     t0 = time.time()
     args = _parse_args()
+    if args.report_only:
+        _rebuild_report(Path("results"))
+        print("Rebuilt results/mlndt_report.md from mlndt_metrics.json", flush=True)
+        return
+
     epochs = args.epochs if args.epochs is not None else (1 if args.quick else 20)
     train_b, test_b, val_b = _resolve_splits(args.quick)
-    train_ds = MlNdtDataset(train_b)
-    val_ds = MlNdtDataset(val_b)
-    test_ds = MlNdtDataset(test_b)
-
-    if args.eval_only:
-        model, restarts, seed, params, dev_str = _load_eval_context()
-    else:
-        weights, seed, restarts, dev_str = _train_restarts(train_ds, val_ds, args.quick, epochs)
-        model = MlNdtNet(width=32, first_pool=(2, 2))
-        model.load_state_dict(weights)
-        params = count_params(model)
-
+    train_ds, val_ds, test_ds = MlNdtDataset(train_b), MlNdtDataset(val_b), MlNdtDataset(test_b)
+    model, restarts, seed, params, dev_str = _get_or_train_model(args, train_ds, val_ds, epochs)
     test_ev, val_ev = _eval_and_benchmark(model, (test_ds, val_ds), (test_b, val_b), dev_str)
     latencies = _measure_latencies(model, args.quick)
     dev_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu"
     splits = _make_splits_dict((train_b, test_b, val_b), (train_ds, val_ds, test_ds))
-    ctx = ExperimentContext(
-        splits_count=splits,
-        restarts=restarts,
-        kept_seed=seed,
-        params_count=params,
-        dev_name=dev_name,
-        latencies=latencies,
-    )
+    ctx = ExperimentContext(splits, restarts, seed, params, dev_name, latencies)
     metrics = _build_metrics(ctx, test_ev, val_ev)
     _save_artifacts(metrics, test_ev, model)
     print(f"Phase 3 done in {time.time() - t0:.2f}s (dev={dev_name})", flush=True)

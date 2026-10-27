@@ -2,8 +2,10 @@
 
 > **IMPORTANT: Safety and Advisory Notice**  
 > UTriage is an advisory decision-support tool. **UTriage never accepts or rejects a part automatically.** Every disposition decision (accept, reject, or re-scan) belongs solely to the certified ultrasonic (UT) inspector.
+>
+> UTriage is an advisory independent prototype; it has not been deployed, validated or qualified at any plant.
 
-This guide provides instructions for plant IT technicians deploying UTriage on shop-floor inspection workstations.
+This guide provides instructions for installing UTriage on an offline evaluation workstation.
 
 ---
 
@@ -44,14 +46,14 @@ Get-Content .\SHA256SUMS.txt | ForEach-Object {
     }
 }
 ```
-All files must match their expected checksums before putting the workstation into service.
+All files must match their expected checksums before running offline evaluations.
 
 ---
 
 ## 3. Configuration and Integrity Locking
 
 - **Tamper Protection:** Model weights (`models/`) and inspection configurations (`configs/`) are sealed with cryptographic hashes in `configs/manifest.json`.
-- **Locked Mode:** Plant installations run with `UTRIAGE_LOCKED=1` by default. If any configuration file or model checkpoint is modified, missing, or corrupted, the application halts immediately with an integrity violation error.
+- **Locked Mode:** Workstations run in locked evaluation mode (`UTRIAGE_LOCKED=1`) by default. If any configuration file or model checkpoint is modified, missing, or corrupted, the application halts immediately with an integrity violation error.
 - Do not edit files inside `configs/` or `models/` on plant workstations.
 
 ---
