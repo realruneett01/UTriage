@@ -20,17 +20,22 @@ from experiments.run_loco import (  # noqa: E402
     RUN_NOTE,
     EnsembleFoldContext,
     SingleFoldContext,
+    _calc_false_calls,
     _ensemble_probabilities,
     _eval_ensemble_fold,
+    _evaluate_predictions,
     _file_mtime,
     _file_sha256,
     _parse_args,
+    _resolve_seeds,
     _resolve_single_model_path,
     _run_ensemble_fold_workflow,
     _run_ensemble_workflow,
     _run_eval_single_workflow,
+    _save_loco_metrics,
 )
 
+from utriage.detector_config import load_detector_config  # noqa: E402
 from utriage.ml.datasets import (  # noqa: E402
     MlNdtDataset,
     list_batches,
@@ -626,3 +631,145 @@ def test_eval_single_crackval_workflow(
     assert not (tmp_path / "results" / "loco_metrics.json").exists()
     assert res["protocol"] == PROTOCOL_DESC_CRACKVAL
     _verify_crackval_records(res["folds"], folds)
+
+
+def _write_yaml_config(path: Path, content: str) -> Path:
+    """Write YAML string to path and return path."""
+    path.write_text(content, encoding="utf-8")
+    return path
+
+
+def test_loco_cli_config_and_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify --config and --set arguments configure detector settings."""
+    cfg_file = _write_yaml_config(
+        tmp_path / "custom.yaml",
+        "supervised:\n  threshold: 0.65\nevaluation:\n  confidence: 0.90\n",
+    )
+    args = _parse_cli(
+        monkeypatch,
+        ["--config", str(cfg_file), "--set", "supervised.threshold=0.8"],
+    )
+    assert hasattr(args, "detector_cfg")
+    assert args.detector_cfg.supervised.threshold == 0.8
+    assert args.detector_cfg.evaluation.confidence == 0.90
+
+
+@pytest.mark.parametrize(
+    ("cli_args", "cfg_mode", "expected_mode"),
+    [
+        ([], "crack", "crack"),
+        (["--val-mode", "batch"], "crack", "batch"),
+        (["--val-mode", "crack"], "batch", "crack"),
+    ],
+)
+def test_loco_val_mode_config_and_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cli_args: list[str],
+    cfg_mode: str,
+    expected_mode: str,
+) -> None:
+    """Verify loco_val_mode is loaded from config and overridden by --val-mode flag."""
+    cfg_file = _write_yaml_config(
+        tmp_path / "val_mode.yaml",
+        f"evaluation:\n  loco_val_mode: {cfg_mode}\n",
+    )
+    full_args = ["--config", str(cfg_file), *cli_args]
+    args = _parse_cli(monkeypatch, full_args)
+    assert args.val_mode == expected_mode
+
+
+@pytest.mark.parametrize(
+    ("cli_args", "cfg_seeds", "expected_seeds"),
+    [
+        ([], [10, 20], [10, 20]),
+        (["--seeds", "5", "6"], [10, 20], [5, 6]),
+    ],
+)
+def test_loco_seeds_config_and_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cli_args: list[str],
+    cfg_seeds: list[int],
+    expected_seeds: list[int],
+) -> None:
+    """Verify evaluation seeds load from config and --seeds flag overrides."""
+    yaml_lines = "evaluation:\n  seeds:\n" + "".join(f"    - {s}\n" for s in cfg_seeds)
+    cfg_file = _write_yaml_config(tmp_path / "seeds.yaml", yaml_lines)
+    full_args = ["--config", str(cfg_file), *cli_args]
+    args = _parse_cli(monkeypatch, full_args)
+    resolved = _resolve_seeds(args, getattr(args, "detector_cfg", None))
+    assert resolved == expected_seeds
+
+
+def test_loco_threshold_and_confidence_calculations() -> None:
+    """Verify supervised.threshold and evaluation.confidence alter predictions and CI."""
+    probs = np.array([0.45, 0.55], dtype=np.float32)
+    flaw_labels = np.array([1.0, 1.0], dtype=np.float32)
+    sizes = np.array([1.0, 2.0], dtype=np.float32)
+
+    ev_low = _evaluate_predictions(probs, flaw_labels, sizes, threshold=0.40)
+    ev_high = _evaluate_predictions(probs, flaw_labels, sizes, threshold=0.60)
+    assert ev_low["detections"]["n_hit"] == 2
+    assert ev_high["detections"]["n_hit"] == 0
+
+    hits = np.array([0.0, 1.0, 0.0, 0.0])
+    unflawed = np.ones(4, dtype=bool)
+    fc_95 = _calc_false_calls(hits, unflawed, confidence=0.95)
+    fc_99 = _calc_false_calls(hits, unflawed, confidence=0.99)
+    assert fc_99["upper95"] > fc_95["upper95"]
+
+
+@pytest.mark.parametrize("is_default", [True, False])
+def test_save_loco_metrics_fingerprint_and_run_label(tmp_path: Path, is_default: bool) -> None:
+    """Verify output JSON includes detector_config fingerprint and correct run_label."""
+    out_file = tmp_path / "metrics.json"
+    cfg = (
+        load_detector_config()
+        if is_default
+        else load_detector_config(overrides=["supervised.threshold=0.7"])
+    )
+    ctx = SingleFoldContext(out_path=out_file, cfg=cfg)
+    metrics = _save_loco_metrics([], {}, out_target=ctx)
+
+    assert out_file.exists()
+    assert "detector_config" in metrics
+    assert metrics["detector_config"]["is_default"] is is_default
+    expected_label = "pre-registered" if is_default else "exploratory"
+    assert metrics["run_label"] == expected_label
+
+
+def test_failures_wiring_and_summary_fingerprint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify run_failures CLI parsing, threshold wiring, and summary fingerprinting."""
+    from experiments.run_failures import (
+        FailureConfig,
+        _write_summary_json,
+    )
+    from experiments.run_failures import (
+        _parse_args as parse_failures_args,
+    )
+
+    cfg_file = _write_yaml_config(
+        tmp_path / "failures_cfg.yaml",
+        "supervised:\n  threshold: 0.75\n",
+    )
+    monkeypatch.setattr(sys, "argv", ["run_failures.py", "--config", str(cfg_file)])
+    args = parse_failures_args()
+    assert args.config == cfg_file
+
+    det_cfg = load_detector_config(args.config)
+    f_cfg = FailureConfig(
+        out_dir=tmp_path,
+        quick=True,
+        device="cpu",
+        threshold=det_cfg.supervised.threshold,
+        cfg=det_cfg,
+    )
+    assert f_cfg.threshold == 0.75
+
+    out_file = _write_summary_json(tmp_path, [], cfg=det_cfg)
+    summary_data = json.loads(out_file.read_text(encoding="utf-8"))
+    assert summary_data["detector_config"]["is_default"] is False
+    assert summary_data["run_label"] == "exploratory"

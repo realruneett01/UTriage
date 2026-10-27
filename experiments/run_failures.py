@@ -25,6 +25,12 @@ if "utriage" in sys.modules:
 
 import numpy as np  # noqa: E402
 
+from utriage.detector_config import (  # noqa: E402
+    DEFAULT_PATH,
+    DetectorConfig,
+    config_fingerprint,
+    load_detector_config,
+)
 from utriage.ml.datasets import MLNDT_ROOT, list_batches, read_image  # noqa: E402
 from utriage.ml.infer import load_model  # noqa: E402
 from utriage.ml.loco import IndexedMlNdtDataset, LocoFold, make_folds  # noqa: E402
@@ -59,6 +65,8 @@ class FailureConfig:
     quick: bool
     device: str
     max_cases: int = 20
+    threshold: float = 0.5
+    cfg: DetectorConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -88,6 +96,18 @@ def _build_case_id(kind: str, fold: str, batch_stem: str, img_idx: int) -> str:
 def _parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="LOCO failure modes analysis")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_PATH,
+        help="Path to detector config YAML",
+    )
+    parser.add_argument(
+        "--set",
+        action="append",
+        default=None,
+        help="Config override KEY=VALUE (repeatable)",
+    )
     parser.add_argument("--quick", action="store_true", help="Quick run capping cases to 5")
     parser.add_argument(
         "--models-dir", type=str, default="models", help="Directory containing loco checkpoints"
@@ -332,7 +352,7 @@ def _eval_single_fold(
     probs, flaw_labels, eq_sizes = _score_fold_test(model_path, fold, cfg.device)
     flawed = (flaw_labels == 1.0) & (eq_sizes > 0.0)
     unflawed = flaw_labels == 0.0
-    hits = probs >= 0.5
+    hits = probs >= cfg.threshold
 
     det_sizes = eq_sizes[flawed & hits]
     p10 = float(np.percentile(det_sizes, 10)) if len(det_sizes) > 0 else SMALL_FLAW_P10_DEFAULT
@@ -363,9 +383,13 @@ def _load_sim_gen(sim_path: Path) -> dict:
         return {}
 
 
-def _write_summary_json(out_dir: Path, summaries: list[dict[str, Any]]) -> Path:
+def _write_summary_json(
+    out_dir: Path,
+    summaries: list[dict[str, Any]],
+    cfg: DetectorConfig | None = None,
+) -> Path:
     """Save per-fold cause breakdown counts to summary.json."""
-    summary_data = {
+    summary_data: dict[str, Any] = {
         s["fold"]: {
             "n_misses": s["n_misses"],
             "miss_causes": s["miss_causes"],
@@ -374,6 +398,10 @@ def _write_summary_json(out_dir: Path, summaries: list[dict[str, Any]]) -> Path:
         }
         for s in summaries
     }
+    if cfg is not None:
+        fp = config_fingerprint(cfg)
+        summary_data["detector_config"] = fp
+        summary_data["run_label"] = "pre-registered" if fp["is_default"] else "exploratory"
     summary_path = out_dir / "summary.json"
     summary_path.write_text(json.dumps(summary_data, indent=2), encoding="utf-8")
     return summary_path
@@ -425,6 +453,7 @@ def _write_failure_modes_report(
 def main() -> None:
     """Run failure mode extraction, plot generation, and report synthesis."""
     args = _parse_args()
+    det_cfg = load_detector_config(args.config, overrides=args.set)
     dev = pick_device(args.device)
     models = _find_loco_models(Path(args.models_dir))
     if not models:
@@ -438,9 +467,16 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     max_cases = 5 if args.quick else args.max_cases
-    cfg = FailureConfig(out_dir=out_dir, quick=args.quick, device=str(dev), max_cases=max_cases)
+    cfg = FailureConfig(
+        out_dir=out_dir,
+        quick=args.quick,
+        device=str(dev),
+        max_cases=max_cases,
+        threshold=det_cfg.supervised.threshold,
+        cfg=det_cfg,
+    )
     summaries, cases = _process_folds(models, fold_map, cfg)
-    _write_summary_json(out_dir, summaries)
+    _write_summary_json(out_dir, summaries, cfg=det_cfg)
     _write_failure_modes_report(Path(args.report_path), summaries, cases, cfg)
 
 

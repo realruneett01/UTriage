@@ -25,10 +25,17 @@ if "utriage" in sys.modules:
         del sys.modules["utriage"]
 
 import numpy as np  # noqa: E402
+import scipy.stats  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
 from torch.utils.data import Dataset  # noqa: E402
 
+from utriage.detector_config import (  # noqa: E402
+    DEFAULT_PATH,
+    DetectorConfig,
+    config_fingerprint,
+    load_detector_config,
+)
 from utriage.integrity import sha256_file  # noqa: E402
 from utriage.ml.datasets import (  # noqa: E402
     MLNDT_ROOT,
@@ -87,6 +94,7 @@ class EnsembleFoldContext:
     dev_name: str
     eval_only: bool = False
     models_dir: Path = Path("models")
+    cfg: DetectorConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +103,7 @@ class SingleFoldContext:
 
     dev_name: str = "cpu"
     models_dir: Path = Path("models")
+    cfg: DetectorConfig | None = None
     out_path: Path | None = None
     val_mode: str = "batch"
 
@@ -108,9 +117,21 @@ class SingleFoldContext:
             object.__setattr__(self, "out_path", default_p)
 
 
-def _parse_args() -> argparse.Namespace:
-    """Parse CLI options for LOCO training and evaluation experiment."""
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Construct argument parser with experiment CLI options."""
     parser = argparse.ArgumentParser(description="Leave-one-crack-out (LOCO) experiment")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_PATH,
+        help="Path to detectors configuration YAML",
+    )
+    parser.add_argument(
+        "--set",
+        action="append",
+        default=None,
+        help="Config override KEY=VALUE (repeatable)",
+    )
     parser.add_argument("--quick", action="store_true", help="Quick run with subset")
     parser.add_argument("--epochs", type=int, default=None, help="Epoch count override")
     parser.add_argument("--seeds", type=int, nargs="+", default=None, help="Restart seeds")
@@ -132,10 +153,21 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--val-mode",
         choices=["batch", "crack"],
-        default="batch",
+        default=None,
         help="Validation split mode: batch (default) or crack",
     )
-    return parser.parse_args()
+    return parser
+
+
+def _parse_args() -> argparse.Namespace:
+    """Parse CLI options for LOCO training and evaluation experiment."""
+    parser = _build_arg_parser()
+    args = parser.parse_args()
+    cfg = load_detector_config(args.config, overrides=args.set)
+    args.detector_cfg = cfg
+    if args.val_mode is None:
+        args.val_mode = cfg.evaluation.loco_val_mode
+    return args
 
 
 def _resolve_checkpoint_path(filename: str, models_dir: Path = Path("models")) -> Path:
@@ -304,43 +336,64 @@ def _calc_detection(hits: np.ndarray, flawed: np.ndarray) -> dict[str, Any]:
     return {"n_hit": n_hit, "n_flawed": n_flawed, "rate": rate}
 
 
-def _calc_false_calls(hits: np.ndarray, unflawed: np.ndarray) -> dict[str, Any]:
-    """Calculate false call counts, empirical rate, and 95% upper confidence bound."""
+def _calc_false_calls(
+    hits: np.ndarray, unflawed: np.ndarray, confidence: float = 0.95
+) -> dict[str, Any]:
+    """Calculate false call counts, empirical rate, and upper confidence bound."""
     n_unflawed = int(np.sum(unflawed))
     if n_unflawed == 0:
         return {"n_false": 0, "n_unflawed": 0, "rate": 0.0, "upper95": 0.0}
     fc = false_call_rate(hits[unflawed])
+    n = int(fc["n"])
+    n_false = int(fc["n_false"])
+    if confidence == 0.95:
+        upper = float(fc["upper95"])
+    elif n_false == n:
+        upper = 1.0
+    else:
+        upper = float(scipy.stats.beta.ppf(confidence, n_false + 1, n - n_false))
     return {
-        "n_false": int(fc["n_false"]),
-        "n_unflawed": int(fc["n"]),
+        "n_false": n_false,
+        "n_unflawed": n,
         "rate": float(fc["rate"]),
-        "upper95": float(fc["upper95"]),
+        "upper95": upper,
     }
 
 
 def _evaluate_predictions(
-    probs: np.ndarray, flaw_labels: np.ndarray, eq_sizes: np.ndarray
+    probs: np.ndarray,
+    flaw_labels: np.ndarray,
+    eq_sizes: np.ndarray,
+    threshold: float | DetectorConfig = 0.5,
 ) -> dict[str, Any]:
     """Calculate detection, false call, and POD metrics from predictions."""
-    hits = (probs >= 0.5).astype(float)
+    if isinstance(threshold, DetectorConfig):
+        th = threshold.supervised.threshold
+        conf = threshold.evaluation.confidence
+    else:
+        th = float(threshold)
+        conf = 0.95
+    hits = (probs >= th).astype(float)
     flawed = (flaw_labels == 1.0) & (eq_sizes > 0.0)
     unflawed = flaw_labels == 0.0
     return {
         "n_flawed": int(np.sum(flawed)),
         "n_unflawed": int(np.sum(unflawed)),
         "detections": _calc_detection(hits, flawed),
-        "false_calls": _calc_false_calls(hits, unflawed),
+        "false_calls": _calc_false_calls(hits, unflawed, conf),
         "pod": _eval_pod(eq_sizes[flawed], hits[flawed]),
     }
 
 
-def _eval_fold_test(model: nn.Module, fold: LocoFold) -> dict[str, Any]:
+def _eval_fold_test(
+    model: nn.Module, fold: LocoFold, cfg: DetectorConfig | None = None
+) -> dict[str, Any]:
     """Evaluate trained model on fold test split: detections, false calls, and POD."""
     test_ds = IndexedMlNdtDataset(fold.test)
     eval_cfg = TrainConfig(batch_size=64, device="auto")
     probs, _ = predict(model, test_ds, eval_cfg)
     flaw_labels, eq_sizes = test_ds.get_labels()
-    ev = _evaluate_predictions(probs, flaw_labels, eq_sizes)
+    ev = _evaluate_predictions(probs, flaw_labels, eq_sizes, cfg or DetectorConfig())
     return {
         "n_test_flawed": ev["n_flawed"],
         "n_test_unflawed": ev["n_unflawed"],
@@ -350,14 +403,16 @@ def _eval_fold_test(model: nn.Module, fold: LocoFold) -> dict[str, Any]:
     }
 
 
-def _eval_ensemble_fold(models: list[nn.Module], fold: LocoFold) -> dict[str, Any]:
+def _eval_ensemble_fold(
+    models: list[nn.Module], fold: LocoFold, cfg: DetectorConfig | None = None
+) -> dict[str, Any]:
     """Evaluate ensemble of models on fold test split via average probability."""
     test_ds = IndexedMlNdtDataset(fold.test)
     eval_cfg = TrainConfig(batch_size=64, device="auto")
     probs_list = [predict(m, test_ds, eval_cfg)[0] for m in models]
     mean_probs = _ensemble_probabilities(probs_list)
     flaw_labels, eq_sizes = test_ds.get_labels()
-    ev = _evaluate_predictions(mean_probs, flaw_labels, eq_sizes)
+    ev = _evaluate_predictions(mean_probs, flaw_labels, eq_sizes, cfg or DetectorConfig())
     return {
         "n_test_flawed": ev["n_flawed"],
         "n_test_unflawed": ev["n_unflawed"],
@@ -388,7 +443,11 @@ def _find_fold_record(data: dict[str, Any] | None, held_out: str) -> dict[str, A
     return None
 
 
-def _eval_part_a(val_batches: list[Path], models_dir: Path = Path("models")) -> dict[str, Any]:
+def _eval_part_a(
+    val_batches: list[Path],
+    models_dir: Path = Path("models"),
+    cfg: DetectorConfig | None = None,
+) -> dict[str, Any]:
     """Evaluate existing models/mlndt_best.pt on official validation folder only."""
     flag = (
         "leaky: validation shares all 3 physical cracks with training "
@@ -399,22 +458,13 @@ def _eval_part_a(val_batches: list[Path], models_dir: Path = Path("models")) -> 
         return {"flag": flag, "status": "skipped", "reason": "mlndt_best.pt not found"}
 
     model, _ = load_model(model_path, device="auto")
-    val_items = [(b, i) for b, i, _ in image_index(val_batches)]
-    val_ds = IndexedMlNdtDataset(val_items)
-    eval_cfg = TrainConfig(batch_size=64, device="auto")
-    probs, _ = predict(model, val_ds, eval_cfg)
-
+    val_ds = IndexedMlNdtDataset([(b, i) for b, i, _ in image_index(val_batches)])
+    probs, _ = predict(model, val_ds, TrainConfig(batch_size=64, device="auto"))
     flaw_labels, eq_sizes = val_ds.get_labels()
-    ev = _evaluate_predictions(probs, flaw_labels, eq_sizes)
-    return {
-        "flag": flag,
-        "model_path": str(model_path),
-        "n_flawed": ev["n_flawed"],
-        "n_unflawed": ev["n_unflawed"],
-        "detections": ev["detections"],
-        "false_calls": ev["false_calls"],
-        "pod": ev["pod"],
-    }
+    ev = _evaluate_predictions(probs, flaw_labels, eq_sizes, cfg or DetectorConfig())
+    res = {"flag": flag, "model_path": str(model_path)}
+    res.update({k: ev[k] for k in ("n_flawed", "n_unflawed", "detections", "false_calls", "pod")})
+    return res
 
 
 def _build_fold_record(
@@ -445,17 +495,22 @@ def _build_fold_record(
 
 def _eval_single_fold(
     fold: LocoFold,
-    dev_name: str,
+    ctx: SingleFoldContext | str = "cpu",
     models_dir: Path = Path("models"),
     val_mode: str = "batch",
 ) -> dict[str, Any] | None:
     """Evaluate saved single model on fold test split without training."""
-    model_path = _resolve_single_model_path(fold.held_out, models_dir, val_mode)
+    c = (
+        ctx
+        if isinstance(ctx, SingleFoldContext)
+        else SingleFoldContext(dev_name=ctx, models_dir=models_dir, val_mode=val_mode)
+    )
+    model_path = _resolve_single_model_path(fold.held_out, c.models_dir, c.val_mode)
     if not model_path.exists():
         return None
     model, _ = load_model(model_path, device="auto")
-    ev = _eval_fold_test(model, fold)
-    rec = _build_fold_record(fold, ev, dev_name, model_path)
+    ev = _eval_fold_test(model, fold, c.cfg)
+    rec = _build_fold_record(fold, ev, c.dev_name, model_path)
     rec["note"] = "evaluated from saved weights, no training in this run"
     return rec
 
@@ -481,7 +536,7 @@ def _run_fold_workflow(
         {"width": 32, "first_pool": (2, 2), "size": 256},
     )
 
-    ev = _eval_fold_test(model, fold)
+    ev = _eval_fold_test(model, fold, c.cfg)
     rec = _build_fold_record(fold, ev, c.dev_name, out_path)
     rec["best_val_loss"] = float(best_res.best_val_loss)
     rec["seconds"] = round(sec, 2)
@@ -491,14 +546,20 @@ def _run_fold_workflow(
 def _save_loco_metrics(
     fold_records: list[dict[str, Any]],
     part_a_rec: dict[str, Any],
-    out_path: Path = Path("results/loco_metrics.json"),
+    out_target: Path | SingleFoldContext = Path("results/loco_metrics.json"),
     protocol: str = PROTOCOL_DESC_SINGLE,
 ) -> dict[str, Any]:
     """Construct and export LOCO cross-validation metrics dictionary."""
+    out_path = out_target.out_path if isinstance(out_target, SingleFoldContext) else out_target
+    cfg = out_target.cfg if isinstance(out_target, SingleFoldContext) else None
+    c_cfg = cfg or load_detector_config()
+    fp = config_fingerprint(c_cfg)
     metrics: dict[str, Any] = {
         "label": "Real data (ML-NDT)",
         "protocol": protocol,
         "run_note": RUN_NOTE,
+        "detector_config": fp,
+        "run_label": "pre-registered" if fp["is_default"] else "exploratory",
         "folds": fold_records,
         "official_validation": part_a_rec,
         "part_a": part_a_rec,
@@ -520,13 +581,13 @@ def _run_eval_single_workflow(
     c = ctx or SingleFoldContext(dev_name=_device_name())
     fold_records: list[dict[str, Any]] = []
     for f in folds:
-        rec = _eval_single_fold(f, c.dev_name, c.models_dir, c.val_mode)
+        rec = _eval_single_fold(f, c)
         if rec is None:
             raise FileNotFoundError(f"Missing weights for fold {f.held_out}")
         fold_records.append(rec)
-    part_a_rec = _eval_part_a(val_batches, c.models_dir)
+    part_a_rec = _eval_part_a(val_batches, c.models_dir, c.cfg)
     proto = PROTOCOL_DESC_CRACKVAL if c.val_mode == "crack" else PROTOCOL_DESC_SINGLE
-    return _save_loco_metrics(fold_records, part_a_rec, c.out_path, proto)
+    return _save_loco_metrics(fold_records, part_a_rec, c, proto)
 
 
 def _prepare_ensemble_models(
@@ -547,7 +608,8 @@ def _resolve_single_best(
     fold: LocoFold, ctx: EnsembleFoldContext, fallback: dict[str, Any] | None
 ) -> dict[str, Any] | None:
     """Resolve single best fold comparison from fresh weights or fallback."""
-    sb = _eval_single_fold(fold, ctx.dev_name, ctx.models_dir)
+    s_ctx = SingleFoldContext(dev_name=ctx.dev_name, models_dir=ctx.models_dir, cfg=ctx.cfg)
+    sb = _eval_single_fold(fold, s_ctx)
     return sb if sb is not None else _find_fold_record(fallback, fold.held_out)
 
 
@@ -559,7 +621,7 @@ def _run_ensemble_fold_workflow(
     """Execute training or loading and ensemble evaluation for single fold."""
     t0 = time.time()
     models, paths, best_loss = _prepare_ensemble_models(fold, ctx)
-    ev = _eval_ensemble_fold(models, fold)
+    ev = _eval_ensemble_fold(models, fold, ctx.cfg)
     sb = _resolve_single_best(fold, ctx, single_best_data)
     loss = best_loss if best_loss is not None else (sb or {}).get("best_val_loss")
     return {
@@ -591,12 +653,16 @@ def _run_ensemble_workflow(
 ) -> dict[str, Any]:
     """Execute complete ensemble training/evaluation and write output metrics."""
     fold_records = [_run_ensemble_fold_workflow(f, ctx) for f in folds]
-    part_a_rec = _eval_part_a(val_batches, ctx.models_dir)
+    part_a_rec = _eval_part_a(val_batches, ctx.models_dir, ctx.cfg)
     single_bests = [f["single_best"] for f in fold_records if f.get("single_best") is not None]
+    c_cfg = ctx.cfg or load_detector_config()
+    fp = config_fingerprint(c_cfg)
     metrics: dict[str, Any] = {
         "label": "Real data (ML-NDT)",
         "protocol": PROTOCOL_DESC_ENSEMBLE,
         "run_note": RUN_NOTE,
+        "detector_config": fp,
+        "run_label": "pre-registered" if fp["is_default"] else "exploratory",
         "seeds": ctx.seeds,
         "seeds_used": ctx.seeds,
         "folds": fold_records,
@@ -618,11 +684,15 @@ def _resolve_epochs(args: argparse.Namespace) -> int:
     return 1 if args.quick else 20
 
 
-def _resolve_seeds(args: argparse.Namespace) -> list[int]:
-    """Resolve restart seeds from CLI options."""
+def _resolve_seeds(args: argparse.Namespace, cfg: DetectorConfig | None = None) -> list[int]:
+    """Resolve restart seeds from CLI options or detector config."""
     if args.seeds is not None:
         return args.seeds
-    return [0] if args.quick else [0, 1, 2]
+    if args.quick:
+        return [0]
+    if cfg is not None:
+        return list(cfg.evaluation.seeds)
+    return [0, 1, 2]
 
 
 def _device_name() -> str:
@@ -635,31 +705,27 @@ def _device_name() -> str:
 def main() -> None:
     """Execute complete leave-one-crack-out training, evaluation, and export."""
     args = _parse_args()
-    epochs = _resolve_epochs(args)
-    seeds = _resolve_seeds(args)
-    dev_name = _device_name()
-    tr_batches, val_batches = _resolve_batches(args.quick)
-    folds = make_folds(tr_batches, val_batches, seed=0, val_mode=args.val_mode)
+    cfg = getattr(args, "detector_cfg", None) or load_detector_config(
+        args.config, overrides=args.set
+    )
+    epochs, seeds, dev_name = _resolve_epochs(args), _resolve_seeds(args, cfg), _device_name()
+    tr_b, val_b = _resolve_batches(args.quick)
+    folds = make_folds(tr_b, val_b, seed=0, val_mode=args.val_mode)
 
     if args.ensemble or args.eval_only:
-        ctx = EnsembleFoldContext(
-            epochs=epochs,
-            seeds=seeds,
-            dev_name=dev_name,
-            eval_only=args.eval_only,
-        )
-        _run_ensemble_workflow(folds, ctx, val_batches)
+        ctx = EnsembleFoldContext(epochs, seeds, dev_name, args.eval_only, cfg=cfg)
+        _run_ensemble_workflow(folds, ctx, val_b)
         return
 
-    single_ctx = SingleFoldContext(dev_name=dev_name, val_mode=args.val_mode)
+    s_ctx = SingleFoldContext(dev_name=dev_name, val_mode=args.val_mode, cfg=cfg)
     if args.eval_single:
-        _run_eval_single_workflow(folds, val_batches, ctx=single_ctx)
+        _run_eval_single_workflow(folds, val_b, ctx=s_ctx)
         return
 
-    fold_records = [_run_fold_workflow(f, epochs, seeds, single_ctx) for f in folds]
-    part_a_rec = _eval_part_a(val_batches)
+    recs = [_run_fold_workflow(f, epochs, seeds, s_ctx) for f in folds]
+    part_a = _eval_part_a(val_b, s_ctx.models_dir, cfg)
     proto = PROTOCOL_DESC_CRACKVAL if args.val_mode == "crack" else PROTOCOL_DESC_SINGLE
-    _save_loco_metrics(fold_records, part_a_rec, single_ctx.out_path, proto)
+    _save_loco_metrics(recs, part_a, s_ctx, proto)
 
 
 if __name__ == "__main__":
