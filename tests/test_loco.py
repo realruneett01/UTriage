@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -27,6 +28,7 @@ from utriage.ml.datasets import (  # noqa: E402
 from utriage.ml.loco import (  # noqa: E402
     PHYSICAL_CRACKS,
     IndexedMlNdtDataset,
+    LocoFold,
     make_folds,
 )
 from utriage.ml.mlndt_meta import image_index  # noqa: E402
@@ -192,18 +194,23 @@ def test_ensemble_averaging_on_stub_models(fake_mlndt_root: Path) -> None:
     assert "detections" in ev and "false_calls" in ev and "pod" in ev
 
 
+@pytest.mark.parametrize("with_single_best", [False, True])
 def test_eval_only_loads_seed_weights(
-    monkeypatch: pytest.MonkeyPatch, fake_mlndt_root: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    fake_mlndt_root: Path,
+    with_single_best: bool,
 ) -> None:
-    """Verify --eval-only skips training and loads existing seed checkpoints."""
-    from experiments.run_loco import (
-        EnsembleFoldContext,
-        _run_ensemble_fold_workflow,
-    )
+    """Verify --eval-only skips training and loads seed weights and optional single-best."""
+    from experiments.run_loco import EnsembleFoldContext, _run_ensemble_fold_workflow
 
-    tr_batches = list_batches("training", root=fake_mlndt_root)
-    val_batches = list_batches("validation", root=fake_mlndt_root)
-    fold = make_folds(tr_batches, val_batches, seed=0)[0]
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    fold = make_folds(tr, val, seed=0)[0]
+    models_dir = tmp_path / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+    if with_single_best:
+        (models_dir / f"loco_{fold.held_out}.pt").write_bytes(b"dummy")
 
     loaded_paths: list[Path] = []
 
@@ -211,44 +218,36 @@ def test_eval_only_loads_seed_weights(
         loaded_paths.append(Path(path))
         return _StubModel(0.0), {}
 
-    def fail_train(*_: Any) -> Any:
-        pytest.fail("Training should not be called in eval-only mode")
-
     monkeypatch.setattr("experiments.run_loco.load_model", mock_load)
-    monkeypatch.setattr("experiments.run_loco._run_single_seed", fail_train)
-
-    ctx = EnsembleFoldContext(
-        epochs=1,
-        seeds=[0, 1, 2],
-        dev_name="cpu",
-        eval_only=True,
+    monkeypatch.setattr(
+        "experiments.run_loco._run_single_seed",
+        lambda *_: pytest.fail("Training in eval-only"),
     )
+
+    ctx = EnsembleFoldContext(1, [0, 1, 2], "cpu", eval_only=True, models_dir=models_dir)
     rec = _run_ensemble_fold_workflow(fold, ctx, single_best_data=None)
 
-    assert len(loaded_paths) == 3
-    assert all(p.name.startswith(f"loco_{fold.held_out}_seed") for p in loaded_paths)
+    assert len(loaded_paths) == (4 if with_single_best else 3)
+    assert all(p.name.startswith(f"loco_{fold.held_out}_seed") for p in loaded_paths[:3])
+    assert (rec["single_best"] is not None) is with_single_best
     assert rec["seeds"] == [0, 1, 2]
-    assert rec["single_best"] is None
 
 
 def test_eval_only_with_single_best_comparison(
-    monkeypatch: pytest.MonkeyPatch, fake_mlndt_root: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_mlndt_root: Path
 ) -> None:
     """Verify single-best comparison is attached when loco_metrics.json exists."""
-    from experiments.run_loco import (
-        EnsembleFoldContext,
-        _run_ensemble_fold_workflow,
-    )
+    from experiments.run_loco import EnsembleFoldContext, _run_ensemble_fold_workflow
 
-    tr_batches = list_batches("training", root=fake_mlndt_root)
-    val_batches = list_batches("validation", root=fake_mlndt_root)
-    fold = make_folds(tr_batches, val_batches, seed=0)[0]
-
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    fold = make_folds(tr, val, seed=0)[0]
     monkeypatch.setattr(
         "experiments.run_loco.load_model",
         lambda p, device="auto": (_StubModel(0.0), {}),
     )
-    fake_single_best = {
+
+    fake_sb = {
         "folds": [
             {
                 "held_out": fold.held_out,
@@ -257,10 +256,12 @@ def test_eval_only_with_single_best_comparison(
             }
         ]
     }
-    ctx = EnsembleFoldContext(epochs=1, seeds=[0], dev_name="cpu", eval_only=True)
-    rec = _run_ensemble_fold_workflow(fold, ctx, single_best_data=fake_single_best)
+    models_dir = tmp_path / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+    ctx = EnsembleFoldContext(1, [0], "cpu", eval_only=True, models_dir=models_dir)
+    rec = _run_ensemble_fold_workflow(fold, ctx, single_best_data=fake_sb)
 
-    assert rec["single_best"] == fake_single_best["folds"][0]
+    assert rec["single_best"] == fake_sb["folds"][0]
     assert rec["best_val_loss"] == 0.005
 
 
@@ -288,34 +289,200 @@ def test_ensemble_cli_arguments(
     assert args.eval_only is expected_eval
 
 
+def test_eval_single_cli_argument(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify CLI flag --eval-single parses correctly."""
+    from experiments.run_loco import _parse_args
+
+    monkeypatch.setattr(sys, "argv", ["run_loco.py", "--eval-single"])
+    args = _parse_args()
+    assert args.eval_single is True
+    assert not any([args.ensemble, args.eval_only])
+
+
 def test_ensemble_workflow_writes_json(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_mlndt_root: Path
 ) -> None:
     """Verify _run_ensemble_workflow writes loco_ensemble_metrics.json structure."""
     from experiments.run_loco import (
+        RUN_NOTE,
         EnsembleFoldContext,
         _run_ensemble_workflow,
     )
 
-    tr_batches = list_batches("training", root=fake_mlndt_root)
-    val_batches = list_batches("validation", root=fake_mlndt_root)
-    folds = make_folds(tr_batches, val_batches, seed=0)
-
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    folds = make_folds(tr, val, seed=0)
     monkeypatch.setattr(
         "experiments.run_loco.load_model",
         lambda p, device="auto": (_StubModel(0.0), {}),
     )
     monkeypatch.setattr(
         "experiments.run_loco._eval_part_a",
-        lambda _: {"status": "ok", "flag": "test"},
+        lambda *_: {"status": "ok", "flag": "test"},
     )
 
     out_file = tmp_path / "loco_ensemble_metrics.json"
-    ctx = EnsembleFoldContext(epochs=1, seeds=[0, 1], dev_name="cpu", eval_only=True)
-    metrics = _run_ensemble_workflow(folds, ctx, val_batches, out_path=out_file)
+    models_dir = tmp_path / "models"
+    ctx = EnsembleFoldContext(1, [0, 1], "cpu", eval_only=True, models_dir=models_dir)
+    metrics = _run_ensemble_workflow(folds, ctx, val, out_path=out_file)
 
-    assert out_file.exists()
-    assert metrics["label"] == "Real data (ML-NDT)"
-    assert metrics["seeds"] == [0, 1]
-    assert len(metrics["folds"]) == len(folds)
-    assert all("seeds" in f for f in metrics["folds"])
+    assert out_file.exists() and metrics["run_note"] == RUN_NOTE
+    assert metrics["label"] == "Real data (ML-NDT)" and metrics["seeds"] == [0, 1]
+    assert len(metrics["folds"]) == len(folds) and all("seeds" in f for f in metrics["folds"])
+
+
+def test_file_sha256_helper_on_tmp_file(tmp_path: Path) -> None:
+    """Verify _file_sha256 computes correct sha256 digest on binary and missing files."""
+    from experiments.run_loco import _file_sha256
+
+    data = b"sample model weights binary data\x00\x01\x02\x03"
+    target = tmp_path / "model.pt"
+    target.write_bytes(data)
+
+    expected = hashlib.sha256(data).hexdigest()
+    assert _file_sha256(target) == expected
+    assert _file_sha256(tmp_path / "missing.pt") == ""
+
+
+def test_file_mtime_helper_on_tmp_file(tmp_path: Path) -> None:
+    """Verify _file_mtime returns valid ISO timestamp string in UTC."""
+    from experiments.run_loco import _file_mtime
+
+    target = tmp_path / "weights.pt"
+    target.write_bytes(b"sample")
+    iso_time = _file_mtime(target)
+    assert isinstance(iso_time, str) and len(iso_time) > 10
+    assert _file_mtime(tmp_path / "missing.pt") == ""
+
+
+def _setup_eval_single_mocks(
+    monkeypatch: pytest.MonkeyPatch, models_dir: Path, folds: list[LocoFold]
+) -> None:
+    """Configure stub models and disallow training calls during evaluation tests."""
+
+    def fail_train(*_: Any) -> Any:
+        pytest.fail("train_model should not be called in eval-single mode")
+
+    monkeypatch.setattr("experiments.run_loco.train_model", fail_train)
+    monkeypatch.setattr(
+        "experiments.run_loco.load_model",
+        lambda p, device="auto": (_StubModel(0.0), {}),
+    )
+    monkeypatch.setattr(
+        "experiments.run_loco._eval_part_a",
+        lambda *_: {"status": "ok", "flag": "test"},
+    )
+    models_dir.mkdir(parents=True, exist_ok=True)
+    for f in folds:
+        (models_dir / f"loco_{f.held_out}.pt").write_bytes(f"weights_{f.held_out}".encode())
+
+
+def test_eval_single_path_calls_no_training(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_mlndt_root: Path
+) -> None:
+    """Verify --eval-single skips training and evaluates saved models."""
+    from experiments.run_loco import (
+        RUN_NOTE,
+        SingleFoldContext,
+        _run_eval_single_workflow,
+    )
+
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    folds = make_folds(tr, val, seed=0)
+    models_dir = tmp_path / "models"
+    _setup_eval_single_mocks(monkeypatch, models_dir, folds)
+
+    out_file = tmp_path / "loco_metrics.json"
+    ctx = SingleFoldContext(dev_name="cpu", models_dir=models_dir, out_path=out_file)
+    res = _run_eval_single_workflow(folds, val, ctx=ctx)
+
+    assert out_file.exists() and res["run_note"] == RUN_NOTE
+    assert len(res["folds"]) == len(folds)
+    for entry in res["folds"]:
+        assert entry["best_val_loss"] is None and entry["seconds"] is None
+        assert entry["note"] == "evaluated from saved weights, no training in this run"
+        assert len(entry["model_sha256"]) == 64
+        assert isinstance(entry["model_mtime"], str) and len(entry["model_mtime"]) > 0
+
+
+def _write_stub_weights(models_dir: Path, held_out: str) -> None:
+    """Write dummy seed and single weights files for testing."""
+    models_dir.mkdir(parents=True, exist_ok=True)
+    for s in [0, 1]:
+        (models_dir / f"loco_{held_out}_seed{s}.pt").write_bytes(f"seed_{s}".encode())
+    (models_dir / f"loco_{held_out}.pt").write_bytes(b"single_best_bytes")
+
+
+def _verify_single_best_and_traceability(rec: dict[str, Any], held_out: str) -> None:
+    """Check single-best comparison values and ensemble seed traceability."""
+    sb = rec["single_best"]
+    assert sb is not None and sb["held_out"] == held_out
+    assert sb["model_sha256"] == hashlib.sha256(b"single_best_bytes").hexdigest()
+    assert sb["best_val_loss"] is None and len(rec["model_mtime"]) == 2
+    assert sb["note"] == "evaluated from saved weights, no training in this run"
+    assert rec["model_sha256"] == [
+        hashlib.sha256(b"seed_0").hexdigest(),
+        hashlib.sha256(b"seed_1").hexdigest(),
+    ]
+
+
+def test_single_best_comparison_computed_from_current_weights(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_mlndt_root: Path
+) -> None:
+    """Verify single-best comparison in ensemble evaluation uses current weights."""
+    from experiments.run_loco import (
+        EnsembleFoldContext,
+        _run_ensemble_fold_workflow,
+    )
+
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    fold = make_folds(tr, val, seed=0)[0]
+    models_dir = tmp_path / "models"
+    _write_stub_weights(models_dir, fold.held_out)
+
+    monkeypatch.setattr(
+        "experiments.run_loco.load_model",
+        lambda p, device="auto": (_StubModel(1.5), {}),
+    )
+    ctx = EnsembleFoldContext(
+        epochs=1,
+        seeds=[0, 1],
+        dev_name="cpu",
+        eval_only=True,
+        models_dir=models_dir,
+    )
+    rec = _run_ensemble_fold_workflow(fold, ctx)
+    _verify_single_best_and_traceability(rec, fold.held_out)
+
+
+def test_guard_no_model_loading_under_repo_models(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_mlndt_root: Path
+) -> None:
+    """Verify test-time load paths resolve under tmp_path, never repository models."""
+    from experiments.run_loco import EnsembleFoldContext, _run_ensemble_fold_workflow
+
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    fold = make_folds(tr, val, seed=0)[0]
+    models_dir = tmp_path / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+    (models_dir / f"loco_{fold.held_out}.pt").write_bytes(b"dummy")
+
+    repo_models = Path("models").resolve()
+
+    def guarded_load(path: Path | str, device: str = "auto") -> tuple[torch.nn.Module, dict]:
+        p = Path(path).resolve()
+        assert not p.is_relative_to(repo_models), f"Resolved under repo models: {p}"
+        assert p.is_relative_to(tmp_path.resolve()), f"Path not under tmp_path: {p}"
+        return _StubModel(0.0), {}
+
+    monkeypatch.setattr("experiments.run_loco.load_model", guarded_load)
+    ctx = EnsembleFoldContext(1, [0, 1], "cpu", eval_only=True, models_dir=models_dir)
+    rec = _run_ensemble_fold_workflow(fold, ctx)
+    assert rec["held_out"] == fold.held_out
+
+    with pytest.raises(AssertionError, match="Resolved under repo models"):
+        bad_ctx = EnsembleFoldContext(1, [0], "cpu", eval_only=True)
+        _run_ensemble_fold_workflow(fold, bad_ctx)
