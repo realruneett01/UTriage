@@ -1,5 +1,7 @@
 # ML-NDT Real-Data Crack Detection & POD Report
 
+> Superseded: the random batch split shares all physical cracks between train and test (results/leakage_audit.json); see results/loco_metrics.json for leave-one-crack-out results.
+
 **Dataset Label:** Real data (ML-NDT, Virkkunen et al. arXiv:1903.11399; data LGPL-3.0, not redistributed)
 **Device:** NVIDIA GeForce RTX 5070 Ti Laptop GPU | **Parameters:** 1226850 | **Kept Seed:** 2
 **Flaw Size Metric:** equivalent size
