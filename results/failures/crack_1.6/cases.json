@@ -1,0 +1,2729 @@
+{
+  "misses": [
+    {
+      "name": "miss_crack_1.6_829F2A1A-AC69-4E3F-9092-FABBD75F3A1D_40",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4983959496021271,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_829F2A1A-AC69-4E3F-9092-FABBD75F3A1D_40.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_829F2A1A-AC69-4E3F-9092-FABBD75F3A1D_40",
+        "score": 0.4983959496021271,
+        "peak_amplitude": 4932.0,
+        "peak_location": [
+          162,
+          25
+        ],
+        "snr": 14.421052631578947,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "456.7797356828196-757.5859030837009",
+          "noise_flawsize": "0.21340411413404115",
+          "factor": "0.8193063815867776",
+          "noise_threshold": "804",
+          "location_min": "257.5674280502243",
+          "original_location": "840-867",
+          "max_amplitude": "6028",
+          "size": "1.6",
+          "location_max": "427.18500261988424",
+          "equivalent_flawsize": "1.3494509721059926"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3494509721059926 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_199BD889-BF94-4EE6-8E55-5B5BD58ED8CE_21",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.49691978096961975,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_199BD889-BF94-4EE6-8E55-5B5BD58ED8CE_21.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_199BD889-BF94-4EE6-8E55-5B5BD58ED8CE_21",
+        "score": 0.49691978096961975,
+        "peak_amplitude": 4840.0,
+        "peak_location": [
+          154,
+          50
+        ],
+        "snr": 14.193548387096774,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "521-548",
+          "location_min": "2627",
+          "location": "2627-2797",
+          "equivalent_flawsize": "1.3500845190472854",
+          "factor": "0.8197632897225589",
+          "max_amplitude": "6028",
+          "location_max": "2797",
+          "noise_threshold": "804",
+          "size": "1.6",
+          "noise_flawsize": "0.21340411413404115"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3500845190472854 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_55",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.49640870094299316,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_55.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_55",
+        "score": 0.49640870094299316,
+        "peak_amplitude": 4934.0,
+        "peak_location": [
+          164,
+          8
+        ],
+        "snr": 14.426900584795321,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "69.10345630615741",
+          "noise_threshold": "804",
+          "noise_flawsize": "0.21340411413404115",
+          "max_amplitude": "6028",
+          "factor": "0.791438819791991",
+          "size": "1.6",
+          "original_location": "870-897",
+          "location_max": "238.7210308758174",
+          "equivalent_flawsize": "1.3108099255722263",
+          "location": "122.55066079295102-423.35682819383237"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3108099255722263 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_3D3BC24B-3E1A-4CE4-BF8E-F039AE5DE417_72",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4964066445827484,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_3D3BC24B-3E1A-4CE4-BF8E-F039AE5DE417_72.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_3D3BC24B-3E1A-4CE4-BF8E-F039AE5DE417_72",
+        "score": 0.4964066445827484,
+        "peak_amplitude": 4854.0,
+        "peak_location": [
+          150,
+          246
+        ],
+        "snr": 14.192982456140351,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "4983",
+          "noise_flawsize": "0.21340411413404115",
+          "max_amplitude": "6028",
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.2957708618099866",
+          "factor": "0.7805927874940897",
+          "original_location": "869-896",
+          "location": "4813-4983",
+          "size": "1.6",
+          "location_min": "4813"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.2957708618099866 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_4A409E8B-26B6-470A-8463-3B464443B81B_42",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4948458969593048,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_4A409E8B-26B6-470A-8463-3B464443B81B_42.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_4A409E8B-26B6-470A-8463-3B464443B81B_42",
+        "score": 0.4948458969593048,
+        "peak_amplitude": 5842.0,
+        "peak_location": [
+          152,
+          129
+        ],
+        "snr": 17.131964809384165,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_flawsize": "0.21340411413404115",
+          "size": "1.6",
+          "original_location": "656-683",
+          "location_max": "1583.0973626501582",
+          "location_min": "1413.4797880804986",
+          "location": "2506.718061674009-2807.5242290748897",
+          "noise_threshold": "804",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.5855813067051487",
+          "factor": "0.9896013730879876"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5855813067051487 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_07F57255-BE18-49DB-9E60-A6C43F9F527E_25",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4939400851726532,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_07F57255-BE18-49DB-9E60-A6C43F9F527E_25.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_07F57255-BE18-49DB-9E60-A6C43F9F527E_25",
+        "score": 0.4939400851726532,
+        "peak_amplitude": 5356.0,
+        "peak_location": [
+          163,
+          53
+        ],
+        "snr": 15.70674486803519,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "2828",
+          "noise_flawsize": "0.21340411413404115",
+          "equivalent_flawsize": "1.491246283999287",
+          "max_amplitude": "6028",
+          "original_location": "526-553",
+          "location": "2659-2828",
+          "factor": "0.9215678359432071",
+          "size": "1.6",
+          "location_min": "2659",
+          "noise_threshold": "804"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.491246283999287 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_24837367-47F9-4E38-B71B-409405C74D4E_84",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4930051565170288,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_24837367-47F9-4E38-B71B-409405C74D4E_84.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_24837367-47F9-4E38-B71B-409405C74D4E_84",
+        "score": 0.4930051565170288,
+        "peak_amplitude": 5669.0,
+        "peak_location": [
+          163,
+          31
+        ],
+        "snr": 16.4796511627907,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "max_amplitude": "6028",
+          "location_max": "496.2884589260417",
+          "noise_flawsize": "0.21340411413404115",
+          "location": "579.3303964757706-880.136563876652",
+          "location_min": "326.6708843563817",
+          "size": "1.6",
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.4958147367359609",
+          "factor": "0.9248625613806916",
+          "original_location": "829-856"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.4958147367359609 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_76E63756-0E55-4148-AF22-5DC7DF24E3F7_78",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.49289456009864807,
+      "cause": "small_flaw",
+      "png_file": "miss_crack_1.6_76E63756-0E55-4148-AF22-5DC7DF24E3F7_78.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_76E63756-0E55-4148-AF22-5DC7DF24E3F7_78",
+        "score": 0.49289456009864807,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.771260997067449,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "equivalent_flawsize": "1.1782681685897174",
+          "location": "4644-4813",
+          "size": "1.6",
+          "location_min": "4644",
+          "noise_flawsize": "0.21340411413404115",
+          "factor": "0.6958509427951302",
+          "original_location": "842-869",
+          "max_amplitude": "6028",
+          "noise_threshold": "804",
+          "location_max": "4813"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.1782681685897174 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_F1823AFF-436E-4B64-AE46-9CC3EBBA100D_23",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4927009344100952,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_F1823AFF-436E-4B64-AE46-9CC3EBBA100D_23.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_F1823AFF-436E-4B64-AE46-9CC3EBBA100D_23",
+        "score": 0.4927009344100952,
+        "peak_amplitude": 5456.0,
+        "peak_location": [
+          160,
+          117
+        ],
+        "snr": 16.0,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "2272.7577092511015-2573.5638766519824",
+          "location_min": "1281.555007859652",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.5405638736003455",
+          "factor": "0.9571352208631894",
+          "size": "1.6",
+          "location_max": "1451.1725824293117",
+          "noise_flawsize": "0.21340411413404115",
+          "original_location": "677-704",
+          "noise_threshold": "804"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5405638736003455 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_8BD1288C-8103-4171-A2D7-111DF98EE1E6_95",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4923333525657654,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_8BD1288C-8103-4171-A2D7-111DF98EE1E6_95.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_8BD1288C-8103-4171-A2D7-111DF98EE1E6_95",
+        "score": 0.4923333525657654,
+        "peak_amplitude": 5516.0,
+        "peak_location": [
+          155,
+          147
+        ],
+        "snr": 16.223529411764705,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_threshold": "804",
+          "location_min": "1614.5080246075029",
+          "location": "2863.229074889868-3164.035242290749",
+          "location_max": "1784.1255991771627",
+          "factor": "0.9673356185591164",
+          "equivalent_flawsize": "1.5547077030797145",
+          "noise_flawsize": "0.21340411413404115",
+          "size": "1.6",
+          "original_location": "624-651",
+          "max_amplitude": "6028"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5547077030797145 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_2CECF70F-40A6-4838-BFDF-AD8DE8ED2149_51",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4914979636669159,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_2CECF70F-40A6-4838-BFDF-AD8DE8ED2149_51.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_2CECF70F-40A6-4838-BFDF-AD8DE8ED2149_51",
+        "score": 0.4914979636669159,
+        "peak_amplitude": 5549.0,
+        "peak_location": [
+          168,
+          216
+        ],
+        "snr": 16.22514619883041,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "4233.568281938326-4534.374449339207",
+          "size": "1.6",
+          "noise_threshold": "804",
+          "max_amplitude": "6028",
+          "factor": "0.946554182084872",
+          "original_location": "501-528",
+          "equivalent_flawsize": "1.5258922487621427",
+          "location_min": "2387.2103087581754",
+          "noise_flawsize": "0.21340411413404115",
+          "location_max": "2556.827883327835"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5258922487621427 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_7266E2A1-7CC0-46A2-BF77-5480B778BD23_56",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4913809597492218,
+      "cause": "small_flaw",
+      "png_file": "miss_crack_1.6_7266E2A1-7CC0-46A2-BF77-5480B778BD23_56.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_7266E2A1-7CC0-46A2-BF77-5480B778BD23_56",
+        "score": 0.4913809597492218,
+        "peak_amplitude": 4651.0,
+        "peak_location": [
+          157,
+          208
+        ],
+        "snr": 13.639296187683284,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "4066.453744493392-4367.259911894273",
+          "location_max": "2462.5958974558016",
+          "noise_flawsize": "0.21340411413404115",
+          "original_location": "516-543",
+          "size": "1.6",
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.226560414218433",
+          "location_min": "2292.978322886142",
+          "factor": "0.7306788592205101",
+          "max_amplitude": "6028"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.226560414218433 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_9A770208-645C-41AE-9328-5F7C2E0CEE2C_92",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.48977741599082947,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_9A770208-645C-41AE-9328-5F7C2E0CEE2C_92.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_9A770208-645C-41AE-9328-5F7C2E0CEE2C_92",
+        "score": 0.48977741599082947,
+        "peak_amplitude": 4487.0,
+        "peak_location": [
+          156,
+          29
+        ],
+        "snr": 13.081632653061224,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "size": "1.6",
+          "noise_threshold": "804",
+          "max_amplitude": "6028",
+          "noise_flawsize": "0.21340411413404115",
+          "location_max": "2564",
+          "equivalent_flawsize": "1.248696571249635",
+          "location_min": "2395",
+          "original_location": "484-511",
+          "location": "2395-2564",
+          "factor": "0.7466432488864854"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.248696571249635 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_30B333B6-D988-4D87-BB21-7C8134FCB067_82",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.48826491832733154,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_30B333B6-D988-4D87-BB21-7C8134FCB067_82.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_30B333B6-D988-4D87-BB21-7C8134FCB067_82",
+        "score": 0.48826491832733154,
+        "peak_amplitude": 5689.0,
+        "peak_location": [
+          166,
+          133
+        ],
+        "snr": 16.58600583090379,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.5666540678831784",
+          "noise_flawsize": "0.21340411413404115",
+          "size": "1.6",
+          "location_max": "3720",
+          "factor": "0.9759512252583986",
+          "location_min": "3551",
+          "location": "3551-3720",
+          "max_amplitude": "6028",
+          "original_location": "668-695"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5666540678831784 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_DA0E6EA7-891A-4CAD-B175-CEF7468A9C19_91",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4870339334011078,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_DA0E6EA7-891A-4CAD-B175-CEF7468A9C19_91.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_DA0E6EA7-891A-4CAD-B175-CEF7468A9C19_91",
+        "score": 0.4870339334011078,
+        "peak_amplitude": 4787.0,
+        "peak_location": [
+          164,
+          8
+        ],
+        "snr": 13.997076023391813,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "870-897",
+          "location_max": "238.7210308758174",
+          "noise_threshold": "804",
+          "noise_flawsize": "0.21340411413404115",
+          "equivalent_flawsize": "1.277157582325549",
+          "location": "122.55066079295102-423.35682819383237",
+          "location_min": "69.10345630615741",
+          "max_amplitude": "6028",
+          "factor": "0.7671690642058777",
+          "size": "1.6"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.277157582325549 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_8C4C5FC1-C515-459D-ADEF-60B6EB85F3BB_91",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4869379699230194,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_8C4C5FC1-C515-459D-ADEF-60B6EB85F3BB_91.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_8C4C5FC1-C515-459D-ADEF-60B6EB85F3BB_91",
+        "score": 0.4869379699230194,
+        "peak_amplitude": 5219.0,
+        "peak_location": [
+          164,
+          247
+        ],
+        "snr": 15.215743440233236,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "4989",
+          "factor": "0.8504062199151158",
+          "location": "4820-4989",
+          "original_location": "870-897",
+          "noise_flawsize": "0.21340411413404115",
+          "location_min": "4820",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.3925738799831628",
+          "size": "1.6",
+          "noise_threshold": "804"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3925738799831628 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_2139604D-0B14-4B87-8B71-CFF857F92A46_98",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4859168529510498,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_2139604D-0B14-4B87-8B71-CFF857F92A46_98.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_2139604D-0B14-4B87-8B71-CFF857F92A46_98",
+        "score": 0.4859168529510498,
+        "peak_amplitude": 5643.0,
+        "peak_location": [
+          164,
+          30
+        ],
+        "snr": 16.40406976744186,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_flawsize": "0.21340411413404115",
+          "original_location": "831-858",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.5201819704935335",
+          "location_max": "483.72419414310394",
+          "noise_threshold": "804",
+          "size": "1.6",
+          "location_min": "314.10661957344394",
+          "location": "557.0484581497794-857.8546255506608",
+          "factor": "0.9424359827401201"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5201819704935335 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_10281F86-4508-402D-910F-8ED105F2166B_39",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4841795861721039,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_10281F86-4508-402D-910F-8ED105F2166B_39.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_10281F86-4508-402D-910F-8ED105F2166B_39",
+        "score": 0.4841795861721039,
+        "peak_amplitude": 4783.0,
+        "peak_location": [
+          167,
+          205
+        ],
+        "snr": 14.026392961876834,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "2437.4673678899267",
+          "size": "1.6",
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.313742833876831",
+          "location": "4021.88986784141-4322.696035242291",
+          "original_location": "520-547",
+          "factor": "0.7935540058635069",
+          "noise_flawsize": "0.21340411413404115",
+          "max_amplitude": "6028",
+          "location_min": "2267.8497933202666"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.313742833876831 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_1B58783C-A437-4552-9C10-82B66F332074_20",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.48379629850387573,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_1B58783C-A437-4552-9C10-82B66F332074_20.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_1B58783C-A437-4552-9C10-82B66F332074_20",
+        "score": 0.48379629850387573,
+        "peak_amplitude": 5635.0,
+        "peak_location": [
+          153,
+          134
+        ],
+        "snr": 16.428571428571427,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "3563",
+          "noise_threshold": "804",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.5792705269579796",
+          "noise_flawsize": "0.21340411413404115",
+          "size": "1.6",
+          "factor": "0.9850500976864831",
+          "location": "3563-3733",
+          "location_max": "3733",
+          "original_location": "670-697"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5792705269579796 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_42EA6651-1891-4F98-8E7A-67CF33919A6E_11",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4836251139640808,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_42EA6651-1891-4F98-8E7A-67CF33919A6E_11.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_42EA6651-1891-4F98-8E7A-67CF33919A6E_11",
+        "score": 0.4836251139640808,
+        "peak_amplitude": 4955.0,
+        "peak_location": [
+          150,
+          176
+        ],
+        "snr": 14.573529411764707,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "4035",
+          "max_amplitude": "6028",
+          "location_max": "4204",
+          "noise_flawsize": "0.21340411413404115",
+          "equivalent_flawsize": "1.3473733202349871",
+          "factor": "0.8178079984657951",
+          "location": "4035-4204",
+          "noise_threshold": "804",
+          "size": "1.6",
+          "original_location": "745-772"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3473733202349871 amp=6028 noise=804"
+    }
+  ],
+  "false_calls": [],
+  "near_misses_clean": [
+    {
+      "name": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_27",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00034505510120652616,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_27.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_27",
+        "score": 0.00034505510120652616,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "3626-3764",
+          "equivalent_flawsize": "0.0",
+          "size": "0.0",
+          "original_location": "680-702",
+          "location_min": "3626",
+          "factor": "0.9396382890268318",
+          "noise_threshold": "973",
+          "max_amplitude": "4050",
+          "location_max": "3764",
+          "noise_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_0275DE06-7EB3-4D99-B71D-39F259B64862_4",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0002588224015198648,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_0275DE06-7EB3-4D99-B71D-39F259B64862_4.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_0275DE06-7EB3-4D99-B71D-39F259B64862_4",
+        "score": 0.0002588224015198648,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_threshold": "1068",
+          "original_location": "577-599",
+          "equivalent_flawsize": "0.0",
+          "location_max": "3117",
+          "size": "0.0",
+          "max_amplitude": "3734",
+          "location": "2979-3117",
+          "location_min": "2979",
+          "noise_flawsize": "0.0",
+          "factor": "0.9607995897440239"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_4D9E9185-588A-433B-BB2C-8E87144A324A_72",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00025016386643983424,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_4D9E9185-588A-433B-BB2C-8E87144A324A_72.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_4D9E9185-588A-433B-BB2C-8E87144A324A_72",
+        "score": 0.00025016386643983424,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "2757.856119854839",
+          "location": "4645.784140969163-4890.885462555066",
+          "equivalent_flawsize": "0.0",
+          "location_min": "2619.6492072425235",
+          "size": "0.0",
+          "noise_threshold": "1068",
+          "factor": "0.921568844332725",
+          "original_location": "469-491",
+          "max_amplitude": "3734",
+          "noise_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_28",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0002394321927567944,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_28.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_28",
+        "score": 0.0002394321927567944,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "3142-3281",
+          "equivalent_flawsize": "0.0",
+          "size": "0.0",
+          "original_location": "603-625",
+          "location_min": "3142",
+          "factor": "0.8551195050485245",
+          "noise_threshold": "1068",
+          "max_amplitude": "3734",
+          "location_max": "3281",
+          "noise_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_59",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00022794288815930486,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_59.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_59",
+        "score": 0.00022794288815930486,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "equivalent_flawsize": "0.0",
+          "location": "3777-3915",
+          "location_min": "3777",
+          "noise_flawsize": "0.0",
+          "factor": "0.9688766687104657",
+          "location_max": "3915",
+          "max_amplitude": "3734",
+          "size": "0.0",
+          "original_location": "704-726",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00022467691451311111,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15",
+        "score": 0.00022467691451311111,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "factor": "0.9786478802512046",
+          "location": "2829.8061674008813-3074.9074889867843",
+          "noise_threshold": "1068",
+          "noise_flawsize": "0.0",
+          "equivalent_flawsize": "0.0",
+          "location_min": "1595.6616274330963",
+          "max_amplitude": "3734",
+          "size": "0.0",
+          "original_location": "632-654",
+          "location_max": "1733.8685400454115"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0002144384488929063,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91",
+        "score": 0.0002144384488929063,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.771260997067449,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "2376",
+          "equivalent_flawsize": "0.0",
+          "factor": "0.957866742498676",
+          "original_location": "481-503",
+          "location_max": "2514",
+          "location": "2376-2514",
+          "size": "0.0",
+          "noise_flawsize": "0.0",
+          "max_amplitude": "4050",
+          "noise_threshold": "973"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00021359712991397828,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13",
+        "score": 0.00021359712991397828,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.771260997067449,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "767-789",
+          "location_min": "4173",
+          "location": "4173-4311",
+          "noise_threshold": "973",
+          "noise_flawsize": "0.0",
+          "size": "0.0",
+          "equivalent_flawsize": "0.0",
+          "location_max": "4311",
+          "max_amplitude": "4050",
+          "factor": "0.9734788541620315"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_68",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0002004936832236126,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_68.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_68",
+        "score": 0.0002004936832236126,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "3607",
+          "noise_threshold": "1068",
+          "noise_flawsize": "0.0",
+          "max_amplitude": "3734",
+          "factor": "0.9630739095069174",
+          "size": "0.0",
+          "original_location": "677-699",
+          "location_max": "3746",
+          "equivalent_flawsize": "0.0",
+          "location": "3607-3746"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00019758532289415598,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28",
+        "score": 0.00019758532289415598,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "576-598",
+          "location": "2973-3111",
+          "noise_threshold": "1068",
+          "noise_flawsize": "0.0",
+          "size": "0.0",
+          "location_min": "2973",
+          "factor": "0.9757685466845912",
+          "location_max": "3111",
+          "max_amplitude": "3734",
+          "equivalent_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00019224290736019611,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96",
+        "score": 0.00019224290736019611,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_flawsize": "0.0",
+          "location_min": "2973",
+          "max_amplitude": "3734",
+          "equivalent_flawsize": "0.0",
+          "original_location": "576-598",
+          "size": "0.0",
+          "location_max": "3111",
+          "factor": "0.9735951089471567",
+          "noise_threshold": "1068",
+          "location": "2973-3111"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00019019177125301212,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96",
+        "score": 0.00019019177125301212,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "458-480",
+          "location_min": "2232",
+          "size": "0.0",
+          "location": "2232-2370",
+          "location_max": "2370",
+          "equivalent_flawsize": "0.0",
+          "max_amplitude": "3734",
+          "noise_flawsize": "0.0",
+          "factor": "0.9978567063803451",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_268A3193-0491-40CF-BA54-1B7061557AC1_93",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00018209224799647927,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_268A3193-0491-40CF-BA54-1B7061557AC1_93.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_268A3193-0491-40CF-BA54-1B7061557AC1_93",
+        "score": 0.00018209224799647927,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_flawsize": "0.0",
+          "size": "0.0",
+          "equivalent_flawsize": "0.0",
+          "original_location": "586-608",
+          "location_max": "3174",
+          "max_amplitude": "3734",
+          "noise_threshold": "1068",
+          "location": "3036-3174",
+          "factor": "0.9734007408780514",
+          "location_min": "3036"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_62",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00016627184231765568,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_62.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_62",
+        "score": 0.00016627184231765568,
+        "peak_amplitude": 4103.0,
+        "peak_location": [
+          177,
+          153
+        ],
+        "snr": 12.103244837758112,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "659-681",
+          "location_min": "1426.0440528634363",
+          "size": "0.0",
+          "location": "2529.0-2774.101321585903",
+          "location_max": "1564.2509654757516",
+          "equivalent_flawsize": "0.0",
+          "max_amplitude": "3734",
+          "noise_flawsize": "0.0",
+          "factor": "0.9387876076946937",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00014946724695619196,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26",
+        "score": 0.00014946724695619196,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "609-631",
+          "location": "3086.04845814978-3331.149779735683",
+          "noise_threshold": "973",
+          "noise_flawsize": "0.0",
+          "size": "0.0",
+          "location_min": "1740.1506724368805",
+          "factor": "0.9713631010314829",
+          "location_max": "1878.3575850491957",
+          "max_amplitude": "4050",
+          "equivalent_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_2",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0001396414008922875,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_2.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_2",
+        "score": 0.0001396414008922875,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_threshold": "1068",
+          "location": "1381.480176211454-1626.5814977973564",
+          "location_max": "917.1913291544565",
+          "max_amplitude": "3734",
+          "original_location": "762-784",
+          "factor": "0.9397135168406445",
+          "size": "0.0",
+          "location_min": "778.9844165421415",
+          "noise_flawsize": "0.0",
+          "equivalent_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_605F522F-8CBF-4E22-811D-60D594F283D2_33",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00013420767209026963,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_605F522F-8CBF-4E22-811D-60D594F283D2_33.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_605F522F-8CBF-4E22-811D-60D594F283D2_33",
+        "score": 0.00013420767209026963,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.771260997067449,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "equivalent_flawsize": "0.0",
+          "factor": "0.8977865375107589",
+          "noise_flawsize": "0.0",
+          "location": "4173-4311",
+          "size": "0.0",
+          "noise_threshold": "973",
+          "max_amplitude": "4050",
+          "location_max": "4311",
+          "original_location": "767-789",
+          "location_min": "4173"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_82",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00013189662422519177,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_82.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_82",
+        "score": 0.00013189662422519177,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "515-537",
+          "location_min": "2590",
+          "size": "0.0",
+          "location": "2590-2728",
+          "location_max": "2728",
+          "equivalent_flawsize": "0.0",
+          "max_amplitude": "3734",
+          "noise_flawsize": "0.0",
+          "factor": "0.9685111902580855",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_CB5DDE36-318E-4C1B-B831-614E91996167_88",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00013029607362113893,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_CB5DDE36-318E-4C1B-B831-614E91996167_88.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_CB5DDE36-318E-4C1B-B831-614E91996167_88",
+        "score": 0.00013029607362113893,
+        "peak_amplitude": 4251.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.576923076923077,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "662-684",
+          "noise_flawsize": "0.0",
+          "factor": "0.8962612469671902",
+          "size": "0.0",
+          "location_min": "1407.1976556890293",
+          "location_max": "1545.4045683013449",
+          "location": "2495.577092511013-2740.678414096916",
+          "noise_threshold": "1068",
+          "equivalent_flawsize": "0.0",
+          "max_amplitude": "3734"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_88",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00013002277410123497,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_88.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_88",
+        "score": 0.00013002277410123497,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "equivalent_flawsize": "0.0",
+          "location": "2406.4493392070485-2651.5506607929515",
+          "location_min": "1356.9405965572787",
+          "noise_flawsize": "0.0",
+          "factor": "0.9179704296211644",
+          "location_max": "1495.1475091695938",
+          "max_amplitude": "3734",
+          "size": "0.0",
+          "original_location": "670-692",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    }
+  ],
+  "cases": [
+    {
+      "name": "miss_crack_1.6_829F2A1A-AC69-4E3F-9092-FABBD75F3A1D_40",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4983959496021271,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_829F2A1A-AC69-4E3F-9092-FABBD75F3A1D_40.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_829F2A1A-AC69-4E3F-9092-FABBD75F3A1D_40",
+        "score": 0.4983959496021271,
+        "peak_amplitude": 4932.0,
+        "peak_location": [
+          162,
+          25
+        ],
+        "snr": 14.421052631578947,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "456.7797356828196-757.5859030837009",
+          "noise_flawsize": "0.21340411413404115",
+          "factor": "0.8193063815867776",
+          "noise_threshold": "804",
+          "location_min": "257.5674280502243",
+          "original_location": "840-867",
+          "max_amplitude": "6028",
+          "size": "1.6",
+          "location_max": "427.18500261988424",
+          "equivalent_flawsize": "1.3494509721059926"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3494509721059926 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_199BD889-BF94-4EE6-8E55-5B5BD58ED8CE_21",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.49691978096961975,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_199BD889-BF94-4EE6-8E55-5B5BD58ED8CE_21.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_199BD889-BF94-4EE6-8E55-5B5BD58ED8CE_21",
+        "score": 0.49691978096961975,
+        "peak_amplitude": 4840.0,
+        "peak_location": [
+          154,
+          50
+        ],
+        "snr": 14.193548387096774,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "521-548",
+          "location_min": "2627",
+          "location": "2627-2797",
+          "equivalent_flawsize": "1.3500845190472854",
+          "factor": "0.8197632897225589",
+          "max_amplitude": "6028",
+          "location_max": "2797",
+          "noise_threshold": "804",
+          "size": "1.6",
+          "noise_flawsize": "0.21340411413404115"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3500845190472854 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_55",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.49640870094299316,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_55.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_55",
+        "score": 0.49640870094299316,
+        "peak_amplitude": 4934.0,
+        "peak_location": [
+          164,
+          8
+        ],
+        "snr": 14.426900584795321,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "69.10345630615741",
+          "noise_threshold": "804",
+          "noise_flawsize": "0.21340411413404115",
+          "max_amplitude": "6028",
+          "factor": "0.791438819791991",
+          "size": "1.6",
+          "original_location": "870-897",
+          "location_max": "238.7210308758174",
+          "equivalent_flawsize": "1.3108099255722263",
+          "location": "122.55066079295102-423.35682819383237"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3108099255722263 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_3D3BC24B-3E1A-4CE4-BF8E-F039AE5DE417_72",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4964066445827484,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_3D3BC24B-3E1A-4CE4-BF8E-F039AE5DE417_72.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_3D3BC24B-3E1A-4CE4-BF8E-F039AE5DE417_72",
+        "score": 0.4964066445827484,
+        "peak_amplitude": 4854.0,
+        "peak_location": [
+          150,
+          246
+        ],
+        "snr": 14.192982456140351,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "4983",
+          "noise_flawsize": "0.21340411413404115",
+          "max_amplitude": "6028",
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.2957708618099866",
+          "factor": "0.7805927874940897",
+          "original_location": "869-896",
+          "location": "4813-4983",
+          "size": "1.6",
+          "location_min": "4813"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.2957708618099866 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_4A409E8B-26B6-470A-8463-3B464443B81B_42",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4948458969593048,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_4A409E8B-26B6-470A-8463-3B464443B81B_42.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_4A409E8B-26B6-470A-8463-3B464443B81B_42",
+        "score": 0.4948458969593048,
+        "peak_amplitude": 5842.0,
+        "peak_location": [
+          152,
+          129
+        ],
+        "snr": 17.131964809384165,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_flawsize": "0.21340411413404115",
+          "size": "1.6",
+          "original_location": "656-683",
+          "location_max": "1583.0973626501582",
+          "location_min": "1413.4797880804986",
+          "location": "2506.718061674009-2807.5242290748897",
+          "noise_threshold": "804",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.5855813067051487",
+          "factor": "0.9896013730879876"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5855813067051487 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_07F57255-BE18-49DB-9E60-A6C43F9F527E_25",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4939400851726532,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_07F57255-BE18-49DB-9E60-A6C43F9F527E_25.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_07F57255-BE18-49DB-9E60-A6C43F9F527E_25",
+        "score": 0.4939400851726532,
+        "peak_amplitude": 5356.0,
+        "peak_location": [
+          163,
+          53
+        ],
+        "snr": 15.70674486803519,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "2828",
+          "noise_flawsize": "0.21340411413404115",
+          "equivalent_flawsize": "1.491246283999287",
+          "max_amplitude": "6028",
+          "original_location": "526-553",
+          "location": "2659-2828",
+          "factor": "0.9215678359432071",
+          "size": "1.6",
+          "location_min": "2659",
+          "noise_threshold": "804"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.491246283999287 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_24837367-47F9-4E38-B71B-409405C74D4E_84",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4930051565170288,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_24837367-47F9-4E38-B71B-409405C74D4E_84.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_24837367-47F9-4E38-B71B-409405C74D4E_84",
+        "score": 0.4930051565170288,
+        "peak_amplitude": 5669.0,
+        "peak_location": [
+          163,
+          31
+        ],
+        "snr": 16.4796511627907,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "max_amplitude": "6028",
+          "location_max": "496.2884589260417",
+          "noise_flawsize": "0.21340411413404115",
+          "location": "579.3303964757706-880.136563876652",
+          "location_min": "326.6708843563817",
+          "size": "1.6",
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.4958147367359609",
+          "factor": "0.9248625613806916",
+          "original_location": "829-856"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.4958147367359609 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_76E63756-0E55-4148-AF22-5DC7DF24E3F7_78",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.49289456009864807,
+      "cause": "small_flaw",
+      "png_file": "miss_crack_1.6_76E63756-0E55-4148-AF22-5DC7DF24E3F7_78.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_76E63756-0E55-4148-AF22-5DC7DF24E3F7_78",
+        "score": 0.49289456009864807,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.771260997067449,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "equivalent_flawsize": "1.1782681685897174",
+          "location": "4644-4813",
+          "size": "1.6",
+          "location_min": "4644",
+          "noise_flawsize": "0.21340411413404115",
+          "factor": "0.6958509427951302",
+          "original_location": "842-869",
+          "max_amplitude": "6028",
+          "noise_threshold": "804",
+          "location_max": "4813"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.1782681685897174 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_F1823AFF-436E-4B64-AE46-9CC3EBBA100D_23",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4927009344100952,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_F1823AFF-436E-4B64-AE46-9CC3EBBA100D_23.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_F1823AFF-436E-4B64-AE46-9CC3EBBA100D_23",
+        "score": 0.4927009344100952,
+        "peak_amplitude": 5456.0,
+        "peak_location": [
+          160,
+          117
+        ],
+        "snr": 16.0,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "2272.7577092511015-2573.5638766519824",
+          "location_min": "1281.555007859652",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.5405638736003455",
+          "factor": "0.9571352208631894",
+          "size": "1.6",
+          "location_max": "1451.1725824293117",
+          "noise_flawsize": "0.21340411413404115",
+          "original_location": "677-704",
+          "noise_threshold": "804"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5405638736003455 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_8BD1288C-8103-4171-A2D7-111DF98EE1E6_95",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4923333525657654,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_8BD1288C-8103-4171-A2D7-111DF98EE1E6_95.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_8BD1288C-8103-4171-A2D7-111DF98EE1E6_95",
+        "score": 0.4923333525657654,
+        "peak_amplitude": 5516.0,
+        "peak_location": [
+          155,
+          147
+        ],
+        "snr": 16.223529411764705,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_threshold": "804",
+          "location_min": "1614.5080246075029",
+          "location": "2863.229074889868-3164.035242290749",
+          "location_max": "1784.1255991771627",
+          "factor": "0.9673356185591164",
+          "equivalent_flawsize": "1.5547077030797145",
+          "noise_flawsize": "0.21340411413404115",
+          "size": "1.6",
+          "original_location": "624-651",
+          "max_amplitude": "6028"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5547077030797145 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_2CECF70F-40A6-4838-BFDF-AD8DE8ED2149_51",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4914979636669159,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_2CECF70F-40A6-4838-BFDF-AD8DE8ED2149_51.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_2CECF70F-40A6-4838-BFDF-AD8DE8ED2149_51",
+        "score": 0.4914979636669159,
+        "peak_amplitude": 5549.0,
+        "peak_location": [
+          168,
+          216
+        ],
+        "snr": 16.22514619883041,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "4233.568281938326-4534.374449339207",
+          "size": "1.6",
+          "noise_threshold": "804",
+          "max_amplitude": "6028",
+          "factor": "0.946554182084872",
+          "original_location": "501-528",
+          "equivalent_flawsize": "1.5258922487621427",
+          "location_min": "2387.2103087581754",
+          "noise_flawsize": "0.21340411413404115",
+          "location_max": "2556.827883327835"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5258922487621427 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_7266E2A1-7CC0-46A2-BF77-5480B778BD23_56",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4913809597492218,
+      "cause": "small_flaw",
+      "png_file": "miss_crack_1.6_7266E2A1-7CC0-46A2-BF77-5480B778BD23_56.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_7266E2A1-7CC0-46A2-BF77-5480B778BD23_56",
+        "score": 0.4913809597492218,
+        "peak_amplitude": 4651.0,
+        "peak_location": [
+          157,
+          208
+        ],
+        "snr": 13.639296187683284,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "4066.453744493392-4367.259911894273",
+          "location_max": "2462.5958974558016",
+          "noise_flawsize": "0.21340411413404115",
+          "original_location": "516-543",
+          "size": "1.6",
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.226560414218433",
+          "location_min": "2292.978322886142",
+          "factor": "0.7306788592205101",
+          "max_amplitude": "6028"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.226560414218433 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_9A770208-645C-41AE-9328-5F7C2E0CEE2C_92",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.48977741599082947,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_9A770208-645C-41AE-9328-5F7C2E0CEE2C_92.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_9A770208-645C-41AE-9328-5F7C2E0CEE2C_92",
+        "score": 0.48977741599082947,
+        "peak_amplitude": 4487.0,
+        "peak_location": [
+          156,
+          29
+        ],
+        "snr": 13.081632653061224,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "size": "1.6",
+          "noise_threshold": "804",
+          "max_amplitude": "6028",
+          "noise_flawsize": "0.21340411413404115",
+          "location_max": "2564",
+          "equivalent_flawsize": "1.248696571249635",
+          "location_min": "2395",
+          "original_location": "484-511",
+          "location": "2395-2564",
+          "factor": "0.7466432488864854"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.248696571249635 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_30B333B6-D988-4D87-BB21-7C8134FCB067_82",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.48826491832733154,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_30B333B6-D988-4D87-BB21-7C8134FCB067_82.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_30B333B6-D988-4D87-BB21-7C8134FCB067_82",
+        "score": 0.48826491832733154,
+        "peak_amplitude": 5689.0,
+        "peak_location": [
+          166,
+          133
+        ],
+        "snr": 16.58600583090379,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.5666540678831784",
+          "noise_flawsize": "0.21340411413404115",
+          "size": "1.6",
+          "location_max": "3720",
+          "factor": "0.9759512252583986",
+          "location_min": "3551",
+          "location": "3551-3720",
+          "max_amplitude": "6028",
+          "original_location": "668-695"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5666540678831784 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_DA0E6EA7-891A-4CAD-B175-CEF7468A9C19_91",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4870339334011078,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_DA0E6EA7-891A-4CAD-B175-CEF7468A9C19_91.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_DA0E6EA7-891A-4CAD-B175-CEF7468A9C19_91",
+        "score": 0.4870339334011078,
+        "peak_amplitude": 4787.0,
+        "peak_location": [
+          164,
+          8
+        ],
+        "snr": 13.997076023391813,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "870-897",
+          "location_max": "238.7210308758174",
+          "noise_threshold": "804",
+          "noise_flawsize": "0.21340411413404115",
+          "equivalent_flawsize": "1.277157582325549",
+          "location": "122.55066079295102-423.35682819383237",
+          "location_min": "69.10345630615741",
+          "max_amplitude": "6028",
+          "factor": "0.7671690642058777",
+          "size": "1.6"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.277157582325549 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_8C4C5FC1-C515-459D-ADEF-60B6EB85F3BB_91",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4869379699230194,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_8C4C5FC1-C515-459D-ADEF-60B6EB85F3BB_91.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_8C4C5FC1-C515-459D-ADEF-60B6EB85F3BB_91",
+        "score": 0.4869379699230194,
+        "peak_amplitude": 5219.0,
+        "peak_location": [
+          164,
+          247
+        ],
+        "snr": 15.215743440233236,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "4989",
+          "factor": "0.8504062199151158",
+          "location": "4820-4989",
+          "original_location": "870-897",
+          "noise_flawsize": "0.21340411413404115",
+          "location_min": "4820",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.3925738799831628",
+          "size": "1.6",
+          "noise_threshold": "804"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3925738799831628 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_2139604D-0B14-4B87-8B71-CFF857F92A46_98",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4859168529510498,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_2139604D-0B14-4B87-8B71-CFF857F92A46_98.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_2139604D-0B14-4B87-8B71-CFF857F92A46_98",
+        "score": 0.4859168529510498,
+        "peak_amplitude": 5643.0,
+        "peak_location": [
+          164,
+          30
+        ],
+        "snr": 16.40406976744186,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_flawsize": "0.21340411413404115",
+          "original_location": "831-858",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.5201819704935335",
+          "location_max": "483.72419414310394",
+          "noise_threshold": "804",
+          "size": "1.6",
+          "location_min": "314.10661957344394",
+          "location": "557.0484581497794-857.8546255506608",
+          "factor": "0.9424359827401201"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5201819704935335 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_10281F86-4508-402D-910F-8ED105F2166B_39",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4841795861721039,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_10281F86-4508-402D-910F-8ED105F2166B_39.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_10281F86-4508-402D-910F-8ED105F2166B_39",
+        "score": 0.4841795861721039,
+        "peak_amplitude": 4783.0,
+        "peak_location": [
+          167,
+          205
+        ],
+        "snr": 14.026392961876834,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "2437.4673678899267",
+          "size": "1.6",
+          "noise_threshold": "804",
+          "equivalent_flawsize": "1.313742833876831",
+          "location": "4021.88986784141-4322.696035242291",
+          "original_location": "520-547",
+          "factor": "0.7935540058635069",
+          "noise_flawsize": "0.21340411413404115",
+          "max_amplitude": "6028",
+          "location_min": "2267.8497933202666"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.313742833876831 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_1B58783C-A437-4552-9C10-82B66F332074_20",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.48379629850387573,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_1B58783C-A437-4552-9C10-82B66F332074_20.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_1B58783C-A437-4552-9C10-82B66F332074_20",
+        "score": 0.48379629850387573,
+        "peak_amplitude": 5635.0,
+        "peak_location": [
+          153,
+          134
+        ],
+        "snr": 16.428571428571427,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "3563",
+          "noise_threshold": "804",
+          "max_amplitude": "6028",
+          "equivalent_flawsize": "1.5792705269579796",
+          "noise_flawsize": "0.21340411413404115",
+          "size": "1.6",
+          "factor": "0.9850500976864831",
+          "location": "3563-3733",
+          "location_max": "3733",
+          "original_location": "670-697"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.5792705269579796 amp=6028 noise=804"
+    },
+    {
+      "name": "miss_crack_1.6_42EA6651-1891-4F98-8E7A-67CF33919A6E_11",
+      "fold": "crack_1.6",
+      "kind": "miss",
+      "score": 0.4836251139640808,
+      "cause": "unclassified",
+      "png_file": "miss_crack_1.6_42EA6651-1891-4F98-8E7A-67CF33919A6E_11.png",
+      "has_png": true,
+      "evidence": {
+        "name": "miss_crack_1.6_42EA6651-1891-4F98-8E7A-67CF33919A6E_11",
+        "score": 0.4836251139640808,
+        "peak_amplitude": 4955.0,
+        "peak_location": [
+          150,
+          176
+        ],
+        "snr": 14.573529411764707,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "4035",
+          "max_amplitude": "6028",
+          "location_max": "4204",
+          "noise_flawsize": "0.21340411413404115",
+          "equivalent_flawsize": "1.3473733202349871",
+          "factor": "0.8178079984657951",
+          "location": "4035-4204",
+          "noise_threshold": "804",
+          "size": "1.6",
+          "original_location": "745-772"
+        }
+      },
+      "evidence_str": "size=1.6 eq=1.3473733202349871 amp=6028 noise=804"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_27",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00034505510120652616,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_27.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_27",
+        "score": 0.00034505510120652616,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "3626-3764",
+          "equivalent_flawsize": "0.0",
+          "size": "0.0",
+          "original_location": "680-702",
+          "location_min": "3626",
+          "factor": "0.9396382890268318",
+          "noise_threshold": "973",
+          "max_amplitude": "4050",
+          "location_max": "3764",
+          "noise_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_0275DE06-7EB3-4D99-B71D-39F259B64862_4",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0002588224015198648,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_0275DE06-7EB3-4D99-B71D-39F259B64862_4.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_0275DE06-7EB3-4D99-B71D-39F259B64862_4",
+        "score": 0.0002588224015198648,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_threshold": "1068",
+          "original_location": "577-599",
+          "equivalent_flawsize": "0.0",
+          "location_max": "3117",
+          "size": "0.0",
+          "max_amplitude": "3734",
+          "location": "2979-3117",
+          "location_min": "2979",
+          "noise_flawsize": "0.0",
+          "factor": "0.9607995897440239"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_4D9E9185-588A-433B-BB2C-8E87144A324A_72",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00025016386643983424,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_4D9E9185-588A-433B-BB2C-8E87144A324A_72.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_4D9E9185-588A-433B-BB2C-8E87144A324A_72",
+        "score": 0.00025016386643983424,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_max": "2757.856119854839",
+          "location": "4645.784140969163-4890.885462555066",
+          "equivalent_flawsize": "0.0",
+          "location_min": "2619.6492072425235",
+          "size": "0.0",
+          "noise_threshold": "1068",
+          "factor": "0.921568844332725",
+          "original_location": "469-491",
+          "max_amplitude": "3734",
+          "noise_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_28",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0002394321927567944,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_28.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_28",
+        "score": 0.0002394321927567944,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location": "3142-3281",
+          "equivalent_flawsize": "0.0",
+          "size": "0.0",
+          "original_location": "603-625",
+          "location_min": "3142",
+          "factor": "0.8551195050485245",
+          "noise_threshold": "1068",
+          "max_amplitude": "3734",
+          "location_max": "3281",
+          "noise_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_59",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00022794288815930486,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_59.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_59",
+        "score": 0.00022794288815930486,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "equivalent_flawsize": "0.0",
+          "location": "3777-3915",
+          "location_min": "3777",
+          "noise_flawsize": "0.0",
+          "factor": "0.9688766687104657",
+          "location_max": "3915",
+          "max_amplitude": "3734",
+          "size": "0.0",
+          "original_location": "704-726",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00022467691451311111,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15",
+        "score": 0.00022467691451311111,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "factor": "0.9786478802512046",
+          "location": "2829.8061674008813-3074.9074889867843",
+          "noise_threshold": "1068",
+          "noise_flawsize": "0.0",
+          "equivalent_flawsize": "0.0",
+          "location_min": "1595.6616274330963",
+          "max_amplitude": "3734",
+          "size": "0.0",
+          "original_location": "632-654",
+          "location_max": "1733.8685400454115"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0002144384488929063,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91",
+        "score": 0.0002144384488929063,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.771260997067449,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "2376",
+          "equivalent_flawsize": "0.0",
+          "factor": "0.957866742498676",
+          "original_location": "481-503",
+          "location_max": "2514",
+          "location": "2376-2514",
+          "size": "0.0",
+          "noise_flawsize": "0.0",
+          "max_amplitude": "4050",
+          "noise_threshold": "973"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00021359712991397828,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13",
+        "score": 0.00021359712991397828,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.771260997067449,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "767-789",
+          "location_min": "4173",
+          "location": "4173-4311",
+          "noise_threshold": "973",
+          "noise_flawsize": "0.0",
+          "size": "0.0",
+          "equivalent_flawsize": "0.0",
+          "location_max": "4311",
+          "max_amplitude": "4050",
+          "factor": "0.9734788541620315"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_68",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0002004936832236126,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_68.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_68",
+        "score": 0.0002004936832236126,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "location_min": "3607",
+          "noise_threshold": "1068",
+          "noise_flawsize": "0.0",
+          "max_amplitude": "3734",
+          "factor": "0.9630739095069174",
+          "size": "0.0",
+          "original_location": "677-699",
+          "location_max": "3746",
+          "equivalent_flawsize": "0.0",
+          "location": "3607-3746"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00019758532289415598,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28",
+        "score": 0.00019758532289415598,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "576-598",
+          "location": "2973-3111",
+          "noise_threshold": "1068",
+          "noise_flawsize": "0.0",
+          "size": "0.0",
+          "location_min": "2973",
+          "factor": "0.9757685466845912",
+          "location_max": "3111",
+          "max_amplitude": "3734",
+          "equivalent_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00019224290736019611,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96",
+        "score": 0.00019224290736019611,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_flawsize": "0.0",
+          "location_min": "2973",
+          "max_amplitude": "3734",
+          "equivalent_flawsize": "0.0",
+          "original_location": "576-598",
+          "size": "0.0",
+          "location_max": "3111",
+          "factor": "0.9735951089471567",
+          "noise_threshold": "1068",
+          "location": "2973-3111"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00019019177125301212,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96",
+        "score": 0.00019019177125301212,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "458-480",
+          "location_min": "2232",
+          "size": "0.0",
+          "location": "2232-2370",
+          "location_max": "2370",
+          "equivalent_flawsize": "0.0",
+          "max_amplitude": "3734",
+          "noise_flawsize": "0.0",
+          "factor": "0.9978567063803451",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_268A3193-0491-40CF-BA54-1B7061557AC1_93",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00018209224799647927,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_268A3193-0491-40CF-BA54-1B7061557AC1_93.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_268A3193-0491-40CF-BA54-1B7061557AC1_93",
+        "score": 0.00018209224799647927,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_flawsize": "0.0",
+          "size": "0.0",
+          "equivalent_flawsize": "0.0",
+          "original_location": "586-608",
+          "location_max": "3174",
+          "max_amplitude": "3734",
+          "noise_threshold": "1068",
+          "location": "3036-3174",
+          "factor": "0.9734007408780514",
+          "location_min": "3036"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_62",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00016627184231765568,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_62.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_62",
+        "score": 0.00016627184231765568,
+        "peak_amplitude": 4103.0,
+        "peak_location": [
+          177,
+          153
+        ],
+        "snr": 12.103244837758112,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "659-681",
+          "location_min": "1426.0440528634363",
+          "size": "0.0",
+          "location": "2529.0-2774.101321585903",
+          "location_max": "1564.2509654757516",
+          "equivalent_flawsize": "0.0",
+          "max_amplitude": "3734",
+          "noise_flawsize": "0.0",
+          "factor": "0.9387876076946937",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00014946724695619196,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26",
+        "score": 0.00014946724695619196,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.884615384615385,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "609-631",
+          "location": "3086.04845814978-3331.149779735683",
+          "noise_threshold": "973",
+          "noise_flawsize": "0.0",
+          "size": "0.0",
+          "location_min": "1740.1506724368805",
+          "factor": "0.9713631010314829",
+          "location_max": "1878.3575850491957",
+          "max_amplitude": "4050",
+          "equivalent_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_2",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.0001396414008922875,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_2.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_2",
+        "score": 0.0001396414008922875,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "noise_threshold": "1068",
+          "location": "1381.480176211454-1626.5814977973564",
+          "location_max": "917.1913291544565",
+          "max_amplitude": "3734",
+          "original_location": "762-784",
+          "factor": "0.9397135168406445",
+          "size": "0.0",
+          "location_min": "778.9844165421415",
+          "noise_flawsize": "0.0",
+          "equivalent_flawsize": "0.0"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_605F522F-8CBF-4E22-811D-60D594F283D2_33",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00013420767209026963,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_605F522F-8CBF-4E22-811D-60D594F283D2_33.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_605F522F-8CBF-4E22-811D-60D594F283D2_33",
+        "score": 0.00013420767209026963,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.771260997067449,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "equivalent_flawsize": "0.0",
+          "factor": "0.8977865375107589",
+          "noise_flawsize": "0.0",
+          "location": "4173-4311",
+          "size": "0.0",
+          "noise_threshold": "973",
+          "max_amplitude": "4050",
+          "location_max": "4311",
+          "original_location": "767-789",
+          "location_min": "4173"
+        }
+      },
+      "evidence_str": "amp=4050 noise=973"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_82",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00013189662422519177,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_82.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_82",
+        "score": 0.00013189662422519177,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          117
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "515-537",
+          "location_min": "2590",
+          "size": "0.0",
+          "location": "2590-2728",
+          "location_max": "2728",
+          "equivalent_flawsize": "0.0",
+          "max_amplitude": "3734",
+          "noise_flawsize": "0.0",
+          "factor": "0.9685111902580855",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_CB5DDE36-318E-4C1B-B831-614E91996167_88",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00013029607362113893,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_CB5DDE36-318E-4C1B-B831-614E91996167_88.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_CB5DDE36-318E-4C1B-B831-614E91996167_88",
+        "score": 0.00013029607362113893,
+        "peak_amplitude": 4251.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.576923076923077,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "original_location": "662-684",
+          "noise_flawsize": "0.0",
+          "factor": "0.8962612469671902",
+          "size": "0.0",
+          "location_min": "1407.1976556890293",
+          "location_max": "1545.4045683013449",
+          "location": "2495.577092511013-2740.678414096916",
+          "noise_threshold": "1068",
+          "equivalent_flawsize": "0.0",
+          "max_amplitude": "3734"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    },
+    {
+      "name": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_88",
+      "fold": "crack_1.6",
+      "kind": "near_miss_clean",
+      "score": 0.00013002277410123497,
+      "cause": "clean_near_miss",
+      "png_file": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_88.png",
+      "has_png": true,
+      "evidence": {
+        "name": "near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_88",
+        "score": 0.00013002277410123497,
+        "peak_amplitude": 4355.0,
+        "peak_location": [
+          181,
+          138
+        ],
+        "snr": 12.84660766961652,
+        "near_edge": false,
+        "png_saved": true,
+        "meta": {
+          "equivalent_flawsize": "0.0",
+          "location": "2406.4493392070485-2651.5506607929515",
+          "location_min": "1356.9405965572787",
+          "noise_flawsize": "0.0",
+          "factor": "0.9179704296211644",
+          "location_max": "1495.1475091695938",
+          "max_amplitude": "3734",
+          "size": "0.0",
+          "original_location": "670-692",
+          "noise_threshold": "1068"
+        }
+      },
+      "evidence_str": "amp=3734 noise=1068"
+    }
+  ]
+}

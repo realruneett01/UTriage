@@ -5,19 +5,19 @@
 
 Evaluation summary derived strictly from measurable counts and evaluation metrics:
 
-- **Fold crack_1.6**: 3435 misses (top cause: small_flaw with 1865 cases, 54.3%), 20 false calls (top cause: artefact_like with 20 cases, 100.0%).
-- **Fold crack_4.0**: 3407 misses (top cause: unclassified with 1750 cases, 51.4%), 20 false calls (top cause: artefact_like with 20 cases, 100.0%).
-- **Fold crack_8.6**: 0 misses (top cause: none with 0 cases, 0.0%), 20 false calls (top cause: artefact_like with 20 cases, 100.0%).
+- **Fold crack_1.6**: 3435 misses (top cause: small_flaw with 1865 cases, 54.3%), 0 false calls; top clean scores listed as near misses.
+- **Fold crack_4.0**: 3407 misses (top cause: unclassified with 1750 cases, 51.4%), 0 false calls; top clean scores listed as near misses.
+- **Fold crack_8.6**: 0 misses (top cause: none with 0 cases, 0.0%), 0 false calls; top clean scores listed as near misses.
 - **Synthetic Shift Summary**: ML 1D false-call rate shifts from 13.4% in-distribution to 60.0% at 10 MHz and 40.7% under elevated noise.
-- **Artifact Storage**: 100 PNG plots saved; full JSON evidence retained for all evaluated failure cases.
+- **Artifact Storage**: 100 PNG plots saved; cause counts cover all cases while files are kept for the top 20 of each kind.
 
 ## LOCO Folds Failure Breakdown
 
 | Fold | Misses | Near Edge | Low SNR | Small Flaw | Miss Unclass | False Calls | Artefact-like | FC Unclass |
 |---|---|---|---|---|---|---|---|---|
-| crack_1.6 | 3435 | 0 | 0 | 1865 | 1570 | 20 | 20 | 0 |
-| crack_4.0 | 3407 | 0 | 0 | 1657 | 1750 | 20 | 20 | 0 |
-| crack_8.6 | 0 | 0 | 0 | 0 | 0 | 20 | 20 | 0 |
+| crack_1.6 | 3435 | 0 | 0 | 1865 | 1570 | 0 | 0 | 0 |
+| crack_4.0 | 3407 | 0 | 0 | 1657 | 1750 | 0 | 0 | 0 |
+| crack_8.6 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 ## Evaluated Failure Cases
 
@@ -43,26 +43,26 @@ Evaluation summary derived strictly from measurable counts and evaluation metric
 | miss_crack_1.6_10281F86-4508-402D-910F-8ED105F2166B_39 | crack_1.6 | miss | 0.484 | unclassified | size=1.6 eq=1.313742833876831 amp=6028 noise=804 |
 | miss_crack_1.6_1B58783C-A437-4552-9C10-82B66F332074_20 | crack_1.6 | miss | 0.484 | unclassified | size=1.6 eq=1.5792705269579796 amp=6028 noise=804 |
 | miss_crack_1.6_42EA6651-1891-4F98-8E7A-67CF33919A6E_11 | crack_1.6 | miss | 0.484 | unclassified | size=1.6 eq=1.3473733202349871 amp=6028 noise=804 |
-| false_call_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_27 | crack_1.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_1.6_0275DE06-7EB3-4D99-B71D-39F259B64862_4 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_4D9E9185-588A-433B-BB2C-8E87144A324A_72 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_28 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_59 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91 | crack_1.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_1.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13 | crack_1.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_68 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_268A3193-0491-40CF-BA54-1B7061557AC1_93 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_62 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26 | crack_1.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_1.6_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_2 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_605F522F-8CBF-4E22-811D-60D594F283D2_33 | crack_1.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_82 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_CB5DDE36-318E-4C1B-B831-614E91996167_88 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_88 | crack_1.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_27 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_1.6_0275DE06-7EB3-4D99-B71D-39F259B64862_4 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_4D9E9185-588A-433B-BB2C-8E87144A324A_72 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_28 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_59 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_1.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_1.6_728D32B4-D1A3-4CF2-A530-615412183F42_68 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_268A3193-0491-40CF-BA54-1B7061557AC1_93 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_62 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_1.6_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_2 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_605F522F-8CBF-4E22-811D-60D594F283D2_33 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_1.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_82 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_CB5DDE36-318E-4C1B-B831-614E91996167_88 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_1.6_9394DF9F-28AD-46C4-82B1-083843062055_88 | crack_1.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
 | miss_crack_4.0_4B35EF47-6730-4C4D-A1AF-29C9999C01F3_93 | crack_4.0 | miss | 0.498 | small_flaw | size=4.0 eq=2.8190437392839276 amp=7414 noise=934 |
 | miss_crack_4.0_FE767298-15D2-493D-ABA0-919F9EEC5886_82 | crack_4.0 | miss | 0.497 | unclassified | size=4.0 eq=3.7640183461028847 amp=7414 noise=934 |
 | miss_crack_4.0_38560032-7BCA-4FCD-A2CC-5C2598964162_19 | crack_4.0 | miss | 0.495 | unclassified | size=4.0 eq=3.3246679623765623 amp=7414 noise=934 |
@@ -83,46 +83,46 @@ Evaluation summary derived strictly from measurable counts and evaluation metric
 | miss_crack_4.0_BA90E6E7-46D1-4FDF-933A-DCB071E465C6_42 | crack_4.0 | miss | 0.485 | unclassified | size=4.0 eq=3.0404254390596366 amp=7414 noise=934 |
 | miss_crack_4.0_DA322B67-6D33-45E9-9C38-20B358DC79E4_98 | crack_4.0 | miss | 0.484 | unclassified | size=4.0 eq=3.096808914097919 amp=7414 noise=934 |
 | miss_crack_4.0_3EA26DBB-D534-4A47-804F-B08ED8F6E38F_34 | crack_4.0 | miss | 0.484 | unclassified | size=4.0 eq=3.970936544844759 amp=7414 noise=934 |
-| false_call_crack_4.0_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_268A3193-0491-40CF-BA54-1B7061557AC1_19 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_44 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_3 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_6A706C1D-2067-470F-A053-8E91FBFEDBED_23 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_818B8CB4-5C86-4396-AAF5-B48F41302D8F_58 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_605F522F-8CBF-4E22-811D-60D594F283D2_33 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96 | crack_4.0 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_32 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_A61932EB-A1E0-4E35-B1CD-C5DBA69F4B7E_73 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_6A706C1D-2067-470F-A053-8E91FBFEDBED_76 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_89 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_49 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_818B8CB4-5C86-4396-AAF5-B48F41302D8F_18 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_6A706C1D-2067-470F-A053-8E91FBFEDBED_94 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_DA68E5F8-9C58-4343-86DB-5D53586D9A70_0 | crack_4.0 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_34 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_37 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_4.0_A61932EB-A1E0-4E35-B1CD-C5DBA69F4B7E_22 | crack_4.0 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_8.6_0275DE06-7EB3-4D99-B71D-39F259B64862_78 | crack_8.6 | false_call | 0.001 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_8.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_47 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_6A706C1D-2067-470F-A053-8E91FBFEDBED_69 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_9394DF9F-28AD-46C4-82B1-083843062055_59 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91 | crack_8.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_8.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_24 | crack_8.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_8.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_58 | crack_8.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_8.6_0275DE06-7EB3-4D99-B71D-39F259B64862_25 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_9394DF9F-28AD-46C4-82B1-083843062055_88 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_268A3193-0491-40CF-BA54-1B7061557AC1_19 | crack_8.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_8.6_59345583-4DB7-44D1-8FDF-11CA79F044B5_58 | crack_8.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_8.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26 | crack_8.6 | false_call | 0.000 | artefact_like | amp=4050 noise=973 |
-| false_call_crack_8.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_52 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_38 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_268A3193-0491-40CF-BA54-1B7061557AC1_30 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
-| false_call_crack_8.6_59345583-4DB7-44D1-8FDF-11CA79F044B5_88 | crack_8.6 | false_call | 0.000 | artefact_like | amp=3734 noise=1068 |
+| near_miss_clean_crack_4.0_DA68E5F8-9C58-4343-86DB-5D53586D9A70_13 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_268A3193-0491-40CF-BA54-1B7061557AC1_19 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_44 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_3 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_6A706C1D-2067-470F-A053-8E91FBFEDBED_23 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_818B8CB4-5C86-4396-AAF5-B48F41302D8F_58 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_605F522F-8CBF-4E22-811D-60D594F283D2_33 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_32 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_A61932EB-A1E0-4E35-B1CD-C5DBA69F4B7E_73 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_6A706C1D-2067-470F-A053-8E91FBFEDBED_76 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_89 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_744784D3-1AB4-4E4B-95D1-49573EE1F8F9_49 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_818B8CB4-5C86-4396-AAF5-B48F41302D8F_18 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_6A706C1D-2067-470F-A053-8E91FBFEDBED_94 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_DA68E5F8-9C58-4343-86DB-5D53586D9A70_0 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_4.0_6E6E8837-D467-4350-8A29-70B58BCA9066_34 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_37 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_4.0_A61932EB-A1E0-4E35-B1CD-C5DBA69F4B7E_22 | crack_4.0 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_8.6_0275DE06-7EB3-4D99-B71D-39F259B64862_78 | crack_8.6 | near_miss_clean | 0.001 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_8.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_15 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_47 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_3BEC7C3C-1441-46B0-8442-ABC5BBD185A7_96 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_6A706C1D-2067-470F-A053-8E91FBFEDBED_69 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_9394DF9F-28AD-46C4-82B1-083843062055_59 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_28 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_FE57FD4B-E7A8-4307-BB77-65F85DA4E962_91 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_8.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_24 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_8.6_D2D163FD-047D-4AE0-A84E-5DE59C681961_96 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_818B8CB4-5C86-4396-AAF5-B48F41302D8F_58 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_8.6_0275DE06-7EB3-4D99-B71D-39F259B64862_25 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_9394DF9F-28AD-46C4-82B1-083843062055_88 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_268A3193-0491-40CF-BA54-1B7061557AC1_19 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_8.6_59345583-4DB7-44D1-8FDF-11CA79F044B5_58 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_8.6_5E031CFB-E25C-4AAD-A65F-F91A7419F0CF_26 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=4050 noise=973 |
+| near_miss_clean_crack_8.6_DA68E5F8-9C58-4343-86DB-5D53586D9A70_52 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_5EC43978-E60B-475E-B136-6B505FB7BE1E_38 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_268A3193-0491-40CF-BA54-1B7061557AC1_30 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
+| near_miss_clean_crack_8.6_59345583-4DB7-44D1-8FDF-11CA79F044B5_88 | crack_8.6 | near_miss_clean | 0.000 | clean_near_miss | amp=3734 noise=1068 |
 
 ## Synthetic Held-Out Regions Generalization
 

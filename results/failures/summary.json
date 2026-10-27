@@ -1,0 +1,26 @@
+{
+  "crack_1.6": {
+    "n_misses": 3435,
+    "miss_causes": {
+      "unclassified": 1570,
+      "small_flaw": 1865
+    },
+    "n_false_calls": 0,
+    "false_call_causes": {}
+  },
+  "crack_4.0": {
+    "n_misses": 3407,
+    "miss_causes": {
+      "small_flaw": 1657,
+      "unclassified": 1750
+    },
+    "n_false_calls": 0,
+    "false_call_causes": {}
+  },
+  "crack_8.6": {
+    "n_misses": 0,
+    "miss_causes": {},
+    "n_false_calls": 0,
+    "false_call_causes": {}
+  }
+}
