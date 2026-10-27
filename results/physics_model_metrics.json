@@ -1,0 +1,387 @@
+{
+  "label": "Real data (ML-NDT)",
+  "protocol": "Leave-one-crack-out (LOCO) cross-validation evaluating interpretable hand-crafted physics features with logistic regression (ADR 0010 H3). Features standardized with StandardScaler fitted on fold train set only; decision threshold at probability >= 0.5.",
+  "feature_names": [
+    "peak_amplitude",
+    "robust_noise",
+    "snr",
+    "peak_depth",
+    "echo_duration",
+    "lateral_extent",
+    "above_noise_area",
+    "energy_ratio"
+  ],
+  "folds": [
+    {
+      "held_out": "crack_1.6",
+      "n_train": 14219,
+      "n_test_flawed": 4014,
+      "n_test_unflawed": 778,
+      "detections": {
+        "k": 2661,
+        "n": 4014,
+        "rate": 0.6629297458893871,
+        "ci_low": 0.6480670703973352,
+        "ci_high": 0.6775549007100912
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_clean": 778,
+        "rate": 0.0,
+        "upper95": 0.004730267180892259
+      },
+      "coefficients": {
+        "peak_amplitude": -0.0064426831700302445,
+        "robust_noise": 3.584684757243801,
+        "snr": -0.0440301873073043,
+        "peak_depth": 4.232379868238747,
+        "echo_duration": 3.6347499890350097,
+        "lateral_extent": 0.5971743580402448,
+        "above_noise_area": 10.581395056243972,
+        "energy_ratio": 18.91069450202757,
+        "intercept": 16.579113312175707
+      },
+      "cell": {
+        "detection": {
+          "n": 4014,
+          "k": 2661,
+          "rate": 0.6629297458893871,
+          "ci_low": 0.6480670703973352,
+          "ci_high": 0.6775549007100912,
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "false_calls": {
+          "rate": 0.0,
+          "n_false": 0,
+          "n_scans": 778
+        },
+        "ece": 0.3000851929083018,
+        "reliability": {
+          "bin_edges": [
+            0.0,
+            0.1,
+            0.2,
+            0.30000000000000004,
+            0.4,
+            0.5,
+            0.6000000000000001,
+            0.7000000000000001,
+            0.8,
+            0.9,
+            1.0
+          ],
+          "mean_conf": [
+            0.024075714817600975,
+            0.14582414383353473,
+            0.24933645691237008,
+            0.34727647271470125,
+            0.44983246772975816,
+            0.5544023261185403,
+            0.6504253514339606,
+            0.7538952179944624,
+            0.8518938832423599,
+            0.979979830855801
+          ],
+          "frac_pos": [
+            0.4467609828741623,
+            0.8664122137404581,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "counts": [
+            1343,
+            262,
+            183,
+            152,
+            191,
+            226,
+            245,
+            271,
+            378,
+            1541
+          ]
+        },
+        "pod": {
+          "beta0": -0.045266043144310125,
+          "beta1": 3.6792303772685977,
+          "cov": [
+            [
+              0.002774176342395862,
+              -0.00860835943088884
+            ],
+            [
+              -0.00860835943088884,
+              0.04726661040403725
+            ]
+          ],
+          "n": 4014,
+          "a50": 1.0123791230572323,
+          "a90": 1.839511265873805,
+          "a90_95": 1.9229308052155591,
+          "method": "delta",
+          "fittable": true,
+          "reason": null
+        },
+        "n_images": 4792,
+        "n_physical_flaws": 1,
+        "counts": {
+          "images": 4792,
+          "distinct_physical_flaws": 1,
+          "hits": 2661,
+          "total_flaws_tested": 4014
+        }
+      }
+    },
+    {
+      "held_out": "crack_4.0",
+      "n_train": 14153,
+      "n_test_flawed": 4078,
+      "n_test_unflawed": 778,
+      "detections": {
+        "k": 2578,
+        "n": 4078,
+        "rate": 0.6321726336439432,
+        "ci_low": 0.617159435849574,
+        "ci_high": 0.6469962292965534
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_clean": 778,
+        "rate": 0.0,
+        "upper95": 0.004730267180892259
+      },
+      "coefficients": {
+        "peak_amplitude": 1.5949568353506036,
+        "robust_noise": 5.539156355172547,
+        "snr": 1.6125439297851145,
+        "peak_depth": -5.623872158932023,
+        "echo_duration": 1.6033460386595195,
+        "lateral_extent": -0.2788766417642573,
+        "above_noise_area": 12.57802246651953,
+        "energy_ratio": -13.475571112490671,
+        "intercept": 6.851311620963767
+      },
+      "cell": {
+        "detection": {
+          "n": 4078,
+          "k": 2578,
+          "rate": 0.6321726336439432,
+          "ci_low": 0.617159435849574,
+          "ci_high": 0.6469962292965534,
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "false_calls": {
+          "rate": 0.0,
+          "n_false": 0,
+          "n_scans": 778
+        },
+        "ece": 0.31854371468805043,
+        "reliability": {
+          "bin_edges": [
+            0.0,
+            0.1,
+            0.2,
+            0.30000000000000004,
+            0.4,
+            0.5,
+            0.6000000000000001,
+            0.7000000000000001,
+            0.8,
+            0.9,
+            1.0
+          ],
+          "mean_conf": [
+            0.029538576411049098,
+            0.14624006699509584,
+            0.24936507948206144,
+            0.3491176782604982,
+            0.4492360968757716,
+            0.5495075331772045,
+            0.6522388633828017,
+            0.7555672072874543,
+            0.8500738539156056,
+            0.9821236096018195
+          ],
+          "frac_pos": [
+            0.3407335907335907,
+            0.8451776649746193,
+            0.9238095238095239,
+            0.9730769230769231,
+            0.989010989010989,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "counts": [
+            1036,
+            394,
+            315,
+            260,
+            273,
+            297,
+            335,
+            373,
+            435,
+            1138
+          ]
+        },
+        "pod": {
+          "beta0": -20.55377037878004,
+          "beta1": 19.33771129503104,
+          "cov": [
+            [
+              0.4219911941598378,
+              -0.3898926195273355
+            ],
+            [
+              -0.3898926195273355,
+              0.3626844983210713
+            ]
+          ],
+          "n": 4078,
+          "a50": 2.8947112572476996,
+          "a90": 3.2430335902197203,
+          "a90_95": 3.265497913484932,
+          "method": "delta",
+          "fittable": true,
+          "reason": null
+        },
+        "n_images": 4856,
+        "n_physical_flaws": 1,
+        "counts": {
+          "images": 4856,
+          "distinct_physical_flaws": 1,
+          "hits": 2578,
+          "total_flaws_tested": 4078
+        }
+      }
+    },
+    {
+      "held_out": "crack_8.6",
+      "n_train": 14263,
+      "n_test_flawed": 3925,
+      "n_test_unflawed": 778,
+      "detections": {
+        "k": 3925,
+        "n": 3925,
+        "rate": 1.0,
+        "ci_low": 0.999060599613932,
+        "ci_high": 1.0
+      },
+      "false_calls": {
+        "n_false": 1,
+        "n_clean": 778,
+        "rate": 0.0012853470437017994,
+        "upper95": 0.007140489751202149
+      },
+      "coefficients": {
+        "peak_amplitude": 0.12357035410876405,
+        "robust_noise": 1.9637516275074136,
+        "snr": 0.0023357078422672553,
+        "peak_depth": 0.34885952369064877,
+        "echo_duration": 3.550047292112258,
+        "lateral_extent": -0.06639254549039361,
+        "above_noise_area": 4.287212615501059,
+        "energy_ratio": 1.3174568584716768,
+        "intercept": 2.607165420976043
+      },
+      "cell": {
+        "detection": {
+          "n": 3925,
+          "k": 3925,
+          "rate": 1.0,
+          "ci_low": 0.999060599613932,
+          "ci_high": 1.0,
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "false_calls": {
+          "rate": 0.0012853470437017994,
+          "n_false": 1,
+          "n_scans": 778
+        },
+        "ece": 0.010806170070580491,
+        "reliability": {
+          "bin_edges": [
+            0.0,
+            0.1,
+            0.2,
+            0.30000000000000004,
+            0.4,
+            0.5,
+            0.6000000000000001,
+            0.7000000000000001,
+            0.8,
+            0.9,
+            1.0
+          ],
+          "mean_conf": [
+            0.026063451909837887,
+            0.14521410298762633,
+            0.23748795321045021,
+            0.3336198717900204,
+            0.4478119214557476,
+            0.5280274753443089,
+            null,
+            null,
+            null,
+            1.0
+          ],
+          "frac_pos": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            null,
+            null,
+            null,
+            1.0
+          ],
+          "counts": [
+            608,
+            103,
+            37,
+            20,
+            9,
+            1,
+            0,
+            0,
+            0,
+            3925
+          ]
+        },
+        "pod": {
+          "n_flawed": 3925,
+          "n_hit": 3925,
+          "min_size": 4.468533992767334,
+          "max_size": 8.599480628967285,
+          "size_p10": 4.866891479492188,
+          "size_p50": 6.515909671783447,
+          "pod_lower95": 0.9992370473051781,
+          "method": "binomial Clopper-Pearson one-sided 95",
+          "note": "POD lower bound over the whole tested size range, not a POD curve.",
+          "fittable": false,
+          "reason": "Data is separable: only hits or only misses present.",
+          "a90_95": null
+        },
+        "n_images": 4703,
+        "n_physical_flaws": 1,
+        "counts": {
+          "images": 4703,
+          "distinct_physical_flaws": 1,
+          "hits": 3925,
+          "total_flaws_tested": 3925
+        }
+      }
+    }
+  ]
+}
