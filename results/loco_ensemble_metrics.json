@@ -1,0 +1,757 @@
+{
+  "label": "Real data (ML-NDT)",
+  "protocol": "Leave-one-crack-out (LOCO) deep ensemble cross-validation across 3 physical cracks. Train on 2 cracks and non-holdout unflawed, validation on official validation batches without held-out crack, test on held-out crack and holdout-batch unflawed only.",
+  "run_note": "GPU training is not bit-reproducible; re-training changes the weights and the held-out results - always cite the sha256.",
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "seeds_used": [
+    0,
+    1,
+    2
+  ],
+  "folds": [
+    {
+      "held_out": "crack_1.6",
+      "n_train": 14219,
+      "n_val": 159,
+      "n_test_flawed": 4014,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 243,
+        "n_flawed": 4014,
+        "rate": 0.06053811659192825
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "beta0": -5.496721540953447,
+        "beta1": 9.220533565204825,
+        "cov": [
+          [
+            0.06813150058720416,
+            -0.17584655373637362
+          ],
+          [
+            -0.17584655373637362,
+            0.4877659595035336
+          ]
+        ],
+        "n": 4014,
+        "a50": 1.81509753415896,
+        "a90": 2.3035147425688463,
+        "a90_95": 2.446722563679355,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": null,
+      "seconds": 14.85,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "seeds_used": [
+        0,
+        1,
+        2
+      ],
+      "model_sha256": [
+        "430ad4982608b12dee45cb652464a5c268c1ce126e1db3aed0ce7087be97a7c3",
+        "2aba3e9556f15e84451966ec0646ce40d3db5d8b8f93094a71caf14733e72710",
+        "b9f780b2def10efb32a42c27e5a661708c8320c1ce343a3f8fc3ec9ac5bf57ec"
+      ],
+      "model_mtime": [
+        "2026-10-27T09:50:51.188386+00:00",
+        "2026-10-27T09:56:03.870506+00:00",
+        "2026-10-27T10:02:12.092530+00:00"
+      ],
+      "single_best": {
+        "held_out": "crack_1.6",
+        "n_train": 14219,
+        "n_val": 159,
+        "n_test_flawed": 4014,
+        "n_test_unflawed": 778,
+        "detections": {
+          "n_hit": 579,
+          "n_flawed": 4014,
+          "rate": 0.14424514200298955
+        },
+        "false_calls": {
+          "n_false": 0,
+          "n_unflawed": 778,
+          "rate": 0.0,
+          "upper95": 0.0038431517383073627
+        },
+        "pod": {
+          "beta0": -4.2518305762226785,
+          "beta1": 8.751158281631456,
+          "cov": [
+            [
+              0.024574192063760485,
+              -0.06602297208315047
+            ],
+            [
+              -0.06602297208315047,
+              0.19635057248401294
+            ]
+          ],
+          "n": 4014,
+          "a50": 1.6255710652171056,
+          "a90": 2.0895261600276136,
+          "a90_95": 2.1631082616869275,
+          "method": "delta",
+          "reason": null
+        },
+        "best_val_loss": null,
+        "seconds": null,
+        "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+        "model_sha256": "84aa74e90f03ee63ced1d2a14f3b452a6ce81a77820441be25342c8ae234cce6",
+        "model_mtime": "2026-10-27T10:02:12.111041+00:00",
+        "note": "evaluated from saved weights, no training in this run"
+      },
+      "single_best_comparison": {
+        "held_out": "crack_1.6",
+        "n_train": 14219,
+        "n_val": 159,
+        "n_test_flawed": 4014,
+        "n_test_unflawed": 778,
+        "detections": {
+          "n_hit": 579,
+          "n_flawed": 4014,
+          "rate": 0.14424514200298955
+        },
+        "false_calls": {
+          "n_false": 0,
+          "n_unflawed": 778,
+          "rate": 0.0,
+          "upper95": 0.0038431517383073627
+        },
+        "pod": {
+          "beta0": -4.2518305762226785,
+          "beta1": 8.751158281631456,
+          "cov": [
+            [
+              0.024574192063760485,
+              -0.06602297208315047
+            ],
+            [
+              -0.06602297208315047,
+              0.19635057248401294
+            ]
+          ],
+          "n": 4014,
+          "a50": 1.6255710652171056,
+          "a90": 2.0895261600276136,
+          "a90_95": 2.1631082616869275,
+          "method": "delta",
+          "reason": null
+        },
+        "best_val_loss": null,
+        "seconds": null,
+        "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+        "model_sha256": "84aa74e90f03ee63ced1d2a14f3b452a6ce81a77820441be25342c8ae234cce6",
+        "model_mtime": "2026-10-27T10:02:12.111041+00:00",
+        "note": "evaluated from saved weights, no training in this run"
+      }
+    },
+    {
+      "held_out": "crack_4.0",
+      "n_train": 14153,
+      "n_val": 167,
+      "n_test_flawed": 4078,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 143,
+        "n_flawed": 4078,
+        "rate": 0.03506620892594409
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "beta0": -16.472609335531157,
+        "beta1": 10.717698879192373,
+        "cov": [
+          [
+            1.7012651492407815,
+            -1.310440719157724
+          ],
+          [
+            -1.3104407191577239,
+            1.0139715800693903
+          ]
+        ],
+        "n": 4078,
+        "a50": 4.650403187261004,
+        "a90": 5.708537770097462,
+        "a90_95": 6.127184222381745,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": null,
+      "seconds": 15.56,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "seeds_used": [
+        0,
+        1,
+        2
+      ],
+      "model_sha256": [
+        "36938c97203f4fcdc25400376ccf1b4e5cdf50e0c2c30cfa0939d7f5a98d82e0",
+        "934e5c8f75f724760ee61bf47d6393557100c110e0d0107f8b7e8300f576b41d",
+        "cbada037b3bc7126919e20aeee8160a39563cc35f999defd55ced091585e36ea"
+      ],
+      "model_mtime": [
+        "2026-10-27T10:08:36.580765+00:00",
+        "2026-10-27T10:11:41.263604+00:00",
+        "2026-10-27T10:15:02.987091+00:00"
+      ],
+      "single_best": {
+        "held_out": "crack_4.0",
+        "n_train": 14153,
+        "n_val": 167,
+        "n_test_flawed": 4078,
+        "n_test_unflawed": 778,
+        "detections": {
+          "n_hit": 671,
+          "n_flawed": 4078,
+          "rate": 0.16454144188327613
+        },
+        "false_calls": {
+          "n_false": 0,
+          "n_unflawed": 778,
+          "rate": 0.0,
+          "upper95": 0.0038431517383073627
+        },
+        "pod": {
+          "beta0": -9.868129410332662,
+          "beta1": 6.964464305889498,
+          "cov": [
+            [
+              0.20329523845085284,
+              -0.16370270498544717
+            ],
+            [
+              -0.1637027049854472,
+              0.13314716881171038
+            ]
+          ],
+          "n": 4078,
+          "a50": 4.124421783249172,
+          "a90": 5.654301932672209,
+          "a90_95": 5.912371292270716,
+          "method": "delta",
+          "reason": null
+        },
+        "best_val_loss": null,
+        "seconds": null,
+        "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+        "model_sha256": "c1d6890dfb54aedc6df3ca7270fe01ba407519af2fd17e5857eed08b1a366421",
+        "model_mtime": "2026-10-27T10:15:03.008602+00:00",
+        "note": "evaluated from saved weights, no training in this run"
+      },
+      "single_best_comparison": {
+        "held_out": "crack_4.0",
+        "n_train": 14153,
+        "n_val": 167,
+        "n_test_flawed": 4078,
+        "n_test_unflawed": 778,
+        "detections": {
+          "n_hit": 671,
+          "n_flawed": 4078,
+          "rate": 0.16454144188327613
+        },
+        "false_calls": {
+          "n_false": 0,
+          "n_unflawed": 778,
+          "rate": 0.0,
+          "upper95": 0.0038431517383073627
+        },
+        "pod": {
+          "beta0": -9.868129410332662,
+          "beta1": 6.964464305889498,
+          "cov": [
+            [
+              0.20329523845085284,
+              -0.16370270498544717
+            ],
+            [
+              -0.1637027049854472,
+              0.13314716881171038
+            ]
+          ],
+          "n": 4078,
+          "a50": 4.124421783249172,
+          "a90": 5.654301932672209,
+          "a90_95": 5.912371292270716,
+          "method": "delta",
+          "reason": null
+        },
+        "best_val_loss": null,
+        "seconds": null,
+        "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+        "model_sha256": "c1d6890dfb54aedc6df3ca7270fe01ba407519af2fd17e5857eed08b1a366421",
+        "model_mtime": "2026-10-27T10:15:03.008602+00:00",
+        "note": "evaluated from saved weights, no training in this run"
+      }
+    },
+    {
+      "held_out": "crack_8.6",
+      "n_train": 14263,
+      "n_val": 163,
+      "n_test_flawed": 3925,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 3925,
+        "n_flawed": 3925,
+        "rate": 1.0
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "n_flawed": 3925,
+        "n_hit": 3925,
+        "min_size": 4.468533992767334,
+        "max_size": 8.599480628967285,
+        "size_p10": 4.866891479492188,
+        "size_p50": 6.515909671783447,
+        "pod_lower95": 0.9992370473051781,
+        "method": "binomial Clopper-Pearson one-sided 95",
+        "note": "POD lower bound over the whole tested size range, not a POD curve.",
+        "reason": "Data is separable: only hits or only misses present.",
+        "a90_95": null
+      },
+      "best_val_loss": null,
+      "seconds": 16.11,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "seeds_used": [
+        0,
+        1,
+        2
+      ],
+      "model_sha256": [
+        "7285c522ffcc0e169a9dceec9baf2c1b4153803dc995b06c05a889619c96c31e",
+        "a9931327e1223927252e68c0a4969062ec52661ae15117d9a47e070520fceda8",
+        "7b56f64f6e0e697b5eae164733701fef04f8861bc50665d489ba499778f7844f"
+      ],
+      "model_mtime": [
+        "2026-10-27T10:18:40.262510+00:00",
+        "2026-10-27T10:20:31.137252+00:00",
+        "2026-10-27T10:26:39.542479+00:00"
+      ],
+      "single_best": {
+        "held_out": "crack_8.6",
+        "n_train": 14263,
+        "n_val": 163,
+        "n_test_flawed": 3925,
+        "n_test_unflawed": 778,
+        "detections": {
+          "n_hit": 3925,
+          "n_flawed": 3925,
+          "rate": 1.0
+        },
+        "false_calls": {
+          "n_false": 0,
+          "n_unflawed": 778,
+          "rate": 0.0,
+          "upper95": 0.0038431517383073627
+        },
+        "pod": {
+          "n_flawed": 3925,
+          "n_hit": 3925,
+          "min_size": 4.468533992767334,
+          "max_size": 8.599480628967285,
+          "size_p10": 4.866891479492188,
+          "size_p50": 6.515909671783447,
+          "pod_lower95": 0.9992370473051781,
+          "method": "binomial Clopper-Pearson one-sided 95",
+          "note": "POD lower bound over the whole tested size range, not a POD curve.",
+          "reason": "Data is separable: only hits or only misses present.",
+          "a90_95": null
+        },
+        "best_val_loss": null,
+        "seconds": null,
+        "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+        "model_sha256": "f9ead463bb31fe613d150b3b32999eaed60bf7a77272d9c456eefd3dc2b3d32c",
+        "model_mtime": "2026-10-27T10:26:39.562479+00:00",
+        "note": "evaluated from saved weights, no training in this run"
+      },
+      "single_best_comparison": {
+        "held_out": "crack_8.6",
+        "n_train": 14263,
+        "n_val": 163,
+        "n_test_flawed": 3925,
+        "n_test_unflawed": 778,
+        "detections": {
+          "n_hit": 3925,
+          "n_flawed": 3925,
+          "rate": 1.0
+        },
+        "false_calls": {
+          "n_false": 0,
+          "n_unflawed": 778,
+          "rate": 0.0,
+          "upper95": 0.0038431517383073627
+        },
+        "pod": {
+          "n_flawed": 3925,
+          "n_hit": 3925,
+          "min_size": 4.468533992767334,
+          "max_size": 8.599480628967285,
+          "size_p10": 4.866891479492188,
+          "size_p50": 6.515909671783447,
+          "pod_lower95": 0.9992370473051781,
+          "method": "binomial Clopper-Pearson one-sided 95",
+          "note": "POD lower bound over the whole tested size range, not a POD curve.",
+          "reason": "Data is separable: only hits or only misses present.",
+          "a90_95": null
+        },
+        "best_val_loss": null,
+        "seconds": null,
+        "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+        "model_sha256": "f9ead463bb31fe613d150b3b32999eaed60bf7a77272d9c456eefd3dc2b3d32c",
+        "model_mtime": "2026-10-27T10:26:39.562479+00:00",
+        "note": "evaluated from saved weights, no training in this run"
+      }
+    }
+  ],
+  "official_validation": {
+    "flag": "leaky: validation shares all 3 physical cracks with training (see results/leakage_audit.json)",
+    "model_path": "models\\mlndt_best.pt",
+    "n_flawed": 111,
+    "n_unflawed": 89,
+    "detections": {
+      "n_hit": 111,
+      "n_flawed": 111,
+      "rate": 1.0
+    },
+    "false_calls": {
+      "n_false": 0,
+      "n_unflawed": 89,
+      "rate": 0.0,
+      "upper95": 0.03309972123627414
+    },
+    "pod": {
+      "n_flawed": 111,
+      "n_hit": 111,
+      "min_size": 0.9353771209716797,
+      "max_size": 8.50500774383545,
+      "size_p10": 1.1331126689910889,
+      "size_p50": 3.104783535003662,
+      "pod_lower95": 0.9733723583066243,
+      "method": "binomial Clopper-Pearson one-sided 95",
+      "note": "POD lower bound over the whole tested size range, not a POD curve.",
+      "reason": "Data is separable: only hits or only misses present.",
+      "a90_95": null
+    }
+  },
+  "part_a": {
+    "flag": "leaky: validation shares all 3 physical cracks with training (see results/leakage_audit.json)",
+    "model_path": "models\\mlndt_best.pt",
+    "n_flawed": 111,
+    "n_unflawed": 89,
+    "detections": {
+      "n_hit": 111,
+      "n_flawed": 111,
+      "rate": 1.0
+    },
+    "false_calls": {
+      "n_false": 0,
+      "n_unflawed": 89,
+      "rate": 0.0,
+      "upper95": 0.03309972123627414
+    },
+    "pod": {
+      "n_flawed": 111,
+      "n_hit": 111,
+      "min_size": 0.9353771209716797,
+      "max_size": 8.50500774383545,
+      "size_p10": 1.1331126689910889,
+      "size_p50": 3.104783535003662,
+      "pod_lower95": 0.9733723583066243,
+      "method": "binomial Clopper-Pearson one-sided 95",
+      "note": "POD lower bound over the whole tested size range, not a POD curve.",
+      "reason": "Data is separable: only hits or only misses present.",
+      "a90_95": null
+    }
+  },
+  "single_best": [
+    {
+      "held_out": "crack_1.6",
+      "n_train": 14219,
+      "n_val": 159,
+      "n_test_flawed": 4014,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 579,
+        "n_flawed": 4014,
+        "rate": 0.14424514200298955
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "beta0": -4.2518305762226785,
+        "beta1": 8.751158281631456,
+        "cov": [
+          [
+            0.024574192063760485,
+            -0.06602297208315047
+          ],
+          [
+            -0.06602297208315047,
+            0.19635057248401294
+          ]
+        ],
+        "n": 4014,
+        "a50": 1.6255710652171056,
+        "a90": 2.0895261600276136,
+        "a90_95": 2.1631082616869275,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": null,
+      "seconds": null,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "model_sha256": "84aa74e90f03ee63ced1d2a14f3b452a6ce81a77820441be25342c8ae234cce6",
+      "model_mtime": "2026-10-27T10:02:12.111041+00:00",
+      "note": "evaluated from saved weights, no training in this run"
+    },
+    {
+      "held_out": "crack_4.0",
+      "n_train": 14153,
+      "n_val": 167,
+      "n_test_flawed": 4078,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 671,
+        "n_flawed": 4078,
+        "rate": 0.16454144188327613
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "beta0": -9.868129410332662,
+        "beta1": 6.964464305889498,
+        "cov": [
+          [
+            0.20329523845085284,
+            -0.16370270498544717
+          ],
+          [
+            -0.1637027049854472,
+            0.13314716881171038
+          ]
+        ],
+        "n": 4078,
+        "a50": 4.124421783249172,
+        "a90": 5.654301932672209,
+        "a90_95": 5.912371292270716,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": null,
+      "seconds": null,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "model_sha256": "c1d6890dfb54aedc6df3ca7270fe01ba407519af2fd17e5857eed08b1a366421",
+      "model_mtime": "2026-10-27T10:15:03.008602+00:00",
+      "note": "evaluated from saved weights, no training in this run"
+    },
+    {
+      "held_out": "crack_8.6",
+      "n_train": 14263,
+      "n_val": 163,
+      "n_test_flawed": 3925,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 3925,
+        "n_flawed": 3925,
+        "rate": 1.0
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "n_flawed": 3925,
+        "n_hit": 3925,
+        "min_size": 4.468533992767334,
+        "max_size": 8.599480628967285,
+        "size_p10": 4.866891479492188,
+        "size_p50": 6.515909671783447,
+        "pod_lower95": 0.9992370473051781,
+        "method": "binomial Clopper-Pearson one-sided 95",
+        "note": "POD lower bound over the whole tested size range, not a POD curve.",
+        "reason": "Data is separable: only hits or only misses present.",
+        "a90_95": null
+      },
+      "best_val_loss": null,
+      "seconds": null,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "model_sha256": "f9ead463bb31fe613d150b3b32999eaed60bf7a77272d9c456eefd3dc2b3d32c",
+      "model_mtime": "2026-10-27T10:26:39.562479+00:00",
+      "note": "evaluated from saved weights, no training in this run"
+    }
+  ],
+  "single_best_comparison": [
+    {
+      "held_out": "crack_1.6",
+      "n_train": 14219,
+      "n_val": 159,
+      "n_test_flawed": 4014,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 579,
+        "n_flawed": 4014,
+        "rate": 0.14424514200298955
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "beta0": -4.2518305762226785,
+        "beta1": 8.751158281631456,
+        "cov": [
+          [
+            0.024574192063760485,
+            -0.06602297208315047
+          ],
+          [
+            -0.06602297208315047,
+            0.19635057248401294
+          ]
+        ],
+        "n": 4014,
+        "a50": 1.6255710652171056,
+        "a90": 2.0895261600276136,
+        "a90_95": 2.1631082616869275,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": null,
+      "seconds": null,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "model_sha256": "84aa74e90f03ee63ced1d2a14f3b452a6ce81a77820441be25342c8ae234cce6",
+      "model_mtime": "2026-10-27T10:02:12.111041+00:00",
+      "note": "evaluated from saved weights, no training in this run"
+    },
+    {
+      "held_out": "crack_4.0",
+      "n_train": 14153,
+      "n_val": 167,
+      "n_test_flawed": 4078,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 671,
+        "n_flawed": 4078,
+        "rate": 0.16454144188327613
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "beta0": -9.868129410332662,
+        "beta1": 6.964464305889498,
+        "cov": [
+          [
+            0.20329523845085284,
+            -0.16370270498544717
+          ],
+          [
+            -0.1637027049854472,
+            0.13314716881171038
+          ]
+        ],
+        "n": 4078,
+        "a50": 4.124421783249172,
+        "a90": 5.654301932672209,
+        "a90_95": 5.912371292270716,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": null,
+      "seconds": null,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "model_sha256": "c1d6890dfb54aedc6df3ca7270fe01ba407519af2fd17e5857eed08b1a366421",
+      "model_mtime": "2026-10-27T10:15:03.008602+00:00",
+      "note": "evaluated from saved weights, no training in this run"
+    },
+    {
+      "held_out": "crack_8.6",
+      "n_train": 14263,
+      "n_val": 163,
+      "n_test_flawed": 3925,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 3925,
+        "n_flawed": 3925,
+        "rate": 1.0
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "n_flawed": 3925,
+        "n_hit": 3925,
+        "min_size": 4.468533992767334,
+        "max_size": 8.599480628967285,
+        "size_p10": 4.866891479492188,
+        "size_p50": 6.515909671783447,
+        "pod_lower95": 0.9992370473051781,
+        "method": "binomial Clopper-Pearson one-sided 95",
+        "note": "POD lower bound over the whole tested size range, not a POD curve.",
+        "reason": "Data is separable: only hits or only misses present.",
+        "a90_95": null
+      },
+      "best_val_loss": null,
+      "seconds": null,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "model_sha256": "f9ead463bb31fe613d150b3b32999eaed60bf7a77272d9c456eefd3dc2b3d32c",
+      "model_mtime": "2026-10-27T10:26:39.562479+00:00",
+      "note": "evaluated from saved weights, no training in this run"
+    }
+  ]
+}

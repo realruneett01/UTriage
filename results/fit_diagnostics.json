@@ -355,15 +355,15 @@
         "crack_1.6": {
           "available": true,
           "train_detection_rate": 1.0,
-          "heldout_detection_rate": 0.004733432984554061,
+          "heldout_detection_rate": 0.14424514200298955,
           "n_sampled": 2000,
           "seed": 42,
           "diagnosis": {
             "train_metric": 1.0,
             "sets": {
               "crack_1.6": {
-                "heldout_metric": 0.004733432984554061,
-                "gap": 0.9952665670154459,
+                "heldout_metric": 0.14424514200298955,
+                "gap": 0.8557548579970105,
                 "verdict": "overfitting",
                 "verdicts": [
                   "overfitting"
@@ -380,15 +380,15 @@
         "crack_4.0": {
           "available": true,
           "train_detection_rate": 1.0,
-          "heldout_detection_rate": 0.004659146640510054,
+          "heldout_detection_rate": 0.16454144188327613,
           "n_sampled": 2000,
           "seed": 42,
           "diagnosis": {
             "train_metric": 1.0,
             "sets": {
               "crack_4.0": {
-                "heldout_metric": 0.004659146640510054,
-                "gap": 0.99534085335949,
+                "heldout_metric": 0.16454144188327613,
+                "gap": 0.8354585581167239,
                 "verdict": "overfitting",
                 "verdicts": [
                   "overfitting"

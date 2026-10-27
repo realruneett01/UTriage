@@ -58,14 +58,14 @@ In ultrasonic non-destructive testing, multiple A-scans and B-scans from a singl
 Supervised convolutional networks trained on two cracks and tested on the held-out crack demonstrate severe generalization breakdown on smaller cracks:
 
 - **Held-out `crack_1.6`:**
-  - Detections: `19` of `4014` (detection rate: `0.00473`)
+  - Detections: `579` of `4014` (detection rate: `0.144`)
   - False-call rate on unflawed scans: `0`
-  - Hit/miss POD $a_{90/95}$: `2.47` mm equivalent
+  - Hit/miss POD $a_{90/95}$: `2.16` mm equivalent
   - *Observation:* Near-total miss on the held-out 1.6 mm crack when trained on 4.0 mm and 8.6 mm cracks.
 - **Held-out `crack_4.0`:**
-  - Detections: `19` of `4078` (detection rate: `0.00466`)
+  - Detections: `671` of `4078` (detection rate: `0.165`)
   - False-call rate on unflawed scans: `0`
-  - Hit/miss POD $a_{90/95}$: `8` mm equivalent
+  - Hit/miss POD $a_{90/95}$: `5.91` mm equivalent
   - *Observation:* Near-total miss on the held-out 4.0 mm crack when trained on 1.6 mm and 8.6 mm cracks.
 - **Held-out `crack_8.6`:**
   - Detections: `3925` of `3925`
@@ -106,14 +106,14 @@ However, shifting to held-out operational parameter regions exposes significant 
 
 1. **Held-Out 10 MHz Transducer Frequency (`freq_10mhz`):**
    Acoustic Rayleigh scattering increases sharply at higher frequencies, causing severe false-call blow-up:
-   - Rules baseline false-call rate: `0.636` (Synthetic data)
-   - ML 1D model false-call rate: `0.469` (Synthetic data)
-   - Fused union false-call rate: `0.693` (Synthetic data)
+   - Rules baseline false-call rate: `0.748` (Synthetic data)
+   - ML 1D model false-call rate: `0.6` (Synthetic data)
+   - Fused union false-call rate: `0.802` (Synthetic data)
 2. **Held-Out Noise Above Range (`noise_above_range`):**
    When material grain scattering exceeds nominal bounds, high background peaks breach decision gates:
-   - Rules baseline false-call rate: `0.533` (Synthetic data)
-   - ML 1D model false-call rate: `0.469` (Synthetic data)
-   - Fused union false-call rate: `0.656` (Synthetic data)
+   - Rules baseline false-call rate: `0.343` (Synthetic data)
+   - ML 1D model false-call rate: `0.407` (Synthetic data)
+   - Fused union false-call rate: `0.529` (Synthetic data)
 
 ---
 
@@ -123,8 +123,8 @@ Diagnostic checks (`results/fit_diagnostics.json`) quantify the degree of model 
 
 ### Supervised LOCO Overfitting
 Supervised models exhibit complete memorization of training flaw morphology:
-- **Crack `crack_1.6` Fold:** Training detection rate `1` vs held-out detection rate `0.00473` (Diagnosis: severe overfitting)
-- **Crack `crack_4.0` Fold:** Training detection rate `1` vs held-out detection rate `0.00466` (Diagnosis: severe overfitting)
+- **Crack `crack_1.6` Fold:** Training detection rate `1` vs held-out detection rate `0.144` (Diagnosis: severe overfitting)
+- **Crack `crack_4.0` Fold:** Training detection rate `1` vs held-out detection rate `0.165` (Diagnosis: severe overfitting)
 
 Because the network trained on only two crack shapes, it failed to form generalizable acoustic representations of smaller cracks.
 
@@ -132,8 +132,8 @@ Because the network trained on only two crack shapes, it failed to form generali
 *Dataset: Synthetic data*
 
 In synthetic bar experiments, out-of-distribution parameter shifts reveal large generalization deficits:
-- Frequency shift (`freq_10mhz`) generalization gap: `0.275` (Synthetic data)
-- Noise shift (`noise_above_range`) generalization gap: `0.13` (Synthetic data)
+- Frequency shift (`freq_10mhz`) generalization gap: `0.367` (Synthetic data)
+- Noise shift (`noise_above_range`) generalization gap: `0.03` (Synthetic data)
 
 ---
 

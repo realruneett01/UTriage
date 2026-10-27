@@ -1,0 +1,24 @@
+{
+  "name": "miss_crack_4.0_199BD889-BF94-4EE6-8E55-5B5BD58ED8CE_22",
+  "score": 0.02540566958487034,
+  "peak_amplitude": 4355.0,
+  "peak_location": [
+    181,
+    117
+  ],
+  "snr": 12.808823529411764,
+  "near_edge": false,
+  "png_saved": false,
+  "meta": {
+    "original_location": "561-600",
+    "location_min": "2879",
+    "location": "2879-3124",
+    "equivalent_flawsize": "2.3593861274329666",
+    "factor": "0.5307287325921303",
+    "max_amplitude": "7414",
+    "location_max": "3124",
+    "noise_threshold": "934",
+    "size": "4.0",
+    "noise_flawsize": "0.503911518748314"
+  }
+}

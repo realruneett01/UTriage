@@ -1,0 +1,24 @@
+{
+  "name": "miss_crack_4.0_6A22059D-23FD-432F-BAAF-5B026855C219_2",
+  "score": 0.011614077724516392,
+  "peak_amplitude": 4355.0,
+  "peak_location": [
+    181,
+    138
+  ],
+  "snr": 12.808823529411764,
+  "near_edge": false,
+  "png_saved": false,
+  "meta": {
+    "size": "4.0",
+    "original_location": "671-710",
+    "factor": "0.6214706456804346",
+    "location_min": "1243.8622135108385",
+    "equivalent_flawsize": "2.6766278845477296",
+    "max_amplitude": "7414",
+    "noise_flawsize": "0.503911518748314",
+    "location": "2205.9118942731275-2640.409691629956",
+    "location_max": "1488.865376778125",
+    "noise_threshold": "934"
+  }
+}

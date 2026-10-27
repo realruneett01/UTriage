@@ -1,0 +1,24 @@
+{
+  "name": "false_call_crack_8.6_268A3193-0491-40CF-BA54-1B7061557AC1_19",
+  "score": 0.00015184063522610813,
+  "peak_amplitude": 4355.0,
+  "peak_location": [
+    181,
+    117
+  ],
+  "snr": 12.771260997067449,
+  "near_edge": false,
+  "png_saved": true,
+  "meta": {
+    "noise_flawsize": "0.0",
+    "size": "0.0",
+    "equivalent_flawsize": "0.0",
+    "original_location": "483-505",
+    "location_max": "2527",
+    "max_amplitude": "4050",
+    "noise_threshold": "973",
+    "location": "2389-2527",
+    "factor": "0.8880133670493991",
+    "location_min": "2389"
+  }
+}
