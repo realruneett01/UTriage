@@ -51,7 +51,7 @@ To conduct a plant-specific feasibility evaluation without disrupting production
 
 Within two weeks of receiving the sample scans, we provide a comprehensive, data-driven offline evaluation report on your own material:
 
-- **Offline POD-style comparison:** A comparative analysis evaluating conventional thresholding against the fused rules-plus-ML triage layer on your actual material scans (benchmarking detection sensitivity, indication clustering, and false-call behaviour per the methodologies documented in `results/bar_domain_metrics.json` and `results/triage_metrics.json`).
+- **Offline POD-style comparison:** A comparative analysis evaluating conventional thresholding against the fused rules-plus-ML triage layer on your actual material scans (benchmarking detection sensitivity, indication clustering, and false-call behaviour per the methodologies documented on **Synthetic data** in `results/bar_domain_metrics.json` and `results/triage_metrics.json`).
 - **Data-quality audit:** A full spatial mapping of acoustic coupling stability, water-path variance, and back-wall retention across the sample bars, identifying any acquisition anomalies caught by the watchdog.
 - **Inspector review demonstration:** An offline demonstration showing how the triage decision-support interface ranks indications and pre-fills inspection documentation for Level II review.
 
@@ -62,7 +62,7 @@ Within two weeks of receiving the sample scans, we provide a comprehensive, data
 To maintain total technical and commercial integrity, we are explicit about the boundaries of this evaluation:
 
 - **Not qualified:** UTriage is **not qualified** under AMS-STD-2154, ASTM E2375, MIL-HDBK-1823A, or any aerospace prime specification. It cannot be used for production part clearance.
-- **Current validation base:** Current performance figures have been established strictly on physics-based synthetic bar simulations (`results/bar_domain_metrics.json`, `results/rules_baseline.json`) and a public research dataset of a 316L stainless steel pipe weld containing three physical cracks (`results/mlndt_metrics.json`). We make no claims of prior plant qualification or MIDHANI production data validation.
+- **Current validation base:** Current performance figures have been established strictly on physics-based synthetic bar simulations (`results/bar_domain_metrics.json`, `results/rules_baseline.json`, labelled **Synthetic data**) and public research datasets covering 9 distinct real flaws used in evaluation (`results/claims.md`). Earlier benchmarks citing `results/mlndt_metrics.json` are superseded because a leakage audit (`results/leakage_audit.json`) showed that the random batch split leaked all 3 physical cracks between training and test sets. Rigorous group-held-out evaluations (`results/claims.md`, `results/generalization_matrix.json`, `results/loco_metrics.json`) demonstrate that held-out cracks are mostly missed by the supervised model, cross-dataset transfer failed on independent welds, and the anomaly detector trained on flaw-free scans is the more promising direction. All quantitative metrics and confidence intervals are documented in `results/claims.md`. We make no claims of prior plant qualification or plant production data validation.
 - **Proprietary commercial software under NDA:** UTriage is proprietary commercial software. All discussions, data exchanges, and evaluations are conducted under a mutual Non-Disclosure Agreement (NDA). All plant scan data remains the exclusive property of the plant and will not be retained or redistributed.
 
 ---
