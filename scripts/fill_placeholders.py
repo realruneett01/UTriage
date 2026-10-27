@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
@@ -145,24 +146,73 @@ def render(template_text: str, results_dir: Path | str) -> str:
     return rendered
 
 
-def main() -> int:
-    """Render docs/technical-note.tmpl.md into docs/technical-note.md."""
+def _build_parser() -> argparse.ArgumentParser:
+    """Build CLI parser with defaults pointing to real repository paths."""
     repo_root = Path(__file__).resolve().parents[1]
-    template_path = repo_root / "docs" / "technical-note.tmpl.md"
-    output_path = repo_root / "docs" / "technical-note.md"
-    results_dir = repo_root / "results"
+    parser = argparse.ArgumentParser(
+        description="Fill placeholders in documentation templates from results JSON."
+    )
+    parser.add_argument(
+        "--template",
+        type=Path,
+        default=repo_root / "docs" / "technical-note.tmpl.md",
+        help="Path to template markdown file",
+    )
+    parser.add_argument(
+        "--results",
+        type=Path,
+        default=repo_root / "results",
+        help="Path to results directory",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=repo_root / "docs" / "technical-note.md",
+        help="Path to output markdown file",
+    )
+    return parser
+
+
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse CLI arguments or fallback to defaults."""
+    parser = _build_parser()
+    if argv is not None:
+        return parser.parse_args(argv)
+    if sys.argv and Path(sys.argv[0]).stem == "fill_placeholders":
+        return parser.parse_args(sys.argv[1:])
+    return parser.parse_args([])
+
+
+def main(
+    argv: list[str] | Path | str | None = None,
+    template: Path | str | None = None,
+    results_dir: Path | str | None = None,
+    out: Path | str | None = None,
+) -> int:
+    """Render documentation template into output file."""
+    if isinstance(argv, (Path, str)):
+        template, results_dir, out = argv, template, results_dir
+        cli_argv = None
+    else:
+        cli_argv = argv
+
+    args = _parse_args(cli_argv)
+    template_path = Path(template) if template is not None else args.template
+    results_path = Path(results_dir) if results_dir is not None else args.results
+    output_path = Path(out) if out is not None else args.out
 
     if not template_path.is_file():
         print(f"Error: Template not found at {template_path}", file=sys.stderr)
         return 1
 
     template_text = template_path.read_text(encoding="utf-8")
-    rendered, filled, missing = render_with_stats(template_text, results_dir)
+    rendered, filled, missing = render_with_stats(template_text, results_path)
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(rendered, encoding="utf-8")
     print(f"Filled: {filled}, Missing: {missing}")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

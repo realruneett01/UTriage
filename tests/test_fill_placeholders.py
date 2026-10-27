@@ -146,20 +146,49 @@ def test_resolve_key_path_edge_cases() -> None:
     assert resolve_key_path({"k": 1}, "") == (True, {"k": 1})
 
 
-def test_main_execution(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """Verify main writes technical-note.md and reports stats."""
-    repo_root = Path(__file__).resolve().parents[1]
-    note_path = repo_root / "docs" / "technical-note.md"
+@pytest.mark.parametrize("use_argv", [True, False])
+def test_main_execution(use_argv: bool, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Verify main renders template from results in tmp_path."""
+    tmpl = tmp_path / f"tiny_{use_argv}.tmpl.md"
+    tmpl.write_text("A: {{res.json: a}}, B: {{res.json: b}}", encoding="utf-8")
+    res_dir = tmp_path / f"results_{use_argv}"
+    _write_json(res_dir / "res.json", {"a": 1, "b": 2})
+    out = tmp_path / f"tiny_{use_argv}.md"
 
-    # Ensure clean state before running
-    if note_path.exists():
-        note_path.unlink()
+    if use_argv:
+        exit_code = main(
+            argv=[
+                "--template",
+                str(tmpl),
+                "--results",
+                str(res_dir),
+                "--out",
+                str(out),
+            ]
+        )
+    else:
+        exit_code = main(template=tmpl, results_dir=res_dir, out=out)
 
-    exit_code = main()
     assert exit_code == 0
-    assert note_path.is_file()
+    assert out.is_file()
+    assert out.read_text(encoding="utf-8") == "A: 1, B: 2"
+    assert "Filled: 2, Missing: 0" in capsys.readouterr().out
 
-    stdout_out = capsys.readouterr().out
-    assert "Filled: 57, Missing: 0" in stdout_out
+
+def test_main_does_not_modify_real_doc(tmp_path: Path) -> None:
+    """Verify running main with tmp paths leaves real technical note unchanged."""
+    repo_root = Path(__file__).resolve().parents[1]
+    real_doc = repo_root / "docs" / "technical-note.md"
+    before_mtime = real_doc.stat().st_mtime_ns
+    before_bytes = real_doc.read_bytes()
+
+    tmpl = tmp_path / "guard.tmpl.md"
+    tmpl.write_text("Val: {{data.json: x}}", encoding="utf-8")
+    res_dir = tmp_path / "results"
+    _write_json(res_dir / "data.json", {"x": 42})
+    out = tmp_path / "guard.md"
+
+    exit_code = main(template=tmpl, results_dir=res_dir, out=out)
+    assert exit_code == 0
+    assert real_doc.stat().st_mtime_ns == before_mtime
+    assert real_doc.read_bytes() == before_bytes
