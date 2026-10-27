@@ -70,3 +70,47 @@ Pre-registers candidate H3 prior to running evaluations or computing results:
 ### Configuration and Pre-registered Parameters
 
 All decision thresholds and hyper-parameters of H1-H3 will be read from `configs/detectors.yaml`. The pre-registered values are the defaults in that file; any run with changed values is labelled exploratory in the claims and is not the pre-registered result.
+
+## Results (2026-10-27)
+
+Pre-registered evaluations for candidates H1 (OR-union) and H2 (score fusion) from `results/hybrid_metrics.json`, and candidate H3 (physics-feature logistic regression) from `results/physics_model_metrics.json`, were executed across the 3 physical crack leave-one-crack-out (LOCO) folds.
+
+### Per-Crack Metrics
+
+- **Crack 1.6 mm** (4014 flawed scans, 778 unflawed scans):
+  - **H1 (OR-union)**:
+    - Single-best model (`loco_crack_1.6.pt`): detection 3653/4014 (rate 0.9101, 95% CI [0.9008, 0.9187]), false calls 14/778 (rate 0.0180).
+    - 3-seed range: detections 3649/4014 to 3660/4014 (rate 0.9091 to 0.9118, mean 0.9103), false calls 14/778 (rate 0.0180 across all seeds).
+  - **H2 (Score fusion)**:
+    - Single-best model (`loco_crack_1.6.pt`): detection 3761/4014 (rate 0.9370, 95% CI [0.9290, 0.9443]), false calls 7/778 (rate 0.0090).
+    - 3-seed range: detections 3687/4014 to 3766/4014 (rate 0.9185 to 0.9382, mean 0.9312), false calls 7/778 (rate 0.0090 across all seeds).
+  - **H3 (Physics features)**:
+    - Detection 2661/4014 (rate 0.6629, 95% CI [0.6481, 0.6776]), false calls 0/778 (rate 0.0, upper95 0.0047).
+
+- **Crack 4.0 mm** (4078 flawed scans, 778 unflawed scans):
+  - **H1 (OR-union)**:
+    - Single-best model (`loco_crack_4.0.pt`): detection 1610/4078 (rate 0.3948, 95% CI [0.3798, 0.4100]), false calls 14/778 (rate 0.0180).
+    - 3-seed range: detections 1306/4078 to 1610/4078 (rate 0.3203 to 0.3948, mean 0.3619), false calls 14/778 (rate 0.0180 across all seeds).
+  - **H2 (Score fusion)**:
+    - Single-best model (`loco_crack_4.0.pt`): detection 2272/4078 (rate 0.5571, 95% CI [0.5417, 0.5725]), false calls 7/778 (rate 0.0090).
+    - 3-seed range: detections 899/4078 to 2272/4078 (rate 0.2205 to 0.5571, mean 0.4385), false calls 7/778 (rate 0.0090 across all seeds).
+    - *Losing case and seed sensitivity*: Under `loco_crack_4.0_seed2.pt`, supervised detection collapsed to 0/4078 (rate 0.0). Because supervised probability was near zero, the fused score was diluted, pulling H2 detection down to 899/4078 (rate 0.2205), below the anomaly-only baseline of 1306/4078 (rate 0.3203).
+  - **H3 (Physics features)**:
+    - Detection 2578/4078 (rate 0.6322, 95% CI [0.6172, 0.6470]), false calls 0/778 (rate 0.0, upper95 0.0047).
+
+- **Crack 8.6 mm** (3925 flawed scans, 778 unflawed scans):
+  - **H1 (OR-union)**:
+    - Single-best model (`loco_crack_8.6.pt`): detection 3925/3925 (rate 1.0, 95% CI [0.9991, 1.0]), false calls 14/778 (rate 0.0180).
+    - 3-seed range: detections 3925/3925 (rate 1.0 across all seeds), false calls 14/778 (rate 0.0180 across all seeds).
+  - **H2 (Score fusion)**:
+    - Single-best model (`loco_crack_8.6.pt`): detection 3925/3925 (rate 1.0, 95% CI [0.9991, 1.0]), false calls 7/778 (rate 0.0090).
+    - 3-seed range: detections 3925/3925 (rate 1.0 across all seeds), false calls 7/778 (rate 0.0090 across all seeds).
+  - **H3 (Physics features)**:
+    - Detection 3925/3925 (rate 1.0, 95% CI [0.9991, 1.0]), false calls 1/778 (rate 0.0013, upper95 0.0071).
+
+### Observations and Scope Limits
+
+- **Complementary performance**: H2 is strongest on the 1.6 mm crack (3761/4014 vs H3 2661/4014), whereas H3 is strongest on the 4.0 mm crack (2578/4078 vs H2 2272/4078).
+- **H3 coefficient instability**: H3 feature weights swing across LOCO training folds (e.g. `energy_ratio` is +18.91 on crack_1.6 but -13.48 on crack_4.0; `peak_depth` is +4.23 on crack_1.6 but -5.62 on crack_4.0), showing sensitivity to the training crack sample.
+- **Pre-registration boundary**: Combining H2 and H3 is a new candidate that requires a new pre-registration before it is evaluated.
+- **Evidence scope**: Evaluations are restricted to one weld PAUT public dataset across 3 physical cracks.
