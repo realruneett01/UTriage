@@ -21,7 +21,7 @@ hybrid:
 physics:
   # Decision threshold for physics-guided linear classifier
   threshold: 0.5
-  # Regularization parameter C for the linear SVM classifier
+  # Regularization parameter C for the logistic-regression classifier
   C: 1.0
   # Weight balancing mode across classes during linear model training
   class_weight: balanced

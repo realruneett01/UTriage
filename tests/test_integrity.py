@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -250,6 +251,33 @@ def test_repo_manifest_integrity(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setenv("UTRIAGE_LOCKED", "1")
     require_locked(MANIFEST, repo_root)
+
+
+def test_manifest_lists_detectors_yaml() -> None:
+    """Verify that configs/detectors.yaml is tracked in the manifest."""
+    content = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    assert "configs/detectors.yaml" in content.get("files", {})
+
+
+def test_verify_detects_tampered_detectors_yaml(tmp_path: Path) -> None:
+    """Verify that verify() on a tmp copy reports mismatch when detectors.yaml changes."""
+    repo_root = MANIFEST.parents[1]
+    content = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    tmp_manifest = tmp_path / "configs" / "manifest.json"
+    tmp_manifest.parent.mkdir(parents=True, exist_ok=True)
+    tmp_manifest.write_text(json.dumps(content), encoding="utf-8")
+
+    for rel_posix in content["files"]:
+        dest = tmp_path / rel_posix
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes((repo_root / rel_posix).read_bytes())
+
+    detectors_copy = tmp_path / "configs" / "detectors.yaml"
+    modified = detectors_copy.read_text(encoding="utf-8").replace("C: 1.0", "C: 2.0")
+    detectors_copy.write_text(modified, encoding="utf-8")
+
+    report = verify(tmp_manifest, tmp_path)
+    _assert_integrity_report(report, ok=False, mismatched=("configs/detectors.yaml",))
 
 
 @dataclass(frozen=True)
