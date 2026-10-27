@@ -84,7 +84,7 @@ def load_window_model(path: Path | str, device: str = "auto") -> tuple[WindowNet
     """Load WindowNet model and metadata from checkpoint."""
     ckpt_path = Path(path)
     dev = pick_device(device)
-    ckpt = torch.load(ckpt_path, map_location=dev)
+    ckpt = torch.load(ckpt_path, map_location=dev, weights_only=True)
     meta = dict(ckpt.get("meta", {}))
     in_channels = int(meta.get("in_channels", 1))
     width = int(meta.get("width", 32))

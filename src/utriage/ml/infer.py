@@ -41,7 +41,7 @@ def load_model(path: Path, device: str = "auto") -> tuple[MlNdtNet, dict]:
     """Load model weights and metadata from checkpoint."""
     ckpt_path = Path(path)
     dev = pick_device(device)
-    ckpt = torch.load(ckpt_path, map_location=dev)
+    ckpt = torch.load(ckpt_path, map_location=dev, weights_only=True)
     meta = dict(ckpt.get("meta", {}))
     width = int(meta.get("width", 32))
     pool_raw = meta.get("first_pool", (2, 2))

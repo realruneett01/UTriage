@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import pickle
 import sys
 from pathlib import Path
+from typing import Any
 
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
 if _SRC not in sys.path:
@@ -15,6 +17,10 @@ import torch  # noqa: E402
 
 from utriage.ml.infer import load_model, measure_latency, predict_images, save_model  # noqa: E402
 from utriage.ml.models import MlNdtNet  # noqa: E402
+
+
+class _MaliciousPayload:
+    """Arbitrary non-allowlisted class simulating untrusted code execution."""
 
 
 def test_save_load_round_trip(tmp_path: Path) -> None:
@@ -40,6 +46,33 @@ def test_save_load_round_trip(tmp_path: Path) -> None:
 
     assert torch.allclose(orig_logits, loaded_logits, atol=1e-6)
     assert torch.allclose(orig_sizes, loaded_sizes, atol=1e-6)
+
+
+def test_load_model_rejects_untrusted_object(tmp_path: Path) -> None:
+    """Ensure load_model refuses checkpoints with non-allowlisted objects."""
+    ckpt_path = tmp_path / "malicious.pt"
+    payload = {"state_dict": {}, "meta": {"exploit": _MaliciousPayload()}}
+    torch.save(payload, ckpt_path)
+    with pytest.raises((pickle.UnpicklingError, RuntimeError)):
+        load_model(ckpt_path)
+
+
+def test_load_model_explicit_weights_only(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Verify load_model explicitly passes weights_only=True to torch.load."""
+    ckpt_path = tmp_path / "valid.pt"
+    model = MlNdtNet(width=4)
+    save_model(model, ckpt_path, {"width": 4})
+    calls: list[dict[str, Any]] = []
+    real_torch_load = torch.load
+
+    def tracked_load(*args: Any, **kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return real_torch_load(*args, **kwargs)
+
+    monkeypatch.setattr(torch, "load", tracked_load)
+    load_model(ckpt_path)
+    assert len(calls) == 1
+    assert calls[0].get("weights_only") is True
 
 
 @pytest.mark.parametrize("n_images", [1, 5])
