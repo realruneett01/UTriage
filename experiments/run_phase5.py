@@ -48,6 +48,7 @@ from utriage.rules.pipeline import evaluate_scan
 from utriage.rules.scoring import MatchTol, matches
 from utriage.rules.types import Indication
 from utriage.triage.campaign import (
+    _coords_match,
     item_is_real,
     random_order_effort,
     review_effort,
@@ -277,28 +278,6 @@ def _simulate_ranking_bar(rng: np.random.Generator, refs: tuple[Reflector, ...])
     return simulate_bar(spec)
 
 
-def _coords_match(
-    coords: tuple[float, float, float],
-    ref: Reflector,
-    spec: BarSpec,
-    tol: MatchTol,
-) -> bool:
-    """True if coordinates match reflector within tolerance."""
-    ax_mm, ang_deg, depth_mm = coords
-    axial_diff = abs(ax_mm - ref.axial_mm)
-    depth_diff = abs(depth_mm - ref.depth_mm)
-    radius = spec.diameter_mm / 2.0 - ref.depth_mm
-    d_ang = (ang_deg - ref.angle_deg + 180.0) % 360.0 - 180.0
-    arc_diff = abs(radius) * float(np.deg2rad(abs(d_ang)))
-    return all(
-        (
-            axial_diff <= tol.axial_mm,
-            arc_diff <= tol.arc_mm,
-            depth_diff <= tol.depth_mm,
-        )
-    )
-
-
 def _item_matches_reflector(
     item: TriageItem,
     ref: Reflector,
@@ -395,27 +374,37 @@ def _run_single_bar_ranking(ctx: _RankingContext) -> dict[str, Any]:
     return res
 
 
+def _mean_effort(per_bar: list[dict[str, Any]], key: str) -> float | None:
+    """Mean effort across bars with non-None values for key."""
+    values = [r[key] for r in per_bar if r[key] is not None]
+    return float(np.mean(values)) if values else None
+
+
+def _safe_rate(numerator: float, denominator: float) -> float:
+    """Safe division returning 0.0 when denominator is non-positive."""
+    return float(numerator / denominator) if denominator > 0 else 0.0
+
+
 def _summarize_ranking(
     per_bar: list[dict[str, Any]],
     threshold: _RankingThreshold,
     union_violations: int,
 ) -> dict[str, Any]:
     """Aggregate per-bar ranking metrics into summary dict."""
-    valid_ranked = [r["effort_ranked"] for r in per_bar if r["effort_ranked"] is not None]
-    valid_rand = [r["effort_random"] for r in per_bar if r["effort_random"] is not None]
     total_planted = sum(r["n_planted"] for r in per_bar)
     total_rules = sum(r["rules_found"] for r in per_bar)
     total_union = sum(r["union_found"] for r in per_bar)
     total_ml_fc = sum(r["ml_flag_false_calls"] for r in per_bar)
     n = len(per_bar)
+    ml_fc_rate = _safe_rate(total_ml_fc, n)
 
     return {
-        "mean_effort_ranked": float(np.mean(valid_ranked)) if valid_ranked else None,
-        "mean_effort_random": float(np.mean(valid_rand)) if valid_rand else None,
-        "flaws_found_rules_only": float(total_rules / total_planted) if total_planted > 0 else 0.0,
-        "flaws_found_union": float(total_union / total_planted) if total_planted > 0 else 0.0,
-        "ml_false_calls_per_bar": float(total_ml_fc / n) if n > 0 else 0.0,
-        "ml_flag_false_calls_per_bar": float(total_ml_fc / n) if n > 0 else 0.0,
+        "mean_effort_ranked": _mean_effort(per_bar, "effort_ranked"),
+        "mean_effort_random": _mean_effort(per_bar, "effort_random"),
+        "flaws_found_rules_only": _safe_rate(total_rules, total_planted),
+        "flaws_found_union": _safe_rate(total_union, total_planted),
+        "ml_false_calls_per_bar": ml_fc_rate,
+        "ml_flag_false_calls_per_bar": ml_fc_rate,
         "threshold": float(threshold.prob),
         "threshold_logit": float(threshold.logit),
         "n_bars": n,

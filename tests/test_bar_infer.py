@@ -357,18 +357,24 @@ def test_site_logits_shape_and_depths(tiny_model: WindowNet, tiny_scan: BarScan)
     assert logits_grid.dtype == np.float64
 
 
+def _make_candidate_blob(
+    peak_coord: tuple[int, int],
+    bg_coords: tuple[tuple[int, int], ...],
+    peak_scores: tuple[float, float],
+    base_scores: tuple[float, float],
+) -> list[_Candidate]:
+    """Create a candidate cluster with one peak and surrounding background sites."""
+    px, pa = peak_coord
+    cands = [_make_candidate(px, pa, score=peak_scores[0], logit=peak_scores[1])]
+    for ax, an in bg_coords:
+        cands.append(_make_candidate(ax, an, score=base_scores[0], logit=base_scores[1]))
+    return cands
+
+
 def test_blob_3x3_yields_single_finding() -> None:
     """A 3x3 blob of connected neighbouring candidates collapses to exactly one finding."""
-    cands = [
-        _make_candidate(
-            ax,
-            an,
-            score=0.9 if (ax == 1 and an == 1) else 0.8,
-            logit=2.0 if (ax == 1 and an == 1) else 1.0,
-        )
-        for ax in range(3)
-        for an in range(3)
-    ]
+    bg = ((0, 0), (0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1), (2, 2))
+    cands = _make_candidate_blob((1, 1), bg, (0.9, 2.0), (0.8, 1.0))
     kept = _suppress_candidates(cands, n_angle=8)
     assert len(kept) == 1
     assert kept[0].axial_idx == 1
@@ -377,26 +383,10 @@ def test_blob_3x3_yields_single_finding() -> None:
 
 def test_two_separated_blobs_yield_two_findings() -> None:
     """Two spatially separated blobs yield exactly two findings."""
-    blob1 = [
-        _make_candidate(
-            ax,
-            an,
-            score=0.9 if (ax == 0 and an == 0) else 0.8,
-            logit=2.0 if (ax == 0 and an == 0) else 1.0,
-        )
-        for ax in range(2)
-        for an in range(2)
-    ]
-    blob2 = [
-        _make_candidate(
-            ax,
-            an,
-            score=0.85 if (ax == 10 and an == 10) else 0.7,
-            logit=1.8 if (ax == 10 and an == 10) else 0.9,
-        )
-        for ax in range(10, 12)
-        for an in range(10, 12)
-    ]
+    blob1_bg = ((0, 1), (1, 0), (1, 1))
+    blob1 = _make_candidate_blob((0, 0), blob1_bg, (0.9, 2.0), (0.8, 1.0))
+    blob2_bg = ((10, 11), (11, 10), (11, 11))
+    blob2 = _make_candidate_blob((10, 10), blob2_bg, (0.85, 1.8), (0.7, 0.9))
     kept = _suppress_candidates(blob1 + blob2, n_angle=20)
     assert len(kept) == 2
     assert {c.axial_idx for c in kept} == {0, 10}
