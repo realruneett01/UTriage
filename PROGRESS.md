@@ -47,21 +47,27 @@
 
 ## Phase 8 - generalization hardening (2026-10-27)
 - Leakage audit (`results/leakage_audit.json`): old random batch split shares all 3 physical cracks between train and test, so earlier test scores are superseded.
-- Leave-one-crack-out (LOCO) cross-validation (`results/loco_metrics.json`, 3 folds) + ensemble (`results/loco_ensemble_metrics.json` not present):
-  - crack_1.6: detection 19/4014 (rate 0.005, 95% CI [0.003, 0.007]), false calls 0.000 per scan.
-  - crack_4.0: detection 19/4078 (rate 0.005, 95% CI [0.003, 0.007]), false calls 0.000 per scan.
-  - crack_8.6: detection 3925/3925 (rate 1.00, 95% CI [1.00, 1.00]), false calls 0.000 per scan.
+- Leave-one-crack-out (LOCO) single-best per crack (`results/loco_metrics.json`, 3 folds; model_sha256 is recorded per fold):
+  - crack_1.6: detection 579/4014 (rate 0.14, 95% CI [0.13, 0.16]), false calls 0/778 (rate 0.000 per scan).
+  - crack_4.0: detection 671/4078 (rate 0.16, 95% CI [0.15, 0.18]), false calls 0/778 (rate 0.000 per scan).
+  - crack_8.6: detection 3925/3925 (rate 1.00, 95% CI [1.00, 1.00]), false calls 0/778 (rate 0.000 per scan).
+- Deep ensemble (`results/loco_ensemble_metrics.json`, 3 folds, seeds 0, 1, 2):
+  - crack_1.6: detection 243/4014 (rate 0.061), false calls 0/778 (rate 0.0).
+  - crack_4.0: detection 143/4078 (rate 0.035), false calls 0/778 (rate 0.0).
+  - crack_8.6: detection 3925/3925 (rate 1.00), false calls 0/778 (rate 0.0).
+  - Observation: the 3-seed mean-probability ensemble detected fewer held-out cracks than the best single seed.
+- Run-to-run variance: an earlier training run of the same protocol gave crack_1.6 19/4014 and crack_4.0 19/4078 (git history of `results/loco_metrics.json`, commit message "LOCO results"); GPU training is not bit-reproducible, so held-out detection is unstable across training runs.
 - Anomaly detector (`results/anomaly_metrics.json`, ConvAE2D trained on flaw-free images only):
   - crack_1.6: detection 3649/4014 (rate 0.91, 95% CI [0.90, 0.92]), false calls 0.018 per scan.
   - crack_4.0: detection 1306/4078 (rate 0.32, 95% CI [0.31, 0.33]), false calls 0.018 per scan.
   - crack_8.6: detection 3925/3925 (rate 1.00, 95% CI [1.00, 1.00]), false calls 0.018 per scan.
-- Cross-dataset NDT_ML_Flaw test only (`results/cross_dataset_metrics.json`: every model flagged every image, no transfer): detections 3442/3442, false calls 3558/3558; no cross-dataset transfer under documented domain mapping.
-- Simulator domain randomization and held-out regions (`results/sim_generalization.json`):
+- Cross-dataset NDT_ML_Flaw test only (`results/cross_dataset_metrics.json`, `results/claims.md`): the model flagged (nearly) every image, giving detections 3442/3442 and false calls 3558/3558; no cross-dataset transfer under the documented domain mapping.
+- Simulator domain randomization and held-out regions (`results/sim_generalization.json`, `results/claims.md`):
   - In-distribution: ML det 0.89 vs rules 0.77, false calls 0.13 vs 0.029 (Synthetic data, UNVERIFIED constants).
   - Held-out regions (ML vs rules):
-    - sim_freq_10mhz: ML det 0.90 vs rules 0.93, false calls 0.47 vs 0.64.
-    - sim_material_third: ML det 0.90 vs rules 0.83, false calls 0.07 vs 0.020.
-    - sim_noise_above_range: ML det 0.90 vs rules 0.92, false calls 0.47 vs 0.53.
+    - sim_freq_10mhz: ML det 0.89 vs rules 0.95, false calls 0.60 vs 0.75.
+    - sim_material_third: ML det 0.92 vs rules 0.82, false calls 0.044 vs 0.040.
+    - sim_noise_above_range: ML det 0.92 vs rules 0.90, false calls 0.41 vs 0.34.
     - sim_artefact_bubble: ML det 0.91 vs rules 0.87, false calls 0.18 vs 0.20.
     - sim_artefact_lost_backwall: ML det 0.89 vs rules 0.82, false calls 0.18 vs 0.17.
     - sim_artefact_waterpath_drift: ML det 0.89 vs rules 0.82, false calls 0.20 vs 0.10.
@@ -69,10 +75,13 @@
     - sim_artefact_missing_coverage: ML det 0.90 vs rules 0.86, false calls 0.19 vs 0.15.
     - Exceeds 0.3 in: sim_freq_10mhz, sim_noise_above_range.
   - Union property holds in all 9 synthetic simulator columns with 0 violations (ML adds flags, never removes a rules flag).
-- Fit diagnostics (`results/fit_diagnostics.json`): underfitting if train metric < 0.9; overfitting if gap > 0.1; LOCO folds crack_1.6 and crack_4.0 show severe overfitting (train 1.0 vs heldout ~0.005, gap ~0.995); crack_8.6 ok; synthetic supervised shows underfitting+overfitting across heldout regions.
-- Failure analysis (`results/failure_modes.md`): systematic error analysis across near-wall, low SNR, and unseen geometries and artefacts.
+- Fit diagnostics (`results/fit_diagnostics.json`): underfitting if train metric < 0.9; overfitting if gap > 0.1; LOCO folds crack_1.6 (train 1.0 vs held-out 0.144, gap 0.856) and crack_4.0 (train 1.0 vs held-out 0.165, gap 0.835) show severe overfitting; crack_8.6 ok (train 1.0 vs held-out 1.0, gap 0.0); synthetic supervised shows underfitting+overfitting across heldout regions.
+- Failure analysis (`results/failure_modes.md`): per-fold top causes:
+  - crack_1.6: 3435 misses (top cause: small_flaw with 1865 cases, 54.3%), 20 false calls (top cause: artefact_like with 20 cases).
+  - crack_4.0: 3407 misses (top cause: unclassified with 1750 cases, 51.4%), 20 false calls (top cause: artefact_like with 20 cases).
+  - crack_8.6: 0 misses (top cause: none with 0 cases, 0.0%), 20 false calls (top cause: artefact_like with 20 cases).
 - Generalization matrix + claims (`results/generalization_matrix.json`, `results/claims.md`): verified claims and scope limits.
-- Data registry + inventory (`data/registry.yaml`, `results/data_inventory.md`: 9 distinct real physical flaws used): 10 distinct physical flaws listed across accepted public datasets vs 9 distinct real physical flaws used in evaluation (ML-NDT: 3, NDT_ML_Flaw: 6).
+- Data registry + inventory (`data/registry.yaml`, `results/data_inventory.md`): Used in evaluation: 9 distinct physical flaws (ML-NDT: 3, NDT_ML_Flaw: 6); 10 distinct physical flaws listed across accepted public datasets.
 - TFM imager (`src/utriage/imaging/tfm.py`): Total Focusing Method imager for Full Matrix Capture (FMC) array data.
 - Hardware/latency (`results/hardware.json`): CPU latency on Intel(R) Core(TM) Ultra 9 275HX: median 14.2 ms, p95 21.0 ms (development machine CPU, not target i5).
 - ADR 0009 (`docs/decisions/0009-generalization-protocol.md`): generalization protocol.
@@ -85,6 +94,8 @@
 - Cross-dataset mapping is an assumption.
 - All simulator constants UNVERIFIED.
 - Latency measured on the development machine CPU, not the target i5.
+- Held-out detection unstable across training runs.
+- results/failures adds about 68 MB of evidence files to the repo.
 
 ## Remaining (owner only)
 - ADR 0007 (Nuitka offline build) is Proposed: approve or reject before a release build.
