@@ -52,6 +52,9 @@ from utriage.pod.ahat import Censoring, ahat_to_dict, fit_ahat  # noqa: E402
 from utriage.pod.hitmiss import false_call_rate  # noqa: E402
 from utriage.rules.config import load_acceptance  # noqa: E402
 
+# Margin on binomial POD lower bound required to prefer 2D model over simpler 1D model
+KEEP_2D_MARGIN: float = 0.1
+
 
 @dataclass(frozen=True)
 class TestSettings:
@@ -306,22 +309,29 @@ def _decide_kept_model(
     results_1d: dict[float, Any],
     results_2d: dict[float, Any],
     highest_noise: float,
-) -> dict[str, str]:
-    """Select between 1D and 2D models using POD metric at highest noise scale."""
+) -> dict[str, Any]:
+    """Select between 1D and 2D models using binomial POD lower bound at highest noise scale."""
     rule = (
-        "Keep simpler 1D model unless 2D a90_95 (or binomial bound) is clearly better (>= 0.1 mm)."
+        f"Keep simpler 1D model unless val_2d >= val_1d + {KEEP_2D_MARGIN} "
+        f"(margin {KEEP_2D_MARGIN} on binomial pod_lower95 probability bound)."
     )
     pod_1d = results_1d[highest_noise]["pod_summary"]
     pod_2d = results_2d[highest_noise]["pod_summary"]
-    val_1d = pod_1d["pod"]["a90_95"] if pod_1d.get("pod") else pod_1d["binomial"]["pod_lower95"]
-    val_2d = pod_2d["pod"]["a90_95"] if pod_2d.get("pod") else pod_2d["binomial"]["pod_lower95"]
-    better = (val_2d < val_1d - 0.1) if pod_1d.get("pod") else (val_2d > val_1d + 0.1)
+    val_1d = float(pod_1d["binomial"]["pod_lower95"])
+    val_2d = float(pod_2d["binomial"]["pod_lower95"])
+    better = val_2d >= val_1d + KEEP_2D_MARGIN
     choice = "ml_2d" if better else "ml_1d"
     reason = (
         f"At noise scale {highest_noise}, 1D metric is {val_1d:.4f} and 2D metric is {val_2d:.4f}; "
         f"2D {'is' if better else 'is not'} clearly better."
     )
-    return {"choice": choice, "rule": rule, "reason": reason}
+    return {
+        "choice": choice,
+        "rule": rule,
+        "reason": reason,
+        "metric": "binomial pod_lower95",
+        "values": {"ml_1d": val_1d, "ml_2d": val_2d},
+    }
 
 
 def _compute_matched_thresholds(
