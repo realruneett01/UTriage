@@ -138,28 +138,28 @@
           "n_false": 1
         },
         "freq_10mhz": {
-          "detection_rate": 0.7625,
-          "false_call_rate": 0.2825,
+          "detection_rate": 0.7825,
+          "false_call_rate": 0.3975,
           "n_flawed": 400,
-          "n_hit": 305,
+          "n_hit": 313,
           "n_clean": 400,
-          "n_false": 113
+          "n_false": 159
         },
         "material_third": {
-          "detection_rate": 0.6975,
+          "detection_rate": 0.7975,
           "false_call_rate": 0.0,
           "n_flawed": 400,
-          "n_hit": 279,
+          "n_hit": 319,
           "n_clean": 400,
           "n_false": 0
         },
         "noise_above_range": {
-          "detection_rate": 0.765,
-          "false_call_rate": 0.2725,
+          "detection_rate": 0.84,
+          "false_call_rate": 0.1625,
           "n_flawed": 400,
-          "n_hit": 306,
+          "n_hit": 336,
           "n_clean": 400,
-          "n_false": 109
+          "n_false": 65
         }
       }
     },
@@ -184,28 +184,28 @@
           "n_false": 5
         },
         "freq_10mhz": {
-          "detection_rate": 0.735,
-          "false_call_rate": 0.215,
+          "detection_rate": 0.7475,
+          "false_call_rate": 0.3125,
           "n_flawed": 400,
-          "n_hit": 294,
+          "n_hit": 299,
           "n_clean": 400,
-          "n_false": 86
+          "n_false": 125
         },
         "material_third": {
-          "detection_rate": 0.7675,
-          "false_call_rate": 0.0,
+          "detection_rate": 0.8425,
+          "false_call_rate": 0.005,
           "n_flawed": 400,
-          "n_hit": 307,
+          "n_hit": 337,
           "n_clean": 400,
-          "n_false": 0
+          "n_false": 2
         },
         "noise_above_range": {
-          "detection_rate": 0.7675,
-          "false_call_rate": 0.2575,
+          "detection_rate": 0.8325,
+          "false_call_rate": 0.1475,
           "n_flawed": 400,
-          "n_hit": 307,
+          "n_hit": 333,
           "n_clean": 400,
-          "n_false": 103
+          "n_false": 59
         }
       }
     },
@@ -230,28 +230,28 @@
           "n_false": 8
         },
         "freq_10mhz": {
-          "detection_rate": 0.635,
-          "false_call_rate": 0.105,
+          "detection_rate": 0.5825,
+          "false_call_rate": 0.125,
           "n_flawed": 400,
-          "n_hit": 254,
+          "n_hit": 233,
           "n_clean": 400,
-          "n_false": 42
+          "n_false": 50
         },
         "material_third": {
-          "detection_rate": 0.8,
-          "false_call_rate": 0.0,
+          "detection_rate": 0.875,
+          "false_call_rate": 0.01,
           "n_flawed": 400,
-          "n_hit": 320,
+          "n_hit": 350,
           "n_clean": 400,
-          "n_false": 0
+          "n_false": 4
         },
         "noise_above_range": {
-          "detection_rate": 0.7725,
-          "false_call_rate": 0.185,
+          "detection_rate": 0.8175,
+          "false_call_rate": 0.1375,
           "n_flawed": 400,
-          "n_hit": 309,
+          "n_hit": 327,
           "n_clean": 400,
-          "n_false": 74
+          "n_false": 55
         }
       }
     },
@@ -276,28 +276,28 @@
           "n_false": 7
         },
         "freq_10mhz": {
-          "detection_rate": 0.57,
-          "false_call_rate": 0.055,
+          "detection_rate": 0.4775,
+          "false_call_rate": 0.0575,
           "n_flawed": 400,
-          "n_hit": 228,
+          "n_hit": 191,
           "n_clean": 400,
-          "n_false": 22
+          "n_false": 23
         },
         "material_third": {
-          "detection_rate": 0.835,
-          "false_call_rate": 0.0025,
+          "detection_rate": 0.895,
+          "false_call_rate": 0.0075,
           "n_flawed": 400,
-          "n_hit": 334,
+          "n_hit": 358,
           "n_clean": 400,
-          "n_false": 1
+          "n_false": 3
         },
         "noise_above_range": {
-          "detection_rate": 0.715,
-          "false_call_rate": 0.14,
+          "detection_rate": 0.815,
+          "false_call_rate": 0.13,
           "n_flawed": 400,
-          "n_hit": 286,
+          "n_hit": 326,
           "n_clean": 400,
-          "n_false": 56
+          "n_false": 52
         }
       }
     }
@@ -315,8 +315,8 @@
           ]
         },
         "freq_10mhz": {
-          "heldout_metric": 0.57,
-          "gap": 0.275,
+          "heldout_metric": 0.4775,
+          "gap": 0.3675,
           "verdict": "underfitting+overfitting",
           "verdicts": [
             "underfitting",
@@ -324,20 +324,19 @@
           ]
         },
         "material_third": {
-          "heldout_metric": 0.835,
-          "gap": 0.010000000000000009,
+          "heldout_metric": 0.895,
+          "gap": -0.050000000000000044,
           "verdict": "underfitting",
           "verdicts": [
             "underfitting"
           ]
         },
         "noise_above_range": {
-          "heldout_metric": 0.715,
-          "gap": 0.13,
-          "verdict": "underfitting+overfitting",
+          "heldout_metric": 0.815,
+          "gap": 0.030000000000000027,
+          "verdict": "underfitting",
           "verdicts": [
-            "underfitting",
-            "overfitting"
+            "underfitting"
           ]
         }
       },
