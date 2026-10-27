@@ -47,38 +47,62 @@ def _make_supervised_cells() -> dict[str, Any]:
         "mlndt_loco_crack_4.0": _make_cell(390, 421, 0.0),
         "mlndt_loco_crack_8.6": _make_cell(370, 378, 0.0),
         "cross_ndt_ml_flaw": _make_cell(150, 200, 0.10),
+        "sim_in_distribution": _make_cell(355, 400, 0.02),
         "sim_freq_10mhz": _make_cell(340, 400, 0.05),
         "sim_material_third": _make_cell(330, 400, 0.08),
         "sim_noise_above_range": _make_cell(280, 400, 0.35),
     }
 
 
+def _make_rules_cells() -> dict[str, Any]:
+    """Helper for rules row cells."""
+    return {
+        "sim_in_distribution": _make_cell(309, 400, 0.03),
+        "sim_freq_10mhz": _make_cell(300, 400, 0.03),
+        "sim_material_third": _make_cell(280, 400, 0.04),
+        "sim_noise_above_range": _make_cell(240, 400, 0.31),
+    }
+
+
+def _make_matrix_columns() -> list[dict[str, Any]]:
+    """Helper returning standard mock column descriptors."""
+    col_ids = [
+        "mlndt_loco_crack_1.6",
+        "mlndt_loco_crack_4.0",
+        "mlndt_loco_crack_8.6",
+        "cross_ndt_ml_flaw",
+        "sim_in_distribution",
+        "sim_freq_10mhz",
+        "sim_material_third",
+        "sim_noise_above_range",
+    ]
+    return [{"id": cid, "group": "sim" if cid.startswith("sim_") else "real"} for cid in col_ids]
+
+
 @pytest.fixture
 def fake_matrix_data() -> dict[str, Any]:
     """Return dictionary structure matching generalization_matrix.json contract."""
-    cols = [
-        {"id": "mlndt_loco_crack_1.6", "group": "loco"},
-        {"id": "mlndt_loco_crack_4.0", "group": "loco"},
-        {"id": "mlndt_loco_crack_8.6", "group": "loco"},
-        {"id": "cross_ndt_ml_flaw", "group": "cross"},
-        {"id": "sim_freq_10mhz", "group": "sim"},
-        {"id": "sim_material_third", "group": "sim"},
-        {"id": "sim_noise_above_range", "group": "sim"},
-    ]
+    cols = _make_matrix_columns()
     anom = {
         "mlndt_loco_crack_1.6": _make_cell(350, 423, 0.02),
         "mlndt_loco_crack_4.0": _make_cell(360, 421, 0.02),
         "mlndt_loco_crack_8.6": _make_cell(340, 378, 0.02),
     }
-    rules = {
-        "sim_freq_10mhz": _make_cell(300, 400, 0.03),
-        "sim_material_third": _make_cell(280, 400, 0.04),
-        "sim_noise_above_range": _make_cell(240, 400, 0.31),
+    union = {
+        c["id"]: (
+            {"holds": True, "n_violations": 0}
+            if c["id"].startswith("sim_")
+            else {"available": False, "reason": "rules unavailable"}
+        )
+        for c in cols
     }
-    union = {c["id"]: {"holds": True, "n_violations": 0} for c in cols}
     return {
         "columns": cols,
-        "rows": {"supervised": _make_supervised_cells(), "anomaly": anom, "rules": rules},
+        "rows": {
+            "supervised": _make_supervised_cells(),
+            "anomaly": anom,
+            "rules": _make_rules_cells(),
+        },
         "union_property": union,
     }
 
@@ -208,7 +232,7 @@ def test_claim_forbidden_phrase_raises(text: str, scope: str) -> None:
 
 
 def test_build_claims_all_inputs(fake_results_dir: Path) -> None:
-    """Verify build_claims constructs all 12 claims matching exact contract."""
+    """Verify build_claims constructs all 13 claims matching exact contract."""
     from utriage.report.claims import build_claims
 
     expected_ids = [
@@ -220,6 +244,7 @@ def test_build_claims_all_inputs(fake_results_dir: Path) -> None:
         "anomaly_crack_4.0",
         "anomaly_crack_8.6",
         "cross_dataset",
+        "sim_in_distribution",
         "sim_regions",
         "union_property",
         "latency",
@@ -228,7 +253,7 @@ def test_build_claims_all_inputs(fake_results_dir: Path) -> None:
     claims = build_claims(fake_results_dir)
     claim_ids = [c.id for c in claims]
     assert claim_ids == expected_ids
-    assert len(claims) == 12
+    assert len(claims) == 13
 
 
 def test_build_claims_cross_dataset_missing_skipped(
@@ -247,7 +272,7 @@ def test_build_claims_cross_dataset_missing_skipped(
     claims = build_claims(fake_results_dir)
     claim_ids = [c.id for c in claims]
     assert "cross_dataset" not in claim_ids
-    assert len(claims) == 11
+    assert len(claims) == 12
 
 
 def test_numbers_formatted_in_claim_text_match_evidence(fake_results_dir: Path) -> None:
@@ -258,7 +283,7 @@ def test_numbers_formatted_in_claim_text_match_evidence(fake_results_dir: Path) 
     for c in claims:
         assert len(c.numbers) > 0
         for key, val in c.numbers.items():
-            candidates = [f"{val:.2f}", f"{val:.1f}", str(int(val))]
+            candidates = [f"{val:.3f}", f"{val:.2f}", f"{val:.1f}", str(int(val))]
             assert any(cand in c.text for cand in candidates), (
                 f"Value {val} ({key}) not found in claim text: '{c.text}'"
             )
@@ -285,8 +310,130 @@ def test_make_claims_script(fake_results_dir: Path) -> None:
     from make_claims import generate_claims
 
     data = generate_claims(fake_results_dir)
-    assert len(data) == 12
+    assert len(data) == 13
     json_path = fake_results_dir / "claims.json"
     md_path = fake_results_dir / "claims.md"
     assert json_path.exists()
     assert md_path.exists()
+
+
+def test_cross_dataset_high_false_calls(
+    fake_results_dir: Path, fake_matrix_data: dict[str, Any]
+) -> None:
+    """Verify high false-call rate cross-dataset claim framing."""
+    from utriage.report.claims import build_claims
+
+    cell = {
+        "detection": {"n": 3442, "k": 3442, "rate": 1.0, "ci_low": 0.999, "ci_high": 1.0},
+        "false_calls": {"rate": 1.0, "n_false": 3558, "n_scans": 3558},
+    }
+    fake_matrix_data["rows"]["supervised"]["cross_ndt_ml_flaw"] = cell
+    mat_path = fake_results_dir / "generalization_matrix.json"
+    mat_path.write_text(json.dumps(fake_matrix_data), encoding="utf-8")
+
+    claims = build_claims(fake_results_dir)
+    claim = next(c for c in claims if c.id == "cross_dataset")
+    assert "flagged (nearly) every image" in claim.text
+    assert "3442/3442" in claim.text
+    assert "3558/3558" in claim.text
+    assert claim.text.endswith("no cross-dataset transfer under the documented domain mapping.")
+    assert "detection success" not in claim.text.lower()
+    assert not claim.text.startswith("Cross-dataset NDT_ML_Flaw: detection")
+
+
+def test_rate_formatting_small_values(
+    fake_results_dir: Path, fake_matrix_data: dict[str, Any]
+) -> None:
+    """Verify rates below 0.05 use 3 decimals and 19/4014 is not 0.00."""
+    from utriage.report.claims import build_claims
+
+    k, n = 19, 4014
+    cell = {
+        "detection": {"n": n, "k": k, "rate": k / n, "ci_low": 0.003, "ci_high": 0.007},
+        "false_calls": {"rate": 0.002, "n_false": 2, "n_scans": 1000},
+    }
+    fake_matrix_data["rows"]["supervised"]["mlndt_loco_crack_1.6"] = cell
+    mat_path = fake_results_dir / "generalization_matrix.json"
+    mat_path.write_text(json.dumps(fake_matrix_data), encoding="utf-8")
+
+    claims = build_claims(fake_results_dir)
+    claim = next(c for c in claims if c.id == "loco_crack_1.6")
+    assert "0.005" in claim.text
+    assert "rate 0.00," not in claim.text
+
+
+@pytest.mark.parametrize(
+    ("cpu_name", "processor", "expected_in_text"),
+    [
+        ("Intel Core i7-12700H", "Intel64 Family 6 Model 198", "Intel Core i7-12700H"),
+        (None, "Intel Core i5-1135G7", "Intel Core i5-1135G7"),
+    ],
+)
+def test_latency_cpu_name(
+    fake_results_dir: Path,
+    cpu_name: str | None,
+    processor: str,
+    expected_in_text: str,
+) -> None:
+    """Verify latency claim prefers cpu_name over processor."""
+    from utriage.report.claims import build_claims
+
+    mach: dict[str, Any] = {"processor": processor}
+    if cpu_name is not None:
+        mach["cpu_name"] = cpu_name
+    hw = {
+        "inference_machine": mach,
+        "cpu_latency_ms": {"mlndt": {"median_ms": 12.0, "p95_ms": 18.0}},
+    }
+    (fake_results_dir / "hardware.json").write_text(json.dumps(hw), encoding="utf-8")
+    claims = build_claims(fake_results_dir)
+    claim = next(c for c in claims if c.id == "latency")
+    assert expected_in_text in claim.text
+    assert claim.scope_limit == "this development machine, not the target i5 laptop"
+
+
+@pytest.mark.parametrize(
+    ("used_line", "expected_fragment"),
+    [
+        ("Used in evaluation: 3 distinct physical flaws\n", "10 listed vs 3 used in evaluation."),
+        ("", "10 listed."),
+    ],
+)
+def test_evidence_limit_used_vs_listed(
+    fake_results_dir: Path, used_line: str, expected_fragment: str
+) -> None:
+    """Verify evidence limit claim handles both listed and used flaw counts."""
+    from utriage.report.claims import build_claims
+
+    inv_text = (
+        "Across the 6 accepted datasets, 3 datasets have verified counts "
+        f"totaling 10 distinct physical flaws.\n{used_line}"
+    )
+    (fake_results_dir / "data_inventory.md").write_text(inv_text, encoding="utf-8")
+    claims = build_claims(fake_results_dir)
+    claim = next(c for c in claims if c.id == "evidence_limit")
+    assert expected_fragment in claim.text
+
+
+def test_union_property_scope_and_columns(fake_results_dir: Path) -> None:
+    """Verify union property claim scope and column count."""
+    from utriage.report.claims import build_claims
+
+    claims = build_claims(fake_results_dir)
+    claim = next(c for c in claims if c.id == "union_property")
+    assert claim.scope_limit == (
+        "synthetic simulator columns only (the real-image columns have no rules baseline)"
+    )
+    assert "in all 4 synthetic simulator columns" in claim.text
+
+
+def test_sim_in_distribution_claim(fake_results_dir: Path) -> None:
+    """Verify sim_in_distribution claim has ML vs rules detection and false calls."""
+    from utriage.report.claims import build_claims
+
+    claims = build_claims(fake_results_dir)
+    claim = next(c for c in claims if c.id == "sim_in_distribution")
+    assert "Simulator in-distribution" in claim.text
+    assert "ML det 0.89 vs rules 0.77" in claim.text
+    assert "false calls 0.020 vs 0.030" in claim.text
+    assert claim.scope_limit == "Synthetic data, UNVERIFIED constants"

@@ -30,6 +30,13 @@ def check_forbidden(text: str) -> list[str]:
     return [p for p in FORBIDDEN if p.lower() in lower_text]
 
 
+def _format_rate(rate: float) -> str:
+    """Format rate with 3 decimals if below 0.05, else 2 decimals."""
+    if rate < 0.05:
+        return f"{rate:.3f}"
+    return f"{rate:.2f}"
+
+
 @dataclass(frozen=True)
 class Claim:
     """A verified quantitative claim with evidence reference and scope limit."""
@@ -135,6 +142,12 @@ def _parse_flaws_inventory(text: str) -> int:
     return total
 
 
+def _parse_used_flaws(text: str) -> int | None:
+    """Parse distinct physical flaws used in evaluation if present."""
+    match = re.search(r"Used in evaluation:\s*(\d+)\s+distinct physical flaws", text, re.IGNORECASE)
+    return int(match.group(1)) if match else None
+
+
 def _extract_cell_metrics(cell: dict[str, Any]) -> dict[str, float] | None:
     """Extract detection and false call numbers from a metric cell."""
     if cell.get("available") is False or "detection" not in cell or "false_calls" not in cell:
@@ -186,10 +199,14 @@ def _build_loco_claim(matrix: dict[str, Any], crack: str) -> Claim | None:
         print(f"Skipping loco_crack_{crack}: cell {col_id} unavailable", file=sys.stderr)
         return None
     k_int, n_int = int(nums["k"]), int(nums["n"])
+    rate_s = _format_rate(nums["rate"])
+    low_s = _format_rate(nums["ci_low"])
+    high_s = _format_rate(nums["ci_high"])
+    fc_s = _format_rate(nums["false_call_rate"])
     text = (
         f"Leave-one-crack-out crack_{crack}: detection {k_int}/{n_int} "
-        f"(rate {nums['rate']:.2f}, 95% CI [{nums['ci_low']:.2f}, {nums['ci_high']:.2f}]), "
-        f"false calls {nums['false_call_rate']:.2f} per scan."
+        f"(rate {rate_s}, 95% CI [{low_s}, {high_s}]), "
+        f"false calls {fc_s} per scan."
     )
     scope = "one austenitic weld PAUT public dataset, 3 physical cracks, not validated on bars"
     return Claim(
@@ -214,10 +231,14 @@ def _build_anomaly_claim(matrix: dict[str, Any], crack: str) -> Claim | None:
         print(f"Skipping anomaly_crack_{crack}: cell {col_id} unavailable", file=sys.stderr)
         return None
     k_int, n_int = int(nums["k"]), int(nums["n"])
+    rate_s = _format_rate(nums["rate"])
+    low_s = _format_rate(nums["ci_low"])
+    high_s = _format_rate(nums["ci_high"])
+    fc_s = _format_rate(nums["false_call_rate"])
     text = (
         f"Anomaly model crack_{crack}: detection {k_int}/{n_int} "
-        f"(rate {nums['rate']:.2f}, 95% CI [{nums['ci_low']:.2f}, {nums['ci_high']:.2f}]), "
-        f"false calls {nums['false_call_rate']:.2f} per scan."
+        f"(rate {rate_s}, 95% CI [{low_s}, {high_s}]), "
+        f"false calls {fc_s} per scan."
     )
     return Claim(
         id=f"anomaly_crack_{crack}",
@@ -225,6 +246,52 @@ def _build_anomaly_claim(matrix: dict[str, Any], crack: str) -> Claim | None:
         evidence_file="results/generalization_matrix.json",
         evidence_path=f"rows.anomaly.{col_id}",
         scope_limit="trained on flaw-free images only",
+        numbers=nums,
+    )
+
+
+def _cross_high_fc_claim(nums: dict[str, float], fc: dict[str, Any], col_id: str) -> Claim:
+    """Format cross-dataset claim when false-call rate is at or above 0.5."""
+    k_int, n_int = int(nums["k"]), int(nums["n"])
+    n_false, n_scans = int(fc.get("n_false", 0)), int(fc.get("n_scans", 0))
+    text = (
+        "Cross-dataset NDT_ML_Flaw: the model flagged (nearly) every image, "
+        f"giving detections {k_int}/{n_int} and false calls {n_false}/{n_scans}; "
+        "no cross-dataset transfer under the documented domain mapping."
+    )
+    claim_nums = {
+        "k": float(k_int),
+        "n": float(n_int),
+        "n_false": float(n_false),
+        "n_scans": float(n_scans),
+    }
+    return Claim(
+        id="cross_dataset",
+        text=text,
+        evidence_file="results/generalization_matrix.json",
+        evidence_path=f"rows.supervised.{col_id}",
+        scope_limit="test only, different weld, domain-mapping assumptions",
+        numbers=claim_nums,
+    )
+
+
+def _cross_low_fc_claim(nums: dict[str, float], col_id: str) -> Claim:
+    """Format cross-dataset claim when false-call rate is below 0.5."""
+    k_int, n_int = int(nums["k"]), int(nums["n"])
+    rate_s = _format_rate(nums["rate"])
+    low_s, high_s = _format_rate(nums["ci_low"]), _format_rate(nums["ci_high"])
+    fc_s = _format_rate(nums["false_call_rate"])
+    text = (
+        f"Cross-dataset NDT_ML_Flaw: detection {k_int}/{n_int} "
+        f"(rate {rate_s}, 95% CI [{low_s}, {high_s}]), "
+        f"false calls {fc_s} per scan."
+    )
+    return Claim(
+        id="cross_dataset",
+        text=text,
+        evidence_file="results/generalization_matrix.json",
+        evidence_path=f"rows.supervised.{col_id}",
+        scope_limit="test only, different weld, domain-mapping assumptions",
         numbers=nums,
     )
 
@@ -241,19 +308,37 @@ def _build_cross_dataset_claim(matrix: dict[str, Any]) -> Claim | None:
         reason = cell.get("reason", "unavailable")
         print(f"Skipping cross_dataset: {reason}", file=sys.stderr)
         return None
-    k_int, n_int = int(nums["k"]), int(nums["n"])
+    if nums["false_call_rate"] >= 0.5:
+        return _cross_high_fc_claim(nums, cell.get("false_calls", {}), col_id)
+    return _cross_low_fc_claim(nums, col_id)
+
+
+def _build_sim_in_distribution_claim(matrix: dict[str, Any]) -> Claim | None:
+    """Build in-distribution simulator baseline claim comparing ML and rules."""
+    col_id = "sim_in_distribution"
+    r_cell = matrix.get("rows", {}).get("rules", {}).get(col_id)
+    m_cell = matrix.get("rows", {}).get("supervised", {}).get(col_id)
+    if not (isinstance(r_cell, dict) and isinstance(m_cell, dict)):
+        print(f"Skipping {col_id}: rules or supervised cell missing", file=sys.stderr)
+        return None
+    r_nums, m_nums = _extract_cell_metrics(r_cell), _extract_cell_metrics(m_cell)
+    if r_nums is None or m_nums is None:
+        print(f"Skipping {col_id}: cell metrics unavailable", file=sys.stderr)
+        return None
+    r_det, r_fc = r_nums["rate"], r_nums["false_call_rate"]
+    m_det, m_fc = m_nums["rate"], m_nums["false_call_rate"]
     text = (
-        f"Cross-dataset NDT_ML_Flaw: detection {k_int}/{n_int} "
-        f"(rate {nums['rate']:.2f}, 95% CI [{nums['ci_low']:.2f}, {nums['ci_high']:.2f}]), "
-        f"false calls {nums['false_call_rate']:.2f} per scan."
+        f"Simulator in-distribution: ML det {_format_rate(m_det)} vs rules {_format_rate(r_det)}, "
+        f"false calls {_format_rate(m_fc)} vs {_format_rate(r_fc)}."
     )
+    numbers = {"ml_det": m_det, "rules_det": r_det, "ml_fc": m_fc, "rules_fc": r_fc}
     return Claim(
-        id="cross_dataset",
+        id=col_id,
         text=text,
         evidence_file="results/generalization_matrix.json",
-        evidence_path=f"rows.supervised.{col_id}",
-        scope_limit="test only, different weld, domain-mapping assumptions",
-        numbers=nums,
+        evidence_path="rows",
+        scope_limit="Synthetic data, UNVERIFIED constants",
+        numbers=numbers,
     )
 
 
@@ -278,7 +363,10 @@ def _format_sim_region(
     r_fc = float(r_cell["false_calls"]["rate"])
     m_det = float(m_cell["detection"]["rate"])
     m_fc = float(m_cell["false_calls"]["rate"])
-    part = f"{name}: ML det {m_det:.2f} vs rules {r_det:.2f}, false calls {m_fc:.2f} vs {r_fc:.2f}"
+    part = (
+        f"{name}: ML det {_format_rate(m_det)} vs rules {_format_rate(r_det)}, "
+        f"false calls {_format_rate(m_fc)} vs {_format_rate(r_fc)}"
+    )
     is_high = any([m_fc > 0.3, r_fc > 0.3])
     nums = {
         f"ml_det_{name}": m_det,
@@ -341,38 +429,49 @@ def _build_union_fallback(results_dir: Path) -> Claim | None:
         f"The union property holds with {viol} violations "
         "(ML adds flags, never removes a rules flag)."
     )
+    scope = "synthetic simulator columns only (the real-image columns have no rules baseline)"
     return Claim(
         id="union_property",
         text=text,
         evidence_file="results/triage_metrics.json",
         evidence_path="union_violations",
-        scope_limit="evaluated triage pipeline cases",
+        scope_limit=scope,
         numbers={"n_violations": float(viol)},
     )
+
+
+def _filter_sim_union_cols(up_data: dict[str, Any]) -> dict[str, Any]:
+    """Extract valid simulator columns from union property data."""
+    valid: dict[str, Any] = {}
+    for k, v in up_data.items():
+        if not k.startswith("sim_") or not isinstance(v, dict):
+            continue
+        if v.get("available") is not False and "holds" in v:
+            valid[k] = v
+    return valid
 
 
 def _build_union_claim(matrix: dict[str, Any], results_dir: Path) -> Claim | None:
     """Build safety claim verifying union property holds across computable columns."""
     up_data = matrix.get("union_property")
     if isinstance(up_data, dict) and up_data:
-        computable = {
-            k: v
-            for k, v in up_data.items()
-            if isinstance(v, dict) and v.get("available") is not False and "holds" in v
-        }
+        computable = _filter_sim_union_cols(up_data)
         if computable:
             viol = sum(int(v.get("n_violations", 0)) for v in computable.values())
             n_cols = len(computable)
             text = (
-                f"The union property holds in all {n_cols} computable evaluation columns "
+                f"The union property holds in all {n_cols} synthetic simulator columns "
                 f"with {viol} violations (ML adds flags, never removes a rules flag)."
+            )
+            scope = (
+                "synthetic simulator columns only (the real-image columns have no rules baseline)"
             )
             return Claim(
                 id="union_property",
                 text=text,
                 evidence_file="results/generalization_matrix.json",
                 evidence_path="union_property",
-                scope_limit="all evaluated generalization matrix columns",
+                scope_limit=scope,
                 numbers={"n_violations": float(viol), "n_columns": float(n_cols)},
             )
     return _build_union_fallback(results_dir)
@@ -383,7 +482,9 @@ def _build_latency_claim(results_dir: Path) -> Claim | None:
     data = _load_json(results_dir / "hardware.json")
     if data is None:
         return None
-    proc = data.get("inference_machine", {}).get("processor", "development CPU")
+    mach = data.get("inference_machine", {})
+    cpu_name = mach.get("cpu_name")
+    proc = cpu_name if cpu_name else mach.get("processor", "development CPU")
     lat = data.get("cpu_latency_ms", {}).get("mlndt")
     if not isinstance(lat, dict):
         print("Skipping latency: mlndt cpu_latency_ms missing", file=sys.stderr)
@@ -401,21 +502,38 @@ def _build_latency_claim(results_dir: Path) -> Claim | None:
     )
 
 
+def _format_evidence_limit_text(listed: int, used: int | None) -> tuple[str, dict[str, float]]:
+    """Format claim text and numbers for physical flaw inventory."""
+    if used is not None:
+        text = (
+            f"Total distinct real physical flaws across accepted public datasets: "
+            f"{listed} listed vs {used} used in evaluation."
+        )
+        return text, {
+            "distinct_physical_flaws": float(listed),
+            "distinct_physical_flaws_used": float(used),
+        }
+    text = f"Total distinct real physical flaws across accepted public datasets: {listed} listed."
+    return text, {"distinct_physical_flaws": float(listed)}
+
+
 def _build_evidence_limit_claim(results_dir: Path) -> Claim | None:
     """Build claim on total distinct real physical flaws from inventory."""
     path = results_dir / "data_inventory.md"
     if not path.exists():
         print(f"Skipping evidence_limit: {path.name} not found", file=sys.stderr)
         return None
-    flaws = _parse_flaws_inventory(path.read_text(encoding="utf-8"))
-    text = f"Total distinct real physical flaws across accepted public datasets: {flaws}."
+    content = path.read_text(encoding="utf-8")
+    listed = _parse_flaws_inventory(content)
+    used = _parse_used_flaws(content)
+    text, nums = _format_evidence_limit_text(listed, used)
     return Claim(
         id="evidence_limit",
         text=text,
         evidence_file="results/data_inventory.md",
         evidence_path="distinct_physical_flaws",
         scope_limit="evidence limit",
-        numbers={"distinct_physical_flaws": float(flaws)},
+        numbers=nums,
     )
 
 
@@ -439,6 +557,9 @@ def _collect_matrix_claims(matrix: dict[str, Any]) -> list[Claim]:
     c_cross = _build_cross_dataset_claim(matrix)
     if c_cross is not None:
         claims.append(c_cross)
+    c_sim_in_dist = _build_sim_in_distribution_claim(matrix)
+    if c_sim_in_dist is not None:
+        claims.append(c_sim_in_dist)
     c_sim = _build_sim_regions_claim(matrix)
     if c_sim is not None:
         claims.append(c_sim)
