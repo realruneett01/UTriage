@@ -3,8 +3,127 @@
 Advisory, offline decision support for immersion UT of titanium and nickel-alloy bars.
 **UTriage never accepts or passes a part. Every decision belongs to the certified inspector.**
 
-> Status: work in progress (see `PROGRESS.md`). The full README with results tables is
-> generated in Phase 7.
+> **Status:** Independent prototype, advisory, not deployed or validated at any plant.
+
+## Problem Statement
+In automated immersion ultrasonic testing (UT) of titanium and nickel-alloy bars, coarse grain structures generate acoustic background noise that causes false detections and borderline indications. Certified UT Level II/III inspectors must manually evaluate each borderline indication, leading to review queues and avoidable re-scans when data quality degrades.
+
+UTriage provides consistent indication measurement, ranks indications with calibrated confidence to separate likely grain noise from likely flaws, and performs real-time data-quality checks before a bar leaves the immersion tank—without reducing detection reliability.
+
+## Safety Architecture
+UTriage operates under a safety-first architecture:
+- **Rules engine in charge:** The deterministic rules engine (gates, distance-amplitude correction / DAC, comparison against reference flat-bottom holes, and SNR calculation) evaluates scans against configured acceptance standards. Every indication flagged by the rules engine remains flagged.
+- **Union fusion (AI only adds):** Machine learning models can raise candidate indications that conventional gates might miss, but ML can never suppress or remove a rule-generated flag. This invariant is enforced by construction and verified via property-based testing.
+- **Never accepts or passes a part:** UTriage is strictly an advisory decision-support system. It never auto-dispositions material; every accept, reject, or re-scan disposition belongs solely to the certified inspector.
+- **Offline and advisory:** UTriage runs fully air-gapped with no connection to UT machine controllers, PLCs, or plant networks.
+- **Data-quality watchdog:** Real-time pre-screening checks for loss of front-wall echo (bubbles, water path drift), loss of back-wall echo, acoustic noise above limits, and missing scan coverage.
+
+### Data Flow
+```
+           +-------------------------+
+           |  Ultrasonic Scan (.npz) |
+           +------------+------------+
+                        |
+                        v
+           +-------------------------+
+           |   Data-Quality Watchdog |
+           |  (hardware/scan checks) |
+           +------------+------------+
+                        |
+            +-----------+-----------+
+            |                       |
+            v                       v
+ +---------------------+  +-------------------+
+ |    Rules Engine     |  |     ML Models     |
+ |  (gates, DAC, SNR)  |  | (supervised / AE) |
+ +----------+----------+  +---------+---------+
+            |                       |
+            +-----------+-----------+
+                        |
+                        v
+           +-------------------------+
+           |       Union Fusion      |
+           |   (ML adds flags only)  |
+           +------------+------------+
+                        |
+                        v
+           +-------------------------+
+           |    Ranked Indication    |
+           |   List for Inspector    |
+           +------------+------------+
+                        |
+                        v
+           +-------------------------+
+           |   Certified Inspector   |
+           |  (sole decision-maker)  |
+           +-------------------------+
+```
+
+## Quick-Start
+
+### 1. Installation
+Install the development environment:
+```bash
+pip install -e .
+```
+For standalone workstation deployment and integrity verification, see [docs/install.md](docs/install.md).
+
+### 2. Simulate Synthetic Scans
+Generate synthetic immersion UT bar scans with ground-truth reflectors:
+```bash
+utriage simulate --material ti64 --bars 5 --out data/synthetic/ti64
+```
+
+### 3. Run Triage
+Run batch triage on exported scan files to generate indication summaries and reports:
+```bash
+utriage triage data/synthetic/ti64/*.npz --out out/
+```
+Or evaluate an individual scan against the rules engine:
+```bash
+utriage evaluate data/synthetic/ti64/bar_0000.npz --acceptance configs/acceptance.yaml
+```
+
+### 4. Inspector Review Application
+Launch the local Streamlit review application for interactive inspection:
+```bash
+streamlit run app/streamlit_app.py
+```
+
+## Project Layout
+```
+utriage/
+├── configs/            # Probe specs, material properties, acceptance limits (placeholders)
+├── data/               # Synthetic datasets and templates (data/external is gitignored)
+├── src/utriage/        # Core package
+│   ├── physics/        # Ultrasonic simulator and synthetic bar generation
+│   ├── rules/          # Rules engine, gates, DAC, and data-quality watchdog
+│   ├── ml/             # PyTorch models (1D A-scan, 2D patch CNN, autoencoder)
+│   ├── pod/            # Probability of Detection (hit/miss and a-hat) evaluation
+│   ├── triage/         # Union fusion and triage logic
+│   ├── io/             # File adapters and scan loaders
+│   ├── report/         # Inspection reporting and export
+│   └── cli.py          # Command-line interface
+├── app/                # Streamlit inspector review application
+├── experiments/        # Experiment scripts for benchmarking and model training
+├── results/            # Benchmark metrics, claims, and figures
+├── tests/              # Test suite (unit, integration, property-based tests)
+└── docs/               # Technical documentation, safety case, and ADRs
+```
+
+## Documentation
+- [Technical Note](docs/technical-note.md): Physics formulation, simulation models, and algorithms.
+- [Safety Case](docs/safety-case.md): Hazard analysis, safety arguments, and failure mitigations.
+- [Architecture Decisions](docs/decisions/): Architectural records, including safety design ([0001](docs/decisions/0001-safety-design.md)) and prior art ([0002](docs/decisions/0002-prior-art.md)).
+- [Installation Guide](docs/install.md): Workstation system requirements, offline setup, and checksum verification.
+- [Verified Claims and Evidence Limits](results/claims.md): Full audit of model claims, dataset scope, and empirical bounds.
+
+## Prior Art
+UTriage builds upon concepts from published ultrasonic evaluation literature and patents:
+- **US 9,927,404 B2:** "Phased array billet data evaluation software" (United Technologies / RTX).
+- **Virkkunen et al. (2019):** "Augmented Ultrasonic Data for Machine Learning", arXiv:1903.11399.
+
+UTriage is an independent prototype and portfolio project, not a commercial implementation of the patented system. It differs by integrating a rules-in-charge safety architecture with union fusion (ML can only add flags), a real-time data-quality watchdog, and probability of detection (POD) validation.
 
 ## Product status
 - **Advisory decision support:** UTriage provides offline indication ranking and triage evidence. It does not connect to machine controllers and never accepts or rejects a part.
@@ -64,3 +183,6 @@ Claims and evidence: [results/claims.md](results/claims.md) | Matrix figure: [re
 ## Licence
 Proprietary software. Copyright (c) 2026 Ruri. All rights reserved.
 Private repository. No permission to use, copy, modify, distribute or sublicense without prior written permission.
+
+### Third-Party Data
+Evaluation on public weld ultrasonic data utilizes the ML-NDT dataset (Virkkunen et al., arXiv:1903.11399), licensed under LGPL-3.0. This dataset is not redistributed with this repository and must be fetched independently using the acquisition script.
