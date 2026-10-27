@@ -1,0 +1,58 @@
+{
+  "inference_machine": {
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpu_count": 24,
+    "torch_version": "2.14.1+cu130",
+    "torch_num_threads": 24
+  },
+  "training_machine": {
+    "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+    "source_file": "results/mlndt_metrics.json"
+  },
+  "cpu_latency_ms": {
+    "mlndt": {
+      "median_ms": 14.203400001861155,
+      "p95_ms": 20.95477498805848,
+      "median": 14.203400001861155,
+      "p95": 20.95477498805848,
+      "n": 500,
+      "warmup": 20,
+      "threads": 24,
+      "input_shape": [
+        1,
+        1,
+        256,
+        256
+      ]
+    },
+    "bar_1d": {
+      "median_ms": 0.9709500009194016,
+      "p95_ms": 2.673770001274532,
+      "median": 0.9709500009194016,
+      "p95": 2.673770001274532,
+      "n": 500,
+      "warmup": 20,
+      "threads": 24,
+      "input_shape": [
+        1,
+        1,
+        128
+      ]
+    },
+    "bar_2d": {
+      "median_ms": 0.9164499933831394,
+      "p95_ms": 2.3885149916168293,
+      "median": 0.9164499933831394,
+      "p95": 2.3885149916168293,
+      "n": 500,
+      "warmup": 20,
+      "threads": 24,
+      "input_shape": [
+        1,
+        9,
+        128
+      ]
+    }
+  }
+}
