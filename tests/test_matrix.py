@@ -19,6 +19,7 @@ if _SRC not in sys.path:
 import pytest  # noqa: E402
 from experiments.run_phase8 import Phase8Config, parse_args, run_phase8  # noqa: E402
 
+from utriage.report.claims import check_forbidden  # noqa: E402
 from utriage.report.matrix import build_matrix, plot_matrix  # noqa: E402
 
 
@@ -118,6 +119,84 @@ def _create_fake_sim(res_dir: Path) -> None:
     _write_json(res_dir / "sim_generalization.json", sim)
 
 
+def _make_fake_hybrid_fold(size: str) -> dict[str, Any]:
+    """Construct one fake fold dictionary for hybrid detector metrics."""
+    return {
+        "held_out": f"crack_{size}",
+        "models": {
+            f"loco_crack_{size}.pt": {
+                "methods": {
+                    "h2": {
+                        "detection": {
+                            "k": 18,
+                            "n": 20,
+                            "rate": 0.9,
+                            "ci_low": 0.68,
+                            "ci_high": 0.99,
+                        },
+                        "false_calls": {"n_false": 1, "n_scans": 10, "rate": 0.1},
+                    }
+                }
+            },
+            f"loco_crack_{size}_seed0.pt": {
+                "methods": {
+                    "h2": {
+                        "detection": {"k": 17, "n": 20, "rate": 0.85},
+                        "false_calls": {"n_false": 1, "n_scans": 10, "rate": 0.1},
+                    }
+                }
+            },
+            f"loco_crack_{size}_seed1.pt": {
+                "methods": {
+                    "h2": {
+                        "detection": {"k": 19, "n": 20, "rate": 0.95},
+                        "false_calls": {"n_false": 0, "n_scans": 10, "rate": 0.0},
+                    }
+                }
+            },
+        },
+        "aggregate": {
+            "h2": {
+                "mean_detection_rate": 0.90,
+                "min_detection_rate": 0.85,
+                "max_detection_rate": 0.95,
+                "mean_false_call_rate": 0.05,
+                "min_false_call_rate": 0.0,
+                "max_false_call_rate": 0.1,
+            }
+        },
+    }
+
+
+def _create_fake_hybrid(res_dir: Path) -> None:
+    """Write fake hybrid_metrics.json for testing."""
+    hybrid = {
+        "label": "Real data (ML-NDT)",
+        "run_label": "pre-registered",
+        "folds": {f"crack_{s}": _make_fake_hybrid_fold(s) for s in ("1.6", "4.0", "8.6")},
+    }
+    _write_json(res_dir / "hybrid_metrics.json", hybrid)
+
+
+def _create_fake_physics(res_dir: Path) -> None:
+    """Write fake physics_model_metrics.json for testing."""
+    physics = {
+        "label": "Real data (ML-NDT)",
+        "run_label": "pre-registered",
+        "folds": [
+            {
+                "held_out": f"crack_{size}",
+                "detections": {"k": 16, "n": 20, "rate": 0.8, "ci_low": 0.56, "ci_high": 0.94},
+                "false_calls": {"n_false": 1, "n_clean": 10, "rate": 0.1, "upper95": 0.2},
+                "coefficients": {"snr": 1.5, "intercept": -0.2},
+                "cell": _make_dummy_cell(k=16, n=20, n_false=1),
+            }
+            for size in ("1.6", "4.0", "8.6")
+        ],
+    }
+    _write_json(res_dir / "physics_model_metrics.json", physics)
+
+
 @pytest.fixture
 def fake_results_dir(tmp_path: Path) -> Path:
     """Populate minimal fake results files in tmp_path."""
@@ -126,6 +205,8 @@ def fake_results_dir(tmp_path: Path) -> Path:
     _create_fake_loco(res_dir)
     _create_fake_anomaly(res_dir)
     _create_fake_sim(res_dir)
+    _create_fake_hybrid(res_dir)
+    _create_fake_physics(res_dir)
     cross = {
         "models": {
             "mlndt_best.pt": {"overall": _make_dummy_cell(k=40, n=50, n_false=2)},
@@ -141,7 +222,7 @@ def test_build_matrix_structure_and_keys(fake_results_dir: Path) -> None:
     mat = build_matrix(fake_results_dir)
     for expected_key in ("label_note", "columns", "rows", "sources", "union_property"):
         assert expected_key in mat
-    for model_id in ("rules", "supervised", "anomaly", "fused"):
+    for model_id in ("rules", "supervised", "anomaly", "fused", "hybrid_h2", "physics_h3"):
         assert model_id in mat["rows"]
 
 
@@ -184,6 +265,119 @@ def test_build_matrix_sim_cells_available(fake_results_dir: Path) -> None:
     assert rows["anomaly"]["sim_freq_10mhz"]["available"] is False
 
 
+@pytest.mark.parametrize("row_id", ["hybrid_h2", "physics_h3"])
+@pytest.mark.parametrize("col_id", ["mlndt_validation", "cross_ndt_ml_flaw", "sim_in_distribution"])
+def test_hybrid_and_physics_non_loco_unavailable(
+    fake_results_dir: Path, row_id: str, col_id: str
+) -> None:
+    """Non-LOCO columns are marked unavailable for hybrid_h2 and physics_h3."""
+    mat = build_matrix(fake_results_dir)
+    cell_data = mat["rows"][row_id][col_id]
+    assert cell_data["available"] is False
+    assert cell_data["reason"] == "evaluated on ML-NDT LOCO folds only"
+
+
+@pytest.mark.parametrize("size", ["1.6", "4.0", "8.6"])
+def test_hybrid_h2_loco_cells_available(fake_results_dir: Path, size: str) -> None:
+    """Hybrid H2 LOCO crack cells contain valid metrics and seed range notes."""
+    mat = build_matrix(fake_results_dir)
+    cell_data = mat["rows"]["hybrid_h2"][f"mlndt_loco_crack_{size}"]
+    assert cell_data.get("available") is not False
+    assert cell_data["detection"]["k"] == 18
+    assert cell_data["detection"]["n"] == 20
+    assert cell_data["false_calls"]["n_false"] == 1
+    assert "note" in cell_data
+    assert "seed range" in cell_data["note"].lower()
+
+
+@pytest.mark.parametrize("size", ["1.6", "4.0", "8.6"])
+def test_physics_h3_loco_cells_available(fake_results_dir: Path, size: str) -> None:
+    """Physics H3 LOCO crack cells contain valid detection and false call counts."""
+    mat = build_matrix(fake_results_dir)
+    cell_data = mat["rows"]["physics_h3"][f"mlndt_loco_crack_{size}"]
+    assert cell_data.get("available") is not False
+    assert cell_data["detection"]["k"] == 16
+    assert cell_data["detection"]["n"] == 20
+    assert cell_data["false_calls"]["n_false"] == 1
+
+
+@pytest.mark.parametrize(
+    ("row_id", "expected_file"),
+    [
+        ("hybrid_h2", "hybrid_metrics.json"),
+        ("physics_h3", "physics_model_metrics.json"),
+    ],
+)
+def test_hybrid_physics_missing_files(tmp_path: Path, row_id: str, expected_file: str) -> None:
+    """Missing metrics files set available to False and cite missing file."""
+    empty_results = tmp_path / "empty_results"
+    empty_results.mkdir()
+    mat = build_matrix(empty_results)
+    for size in ("1.6", "4.0", "8.6"):
+        cell_data = mat["rows"][row_id][f"mlndt_loco_crack_{size}"]
+        assert cell_data["available"] is False
+        assert expected_file in cell_data["reason"]
+
+
+def test_hybrid_seed_range_computed_from_models(tmp_path: Path) -> None:
+    """Seed range note is computed from _seed model entries if aggregate block absent."""
+    res_dir = tmp_path / "res"
+    res_dir.mkdir()
+    _create_fake_loco(res_dir)
+    hybrid_no_agg = {
+        "folds": {
+            "crack_1.6": {
+                "held_out": "crack_1.6",
+                "models": {
+                    "loco_crack_1.6.pt": {
+                        "methods": {
+                            "h2": {
+                                "detection": {"k": 18, "n": 20, "rate": 0.9},
+                                "false_calls": {"n_false": 1, "n_scans": 10, "rate": 0.1},
+                            }
+                        }
+                    },
+                    "loco_crack_1.6_seed0.pt": {
+                        "methods": {
+                            "h2": {
+                                "detection": {"k": 15, "n": 20, "rate": 0.75},
+                                "false_calls": {"n_false": 2, "n_scans": 10, "rate": 0.2},
+                            }
+                        }
+                    },
+                    "loco_crack_1.6_seed1.pt": {
+                        "methods": {
+                            "h2": {
+                                "detection": {"k": 19, "n": 20, "rate": 0.95},
+                                "false_calls": {"n_false": 0, "n_scans": 10, "rate": 0.0},
+                            }
+                        }
+                    },
+                },
+            }
+        }
+    }
+    _write_json(res_dir / "hybrid_metrics.json", hybrid_no_agg)
+    mat = build_matrix(res_dir)
+    cell_data = mat["rows"]["hybrid_h2"]["mlndt_loco_crack_1.6"]
+    assert cell_data.get("available") is not False
+    assert "15/20" in cell_data["note"]
+    assert "19/20" in cell_data["note"]
+
+
+def test_no_forbidden_phrases_in_matrix(fake_results_dir: Path) -> None:
+    """Matrix notes and reasons must not contain any forbidden marketing phrases."""
+    mat = build_matrix(fake_results_dir)
+    for row_name, row_cells in mat["rows"].items():
+        for col_name, cell_dict in row_cells.items():
+            if not isinstance(cell_dict, dict):
+                continue
+            for key in ("note", "reason"):
+                if key in cell_dict:
+                    bad = check_forbidden(cell_dict[key])
+                    assert not bad, f"Forbidden in {row_name}.{col_name}.{key}: {bad}"
+
+
 def test_union_property_satisfied(fake_results_dir: Path) -> None:
     """Union property holds when detections and false calls satisfy monotonic bounds."""
     mat = build_matrix(fake_results_dir)
@@ -197,7 +391,6 @@ def test_union_property_flags_violation(fake_results_dir: Path) -> None:
     """Union property correctly flags violation when union detection rate drops."""
     sim_path = fake_results_dir / "sim_generalization.json"
     sim_data = json.loads(sim_path.read_text(encoding="utf-8"))
-    # Introduce violation: union detects fewer than ml_1d
     sim_data["test_sets"]["in_distribution"]["union"]["detection"]["k"] = 50
     _write_json(sim_path, sim_data)
 
@@ -234,7 +427,6 @@ def test_run_phase8_assemble_only(monkeypatch: pytest.MonkeyPatch, fake_results_
     cfg = Phase8Config(assemble_only=True, results_dir=fake_results_dir)
     run_phase8(cfg)
 
-    # Subprocess should not be called for experiments during assemble_only
     exp_calls = [c for c in mock_run.call_args_list if "experiments" in str(c)]
     assert len(exp_calls) == 0
 

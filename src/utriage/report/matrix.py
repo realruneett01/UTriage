@@ -27,6 +27,7 @@ RULES_UNAVAIL_REAL: str = (
     "rules engine operates on bar immersion A-scans, not on weld PAUT B-scan images"
 )
 FUSED_UNAVAIL_REAL: str = "per-image fused scores not computed"
+LOCO_ONLY_REASON: str = "evaluated on ML-NDT LOCO folds only"
 
 DEFAULT_SIM_SETS: tuple[str, ...] = (
     "in_distribution",
@@ -49,6 +50,8 @@ class MatrixContext:
     anomaly: dict[str, Any] | None
     sim: dict[str, Any] | None
     cross: dict[str, Any] | None
+    hybrid: dict[str, Any] | None = None
+    physics: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -371,6 +374,168 @@ def _build_row_anomaly(columns: list[dict[str, Any]], ctx: MatrixContext) -> dic
     return {col["id"]: _anomaly_cell_for_col(col["id"], ctx) for col in columns}
 
 
+def _find_fold(folds: Any, crack_id: str) -> dict[str, Any] | None:
+    """Locate fold record by crack ID in fold list or dictionary."""
+    if isinstance(folds, list):
+        return next((f for f in folds if crack_id in str(f.get("held_out", ""))), None)
+    if isinstance(folds, dict):
+        key = crack_id if crack_id in folds else crack_id.removeprefix("crack_")
+        alt_key = f"crack_{crack_id}"
+        return folds.get(crack_id) or folds.get(key) or folds.get(alt_key)
+    return None
+
+
+def _format_seed_note(
+    counts: tuple[int, int, int, int], rates: tuple[float, float, float, float]
+) -> str:
+    """Format seed range string from min/max counts and rates."""
+    min_k, max_k, min_fc, max_fc = counts
+    n, n_scans, min_d, max_d = int(rates[0]), int(rates[1]), rates[2], rates[3]
+    return (
+        f"Seed range across seeds: detections {min_k}/{n}-{max_k}/{n} "
+        f"(rate {min_d:.2f}-{max_d:.2f}), false calls {min_fc}/{n_scans}-{max_fc}/{n_scans}"
+    )
+
+
+def _seed_stats_from_models(
+    models: dict[str, Any], n: int, n_scans: int
+) -> tuple[tuple[int, int, int, int], tuple[float, float, float, float]] | None:
+    """Extract min/max counts and rates from seed model entries."""
+    seeds = [
+        m["methods"]["h2"]
+        for k, m in models.items()
+        if "_seed" in k and "h2" in m.get("methods", {})
+    ]
+    valid = [s for s in seeds if "detection" in s]
+    if not valid:
+        return None
+    k_vals = [int(s["detection"].get("k", 0)) for s in valid]
+    d_rates = [
+        float(s["detection"].get("rate", k / n if n else 0.0))
+        for s, k in zip(valid, k_vals, strict=False)
+    ]
+    fc_vals = [int(s.get("false_calls", {}).get("n_false", 0)) for s in valid]
+    counts = (min(k_vals), max(k_vals), min(fc_vals), max(fc_vals))
+    rates = (float(n), float(n_scans), min(d_rates), max(d_rates))
+    return counts, rates
+
+
+def _seed_stats_from_aggregate(
+    agg: dict[str, Any], n: int, n_scans: int
+) -> tuple[tuple[int, int, int, int], tuple[float, float, float, float]] | None:
+    """Extract min/max counts and rates from aggregate summary dictionary."""
+    if not agg or "min_detection_rate" not in agg:
+        return None
+    min_d = float(agg.get("min_detection_rate", 0.0))
+    max_d = float(agg.get("max_detection_rate", 0.0))
+    min_fc_r = float(agg.get("min_false_call_rate", 0.0))
+    max_fc_r = float(agg.get("max_false_call_rate", 0.0))
+    counts = (
+        int(round(min_d * n)),
+        int(round(max_d * n)),
+        int(round(min_fc_r * n_scans)),
+        int(round(max_fc_r * n_scans)),
+    )
+    rates = (float(n), float(n_scans), min_d, max_d)
+    return counts, rates
+
+
+def _get_hybrid_seed_note(fold: dict[str, Any], n: int, n_scans: int) -> str:
+    """Compute seed range note from seed models or aggregate block."""
+    models = fold.get("models", {})
+    stats = _seed_stats_from_models(models, n, n_scans)
+    if stats is None:
+        stats = _seed_stats_from_aggregate(fold.get("aggregate", {}).get("h2", {}), n, n_scans)
+    if stats is None:
+        return "Seed range unavailable across seeds"
+    return _format_seed_note(stats[0], stats[1])
+
+
+def _find_single_best_hybrid_model(models: dict[str, Any], crack_id: str) -> dict[str, Any] | None:
+    """Find the single-best (non-seed) model entry for a crack."""
+    key = crack_id if crack_id in models else crack_id.removeprefix("crack_")
+    cands = (f"loco_{crack_id}.pt", f"loco_{key}.pt", f"loco_crack_{key}.pt")
+    for cand in cands:
+        if cand in models:
+            return models[cand]
+    for name, entry in models.items():
+        if name.startswith("loco_") and "_seed" not in name and key in name:
+            return entry
+    return None
+
+
+def _get_hybrid_fold_cell(hybrid: dict[str, Any] | None, crack_id: str) -> dict[str, Any]:
+    """Extract and format Hybrid H2 LOCO cell for a specific crack."""
+    if hybrid is None:
+        return {"available": False, "reason": "results/hybrid_metrics.json missing"}
+    fold = _find_fold(hybrid.get("folds"), crack_id)
+    if fold is None:
+        return {"available": False, "reason": f"Hybrid H2 fold for {crack_id} not found"}
+    model_entry = _find_single_best_hybrid_model(fold.get("models", {}), crack_id)
+    if model_entry is None:
+        return {"available": False, "reason": f"Hybrid H2 model for {crack_id} not found"}
+    h2_data = model_entry.get("methods", {}).get("h2")
+    if not isinstance(h2_data, dict):
+        return {"available": False, "reason": f"Hybrid H2 method for {crack_id} not found"}
+    det, fc = h2_data.get("detection", {}), h2_data.get("false_calls", {})
+    k, n = int(det.get("k", det.get("n_hit", 0))), int(det.get("n", det.get("n_flawed", 0)))
+    n_false = int(fc.get("n_false", 0))
+    n_scans = int(fc.get("n_scans", fc.get("n_unflawed", 0)))
+    cell_dict = _format_cell_from_counts(
+        CellCounts(k=k, n=n, n_false=n_false, n_scans=n_scans, n_flaws=1)
+    )
+    cell_dict["note"] = _get_hybrid_seed_note(fold, n, n_scans)
+    return cell_dict
+
+
+def _get_physics_fold_cell(physics: dict[str, Any] | None, crack_id: str) -> dict[str, Any]:
+    """Extract and format Physics H3 LOCO cell for a specific crack."""
+    if physics is None:
+        return {"available": False, "reason": "results/physics_model_metrics.json missing"}
+    fold = _find_fold(physics.get("folds"), crack_id)
+    if fold is None:
+        return {"available": False, "reason": f"Physics H3 fold for {crack_id} not found"}
+    f_cell = fold.get("cell")
+    if isinstance(f_cell, dict) and "counts" in f_cell:
+        return dict(f_cell)
+    det = fold.get("detections", fold.get("detection", {}))
+    fc = fold.get("false_calls", {})
+    k, n = int(det.get("k", det.get("n_hit", 0))), int(det.get("n", det.get("n_flawed", 0)))
+    n_false = int(fc.get("n_false", 0))
+    n_scans = int(fc.get("n_clean", fc.get("n_scans", fc.get("n_unflawed", 0))))
+    return _format_cell_from_counts(
+        CellCounts(k=k, n=n, n_false=n_false, n_scans=n_scans, n_flaws=1)
+    )
+
+
+def _build_row_hybrid(
+    columns: list[dict[str, Any]], hybrid: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Build hybrid H2 model evaluation row across matrix columns."""
+    row: dict[str, Any] = {}
+    for col in columns:
+        cid = col["id"]
+        if cid.startswith("mlndt_loco_crack_"):
+            row[cid] = _get_hybrid_fold_cell(hybrid, cid.removeprefix("mlndt_loco_"))
+        else:
+            row[cid] = {"available": False, "reason": LOCO_ONLY_REASON}
+    return row
+
+
+def _build_row_physics(
+    columns: list[dict[str, Any]], physics: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Build physics H3 model evaluation row across matrix columns."""
+    row: dict[str, Any] = {}
+    for col in columns:
+        cid = col["id"]
+        if cid.startswith("mlndt_loco_crack_"):
+            row[cid] = _get_physics_fold_cell(physics, cid.removeprefix("mlndt_loco_"))
+        else:
+            row[cid] = {"available": False, "reason": LOCO_ONLY_REASON}
+    return row
+
+
 def _source_for_col(col_id: str) -> str:
     """Map single column ID to its relative source results file."""
     if col_id.startswith("mlndt_"):
@@ -409,6 +574,8 @@ def build_matrix(results_dir: Path) -> dict[str, Any]:
         anomaly=_load_optional_json(results_dir / "anomaly_metrics.json"),
         sim=_load_optional_json(results_dir / "sim_generalization.json"),
         cross=_load_optional_json(results_dir / "cross_dataset_metrics.json"),
+        hybrid=_load_optional_json(results_dir / "hybrid_metrics.json"),
+        physics=_load_optional_json(results_dir / "physics_model_metrics.json"),
     )
     cross_cell, cross_note = _get_cross_supervised(ctx.cross)
     columns = _build_column_specs(ctx.sim, cross_note)
@@ -417,6 +584,8 @@ def build_matrix(results_dir: Path) -> dict[str, Any]:
     fused_row = _build_row_fused(columns, ctx.sim)
     sup_row = _build_row_supervised(columns, ctx, cross_cell)
     anom_row = _build_row_anomaly(columns, ctx)
+    hybrid_row = _build_row_hybrid(columns, ctx.hybrid)
+    physics_row = _build_row_physics(columns, ctx.physics)
 
     return {
         "label_note": LABEL_NOTE,
@@ -426,6 +595,8 @@ def build_matrix(results_dir: Path) -> dict[str, Any]:
             "supervised": sup_row,
             "anomaly": anom_row,
             "fused": fused_row,
+            "hybrid_h2": hybrid_row,
+            "physics_h3": physics_row,
         },
         "sources": _build_sources(columns),
         "union_property": _build_union_property(columns, rules_row, sup_row, fused_row),
