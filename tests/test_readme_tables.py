@@ -60,159 +60,148 @@ def _write_json(path: Path, data: dict) -> None:
         json.dump(data, fh)
 
 
-def _make_dummy_mlndt() -> dict:
-    """Return minimal mlndt_metrics.json structure."""
+def _make_cell(rate: float, ci_low: float, ci_high: float, fcr: float) -> dict:
+    """Build single evaluated metrics cell."""
     return {
-        "label": "Real data (ML-NDT)",
-        "per_split": {
-            "test": {
-                "pod": None,
-                "pod_reason": "Data is separable: only hits or only misses present.",
-                "detection": {
-                    "n_flawed": 100,
-                    "n_hit": 100,
-                    "pod_lower95": 0.9975,
-                },
-                "false_calls": {
-                    "n": 50,
-                    "n_false": 0,
-                    "upper95": 0.00384,
-                },
-            }
+        "available": True,
+        "detection": {
+            "n": 100,
+            "k": int(rate * 100),
+            "rate": rate,
+            "ci_low": ci_low,
+            "ci_high": ci_high,
         },
-        "latency_ms": {
-            "cpu_batch_1": 21.73,
-            "gpu_batch_1": 0.99,
-        },
+        "false_calls": {"rate": fcr, "n_false": int(fcr * 200), "n_scans": 200},
     }
 
 
-def _make_dummy_method_data(det_06: float, a90: float | None) -> dict:
-    """Build single method entry for bar domain metrics."""
-    pod = {"a90_95": a90} if a90 is not None else None
-    return {
-        "false_call_rate": {"rate": 0.0},
-        "detection_table": [
-            {"size_mm": 0.4, "detection_rate": 0.0 if det_06 < 1.0 else 1.0},
-            {"size_mm": 0.6, "detection_rate": det_06},
-            {"size_mm": 0.8, "detection_rate": 1.0},
-        ],
-        "pod_summary": {"pod": pod, "reason": "Separable" if pod is None else None},
-    }
-
-
-def _make_dummy_bar_domain() -> dict:
-    """Return minimal bar_domain_metrics.json structure."""
-    return {
-        "label": "Synthetic data",
-        "configs": {"sizes_mm": [0.4, 0.6, 0.8]},
-        "per_method_per_noise": {
-            "rules": {"0.5": _make_dummy_method_data(0.9166, None)},
-            "ml_1d": {"0.5": _make_dummy_method_data(1.0, None)},
-            "ml_2d": {"0.5": _make_dummy_method_data(1.0, 0.5887)},
+def _make_fake_matrix() -> dict:
+    """Build dummy generalization matrix with real and synthetic columns."""
+    cols = [
+        {"id": "real_loco", "group": "real", "data_label": "Real data (ML-NDT)"},
+        {"id": "synth_noise", "group": "synthetic", "data_label": "Synthetic data"},
+    ]
+    rows = {
+        "rules": {
+            "real_loco": _make_cell(0.95, 0.887, 0.984, 0.005),
+            "synth_noise": _make_cell(0.80, 0.663, 0.899, 0.012),
+        },
+        "supervised": {
+            "real_loco": _make_cell(0.98, 0.930, 0.998, 0.002),
+            "synth_noise": _make_cell(0.90, 0.782, 0.967, 0.008),
+        },
+        "anomaly": {
+            "real_loco": {"available": False, "reason": "no flaw-free scans"},
+            "synth_noise": _make_cell(0.70, 0.554, 0.821, 0.010),
+        },
+        "fused": {
+            "real_loco": _make_cell(0.99, 0.946, 0.999, 0.006),
+            "synth_noise": _make_cell(0.96, 0.863, 0.995, 0.015),
         },
     }
+    return {"columns": cols, "rows": rows}
 
 
-def _make_dummy_triage() -> dict:
-    """Return minimal triage_metrics.json structure."""
-    return {
-        "label": "Synthetic data",
-        "conformal": {
-            "alpha": 0.1,
-            "coverage": 0.9136,
-            "uncertain_fraction": 0.0625,
-        },
-        "operating_point": {
-            "threshold": 0.9991,
-            "pod_lower95_at_ref": 0.9037,
-            "ref_size": 0.8,
-            "false_call_rate": 0.0,
-        },
-        "ranking": {
-            "operating_point": {
-                "threshold": 0.9991,
-                "mean_effort_ranked": 18.0,
-                "mean_effort_random": 99.25,
-                "flaws_found_rules_only": 0.7833,
-                "flaws_found_union": 0.8166,
-                "ml_false_calls_per_bar": 109.55,
-            }
-        },
-    }
+def _populate_fake_results(results_dir: Path, leaky: bool = True) -> None:
+    """Populate directory with fake Phase 8 result files."""
+    results_dir.mkdir(parents=True, exist_ok=True)
+    _write_json(results_dir / "generalization_matrix.json", _make_fake_matrix())
+    _write_json(results_dir / "leakage_audit.json", {"leakage_by_physical_crack": leaky})
+    inv_text = (
+        "# Real-data evidence limits\n\n"
+        "Across the 6 accepted datasets, 3 datasets have verified counts totaling "
+        "10 distinct physical flaws.\n"
+    )
+    (results_dir / "data_inventory.md").write_text(inv_text, encoding="utf-8")
 
 
-def _make_dummy_robustness() -> dict:
-    """Return minimal robustness_metrics.json structure."""
-    return {
-        "label": "Synthetic data",
-        "domain_shift": {
-            "noise_2.5x": {
-                "spec": {"material": "ti64", "probe": "p5", "noise_scale": 2.5},
-                "rules": {
-                    "false_call_rate": 0.1562,
-                    "detection_per_size": {"0.6": 0.875, "0.8": 1.0},
-                },
-                "ml_2d_matched": {
-                    "false_call_rate": 0.1562,
-                    "detection_per_size": {"0.6": 1.0, "0.8": 1.0},
-                },
-            }
-        },
-        "sim_to_real": {
-            "bar_1d_on_mlndt_val": {
-                "label": "Real data (ML-NDT)",
-                "model": "models/bar_1d.pt",
-                "roc_auc": 0.711,
-                "n_images": 200,
-                "image_axis_meaning": "UNVERIFIED - Ruri to check",
-                "domain_gap_note": "Expected domain gap note.",
-            }
-        },
-    }
-
-
-def _populate_dummy_results(results_dir: Path) -> None:
-    """Populate directory with complete set of dummy result files."""
-    _write_json(results_dir / "mlndt_metrics.json", _make_dummy_mlndt())
-    _write_json(results_dir / "bar_domain_metrics.json", _make_dummy_bar_domain())
-    _write_json(results_dir / "triage_metrics.json", _make_dummy_triage())
-    _write_json(results_dir / "robustness_metrics.json", _make_dummy_robustness())
-
-
-def test_missing_files_render_notices(tmp_path: Path) -> None:
-    """Verify missing result files yield experiment not run messages."""
+def test_missing_files_produce_missing_line(tmp_path: Path) -> None:
+    """Verify missing result files yield missing file notices instead of crashing."""
     empty_dir = tmp_path / "empty_results"
     empty_dir.mkdir()
     rendered = render_all_tables(empty_dir)
-
-    assert "Experiment has not been run (mlndt_metrics.json not found)" in rendered
-    assert "Experiment has not been run (bar_domain_metrics.json not found)" in rendered
-    assert "Experiment has not been run (triage_metrics.json not found)" in rendered
-    assert "Experiment has not been run (robustness_metrics.json not found)" in rendered
+    assert "data_inventory.md not found" in rendered
+    assert "leakage_audit.json not found" in rendered
+    assert "generalization_matrix.json not found" in rendered
 
 
-def test_labels_present_in_captions(tmp_path: Path) -> None:
-    """Verify table captions state their data label."""
+def test_both_tables_present(tmp_path: Path) -> None:
+    """Verify both Real data and Synthetic data generalization tables are rendered."""
     res_dir = tmp_path / "results"
-    _populate_dummy_results(res_dir)
+    _populate_fake_results(res_dir)
     rendered = render_all_tables(res_dir)
+    assert "(Real data" in rendered
+    assert "(Synthetic data" in rendered
+    for row_name in ("rules", "supervised", "anomaly", "fused"):
+        assert f"| {row_name} |" in rendered
 
-    assert "(Real data" in rendered or "(Real data)" in rendered
-    assert "(Synthetic data)" in rendered
 
-
-def test_rounding_direction_in_rendered_tables(tmp_path: Path) -> None:
-    """Verify detection is floored and false-call / a90 bounds are ceiled."""
+def test_na_cells_carry_reasons(tmp_path: Path) -> None:
+    """Verify unavailable cells output n/a with their specific reason."""
     res_dir = tmp_path / "results"
-    _populate_dummy_results(res_dir)
+    _populate_fake_results(res_dir)
     rendered = render_all_tables(res_dir)
+    assert "n/a (no flaw-free scans)" in rendered
 
-    assert "0.99" in rendered  # 0.9975 floored
-    assert "0.004" in rendered  # 0.00384 ceiled
-    assert "0.59 mm" in rendered  # 0.5887 ceiled
-    assert "0.91" in rendered  # 0.9166 floored
-    assert "UNVERIFIED - Ruri to check" in rendered
+
+@pytest.mark.parametrize(
+    ("leaky", "expect_superseded"),
+    [
+        (True, True),
+        (False, False),
+    ],
+)
+def test_superseded_note_leakage(tmp_path: Path, leaky: bool, expect_superseded: bool) -> None:
+    """Verify superseded note is shown only when leakage_by_physical_crack is true."""
+    res_dir = tmp_path / f"results_{leaky}"
+    _populate_fake_results(res_dir, leaky=leaky)
+    rendered = render_all_tables(res_dir)
+    target_phrase = "superseded by the leave-one-crack-out results"
+    if expect_superseded:
+        assert target_phrase in rendered
+    else:
+        assert "superseded" not in rendered.lower()
+
+
+def test_evidence_limits_box(tmp_path: Path) -> None:
+    """Verify Evidence limits box contains required statements."""
+    res_dir = tmp_path / "results"
+    _populate_fake_results(res_dir)
+    rendered = render_all_tables(res_dir)
+    assert "> ### Evidence limits" in rendered
+    assert "10" in rendered
+    assert "weld PAUT datasets not bars" in rendered
+    assert "UNVERIFIED" in rendered
+    assert "advisory independent prototype" in rendered
+
+
+def test_links_line(tmp_path: Path) -> None:
+    """Verify links to claims and matrix figure are present."""
+    res_dir = tmp_path / "results"
+    _populate_fake_results(res_dir)
+    rendered = render_all_tables(res_dir)
+    assert "results/claims.md" in rendered
+    assert "results/figures/generalization_matrix.png" in rendered
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "perfect",
+        "100%",
+        "for MIDHANI",
+        "validated on plant data",
+        "qualified",
+        "deployed",
+        "generalizes to all",
+    ],
+)
+def test_no_forbidden_phrases(tmp_path: Path, phrase: str) -> None:
+    """Verify forbidden phrases never appear in rendered results text."""
+    res_dir = tmp_path / "results"
+    _populate_fake_results(res_dir)
+    rendered = render_all_tables(res_dir)
+    assert phrase.lower() not in rendered.lower()
 
 
 def test_update_readme_text_with_existing_markers() -> None:
@@ -230,7 +219,7 @@ def test_markers_created_when_missing(tmp_path: Path) -> None:
     readme_path = tmp_path / "README.md"
     readme_path.write_text("# Title\n\nSome body text.\n", encoding="utf-8")
     res_dir = tmp_path / "results"
-    _populate_dummy_results(res_dir)
+    _populate_fake_results(res_dir)
 
     update_readme_file(readme_path, res_dir)
     content = readme_path.read_text(encoding="utf-8")
@@ -249,7 +238,7 @@ def test_idempotent_rewrite(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     res_dir = tmp_path / "results"
-    _populate_dummy_results(res_dir)
+    _populate_fake_results(res_dir)
 
     update_readme_file(readme_path, res_dir)
     content_first = readme_path.read_text(encoding="utf-8")
