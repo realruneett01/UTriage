@@ -1389,19 +1389,24 @@
   },
   "latency": {
     "ml_1d": {
-      "gpu_batch_1_ms": 2.0233000032021664,
-      "gpu_batch_256_ms": 0.006771875007416384,
-      "cpu_batch_1_ms": 0.34685000719036907
+      "gpu_batch_1_ms": 0.800199995865114,
+      "gpu_batch_256_ms": 0.00345800779655292,
+      "cpu_batch_1_ms": 0.38564999704249203
     },
     "ml_2d": {
-      "gpu_batch_1_ms": 0.7991500024218112,
-      "gpu_batch_256_ms": 0.0033728515518305358,
-      "cpu_batch_1_ms": 0.3544000064721331
+      "gpu_batch_1_ms": 0.7734500031801872,
+      "gpu_batch_256_ms": 0.0033394531158137397,
+      "cpu_batch_1_ms": 0.41059999784920365
     }
   },
   "kept_model": {
-    "choice": "ml_2d",
-    "rule": "Keep simpler 1D model unless 2D a90_95 (or binomial bound) is clearly better (>= 0.1 mm).",
-    "reason": "At noise scale 2.0, 1D metric is 0.4353 and 2D metric is 0.7183; 2D is clearly better."
+    "choice": "ml_1d",
+    "rule": "Keep simpler 1D model unless val_2d >= val_1d + 0.1 (margin 0.1 on binomial pod_lower95 probability bound).",
+    "reason": "At noise scale 2.0, 1D metric is 0.4353 and 2D metric is 0.5065; 2D is not clearly better.",
+    "metric": "binomial pod_lower95",
+    "values": {
+      "ml_1d": 0.43528706762382113,
+      "ml_2d": 0.5065237677762733
+    }
   }
 }
