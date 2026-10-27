@@ -1,0 +1,440 @@
+datasets:
+  - name: "ML-NDT"
+    url: "https://github.com/iikka-v/ML-NDT"
+    doi: null
+    licence: "LGPL-3.0"
+    licence_source_url: "https://github.com/iikka-v/ML-NDT/blob/master/LICENSE"
+    material: "316L stainless steel (austenitic weld)"
+    technique: "PAUT"
+    frequency_mhz: 2.0
+    data_form: "custom binary (.bins, .meta UInt16 256x256x100, .jsons, .labels)"
+    n_specimens: 1
+    n_distinct_physical_flaws: 3
+    label_type: "flaw existence (0/1), flaw location coordinates, source flaw size and equivalent flaw size"
+    size_on_disk: "2.51 GB"
+    download_status: "downloaded"
+    relevance: 3
+    relevance_reason: "Phased array ultrasonic dataset of real thermal fatigue cracks in welded austenitic stainless steel, benchmarked in Virkkunen et al. (2019)."
+    decision: "accept"
+    reject_reason: null
+    accessed: 2026-10-27
+
+  - name: "Strathclyde-FMC-Welded-316L"
+    url: "https://pureportal.strath.ac.uk/en/datasets/fmc-dataset-lack-of-fusion-crack-on-welded-316l-stainless-steel-p/"
+    doi: "10.15129/086404bd-eb69-429b-978c-2c35cdbfcf87"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://pureportal.strath.ac.uk/en/datasets/fmc-dataset-lack-of-fusion-crack-on-welded-316l-stainless-steel-p/"
+    material: "316L stainless steel"
+    technique: "FMC"
+    frequency_mhz: 5.0
+    data_form: "MATLAB dataset (.mat FMC raw array matrix + .ods metadata)"
+    n_specimens: 1
+    n_distinct_physical_flaws: 1
+    label_type: "lack-of-fusion planar flaw orientation (50 deg) and defect dimensions"
+    size_on_disk: "260.05 MB"
+    download_status: "not_downloaded"
+    relevance: 3
+    relevance_reason: "Full Matrix Capture (FMC) ultrasonic array inspection of real lack-of-fusion defect in welded austenitic stainless steel, directly usable for TFM imaging."
+    decision: "accept"
+    reject_reason: null
+    accessed: 2026-10-27
+
+  - name: "NDT_ML_Flaw"
+    url: "https://github.com/koomas/NDT_ML_Flaw"
+    doi: null
+    licence: "LGPL-3.0"
+    licence_source_url: "https://github.com/koomas/NDT_ML_Flaw/blob/master/LICENSE"
+    material: "dissimilar metal weld (austenitic/ferritic steel)"
+    technique: "PAUT"
+    frequency_mhz: null
+    data_form: "compressed binary images (.xz 480x7168) and metadata text files (.txt)"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "binary flaw indicator, flaw depth, scan-axis location, flaw size, and flaw type label"
+    size_on_disk: "226.72 MB"
+    download_status: "not_downloaded"
+    relevance: 3
+    relevance_reason: "Phased array ultrasonic dataset containing segmentation cracks, EDM notch flaw types, and CIVA-simulated flaws in dissimilar metal welds."
+    decision: "accept"
+    reject_reason: null
+    accessed: 2026-10-27
+
+  - name: "Zenodo-Pipe-Lens-PAUT"
+    url: "https://zenodo.org/records/15692966"
+    doi: "10.5281/zenodo.15692966"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://zenodo.org/records/15692966"
+    material: "steel (pipe)"
+    technique: "immersion"
+    frequency_mhz: 5.0
+    data_form: "compressed archive (.zip) containing raw ultrasonic phased array sectorial data and Python code"
+    n_specimens: 1
+    n_distinct_physical_flaws: null
+    label_type: "machined 1.5 mm flaw locations and ground-truth remaining wall thicknesses"
+    size_on_disk: "18.52 GB"
+    download_status: "not_downloaded"
+    relevance: 3
+    relevance_reason: "Immersion inspection of 140 mm submerged steel pipe using ultrasonic phased array and acoustic lens; features machined thickness-loss flaws."
+    decision: "accept"
+    reject_reason: null
+    accessed: 2026-10-27
+
+  - name: "TUBERS-Ultrasonic-Crack-Dataset"
+    url: "https://zenodo.org/records/11239514"
+    doi: "10.5281/zenodo.11239514"
+    licence: "MIT"
+    licence_source_url: "https://zenodo.org/records/11239514"
+    material: "steel (plates and step wedge)"
+    technique: "contact"
+    frequency_mhz: 10.0
+    data_form: "CSV time-series (oscilloscope A-scan waveforms with time and voltage)"
+    n_specimens: 3
+    n_distinct_physical_flaws: null
+    label_type: "plate crack scan files vs calibration step wedge thicknesses (1 to 8 mm)"
+    size_on_disk: "44.14 MB"
+    download_status: "not_downloaded"
+    relevance: 2
+    relevance_reason: "Raw ultrasonic A-scan oscilloscope captures on steel plates with cracks and a step wedge at 5 MHz and 10 MHz."
+    decision: "accept"
+    reject_reason: null
+    accessed: 2026-10-27
+
+  - name: "SAW-Open-Repository-PENELOPE"
+    url: "https://zenodo.org/records/15083865"
+    doi: "10.5281/zenodo.15083865"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://zenodo.org/records/15083865"
+    material: "steel (welded coupons)"
+    technique: "PAUT"
+    frequency_mhz: null
+    data_form: "PAUT .nde files, defect locations .xlsx, X-ray and UT .pdf reports, process .hdf5"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "defect coordinates and descriptions in defect locations Excel spreadsheets"
+    size_on_disk: "12.09 GB"
+    download_status: "not_downloaded"
+    relevance: 2
+    relevance_reason: "Submerged arc welding coupons in steel with PAUT inspections and defect location logs; uses proprietary .nde format."
+    decision: "accept"
+    reject_reason: null
+    accessed: 2026-10-27
+
+  - name: "Zenodo-WP7-Cranfield-CompInnova"
+    url: "https://zenodo.org/records/4405106"
+    doi: "10.5281/zenodo.4405106"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://zenodo.org/records/4405106"
+    material: "carbon fiber reinforced polymer (CFRP)"
+    technique: "PAUT"
+    frequency_mhz: null
+    data_form: "C-scan full-waveform phased array data"
+    n_specimens: 1
+    n_distinct_physical_flaws: null
+    label_type: "impact damage locations"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "not_downloaded"
+    relevance: 0
+    relevance_reason: "Non-metal composite aircraft demonstrator panel inspection."
+    decision: "reject"
+    reject_reason: "Non-metal specimen (carbon fiber reinforced polymer / CFRP composite)."
+    accessed: 2026-10-27
+
+  - name: "Zenodo-WP2-Cranfield-CompInnova"
+    url: "https://zenodo.org/records/4405277"
+    doi: "10.5281/zenodo.4405277"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://zenodo.org/records/4405277"
+    material: "carbon fiber reinforced polymer (CFRP) coupons and laminates"
+    technique: "PAUT"
+    frequency_mhz: null
+    data_form: "C-scan full-waveform phased array data"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "impact damage assessment"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "not_downloaded"
+    relevance: 0
+    relevance_reason: "Composite coupons and laminates with impact damage."
+    decision: "reject"
+    reject_reason: "Non-metal specimen (CFRP composite coupons and laminates)."
+    accessed: 2026-10-27
+
+  - name: "Zenodo-Concrete-Compressive-Strength"
+    url: "https://zenodo.org/records/15392443"
+    doi: "10.5281/zenodo.15392443"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://zenodo.org/records/15392443"
+    material: "concrete"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "tabular test databases"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "compressive strength metrics"
+    size_on_disk: "4.26 MB"
+    download_status: "not_downloaded"
+    relevance: 0
+    relevance_reason: "Non-destructive testing on civil infrastructure materials."
+    decision: "reject"
+    reject_reason: "Non-metal material (concrete)."
+    accessed: 2026-10-27
+
+  - name: "Zenodo-Concrete-Crack-Wavefield"
+    url: "https://zenodo.org/records/16788440"
+    doi: "10.5281/zenodo.16788440"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://zenodo.org/records/16788440"
+    material: "concrete"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "wavefield image sequences"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "crack patterns in concrete blocks"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "not_downloaded"
+    relevance: 0
+    relevance_reason: "Ultrasonic wavefield imaging for crack detection in concrete."
+    decision: "reject"
+    reject_reason: "Non-metal material (concrete)."
+    accessed: 2026-10-27
+
+  - name: "Zenodo-Composite-CT-UT-DR"
+    url: "https://zenodo.org/records/22268109"
+    doi: "10.5281/zenodo.22268109"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://zenodo.org/records/22268109"
+    material: "polymer composite"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "multi-modal NDT data (CT, ultrasonic, digital radiography)"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "delaminations and composite anomalies"
+    size_on_disk: "3.12 GB"
+    download_status: "not_downloaded"
+    relevance: 0
+    relevance_reason: "Comparative NDT inspection of composite panels."
+    decision: "reject"
+    reject_reason: "Non-metal material (composite)."
+    accessed: 2026-10-27
+
+  - name: "Zenodo-Guided-Wave-SHM-SMC"
+    url: "https://zenodo.org/records/15719377"
+    doi: "10.5281/zenodo.15719377"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://zenodo.org/records/15719377"
+    material: "sheet molding compound (SMC composite)"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "guided wave time series"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "artificial defect labels"
+    size_on_disk: "5.43 MB"
+    download_status: "not_downloaded"
+    relevance: 0
+    relevance_reason: "Guided wave structural health monitoring on composite plates."
+    decision: "reject"
+    reject_reason: "Guided-wave SHM and non-metal material (SMC composite)."
+    accessed: 2026-10-27
+
+  - name: "Zenodo-Crosstalk-Deconvolution-ECNDT2026"
+    url: "https://zenodo.org/records/19462220"
+    doi: "10.5281/zenodo.19462220"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://zenodo.org/records/19462220"
+    material: "unknown (not stated on page)"
+    technique: "PAUT"
+    frequency_mhz: null
+    data_form: "phased array signals"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "crosstalk calibration responses"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "requires_login"
+    relevance: 1
+    relevance_reason: "Phased array crosstalk modeling and deconvolution dataset."
+    decision: "reject"
+    reject_reason: "Restricted download access (HTTP 403 Permission denied on files endpoint)."
+    accessed: 2026-10-27
+
+  - name: "Mendeley-Pipeline-Guided-Wave-SHM"
+    url: "https://data.mendeley.com/datasets/ttb63krg6d/1"
+    doi: "10.17632/ttb63krg6d.1"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://data.mendeley.com/datasets/ttb63krg6d/1"
+    material: "steel (tube with composite wrap)"
+    technique: "other"
+    frequency_mhz: 0.037
+    data_form: "Excel spreadsheets containing UGW time series at 14, 18, 24, 30, and 37 kHz"
+    n_specimens: 1
+    n_distinct_physical_flaws: 1
+    label_type: "machined corrosion-like wall thinning"
+    size_on_disk: "106.41 MB"
+    download_status: "not_downloaded"
+    relevance: 1
+    relevance_reason: "Low-frequency guided wave monitoring of pipeline."
+    decision: "reject"
+    reject_reason: "Guided-wave structural health monitoring (low frequency 14-37 kHz), not high-frequency bulk/immersion UT."
+    accessed: 2026-10-27
+
+  - name: "Mendeley-Ship-Weld-Defects-Statistics"
+    url: "https://data.mendeley.com/datasets/n5wxwncv6k/1"
+    doi: "10.17632/n5wxwncv6k.1"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://data.mendeley.com/datasets/n5wxwncv6k/1"
+    material: "steel (butt joints)"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "tabular inspection metadata records"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "defect type and defect length logs"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "not_downloaded"
+    relevance: 1
+    relevance_reason: "Database of weld defect frequency, length statistics, and probabilistic models."
+    decision: "reject"
+    reject_reason: "Tabular inspection statistics only; no ultrasonic A-scan, B-scan, or FMC waveforms."
+    accessed: 2026-10-27
+
+  - name: "Mendeley-U-Mo-Fuel-Plates"
+    url: "https://data.mendeley.com/datasets/5yx2kt56c7/1"
+    doi: "10.17632/5yx2kt56c7.1"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://data.mendeley.com/datasets/5yx2kt56c7/1"
+    material: "uranium-molybdenum dispersion alloy"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "calculation spreadsheets (.xlsx) and inspection reports (.docx, .pdf)"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "through-transmission attenuation metrics"
+    size_on_disk: "2.36 MB"
+    download_status: "not_downloaded"
+    relevance: 1
+    relevance_reason: "Through-transmission ultrasonic attenuation calculation tables for dispersion plates."
+    decision: "reject"
+    reject_reason: "Through-transmission attenuation spreadsheets only; no pulse-echo flaw echo signals or scan images."
+    accessed: 2026-10-27
+
+  - name: "IEEE-DataPort-CUBDL"
+    url: "https://ieee-dataport.org/competitions/challenge-ultrasound-beamforming-deep-learning-cubdl"
+    doi: "10.21227/2b1v-b228"
+    licence: "CC BY 4.0"
+    licence_source_url: "https://ieee-dataport.org/competitions/challenge-ultrasound-beamforming-deep-learning-cubdl"
+    material: "biological tissue and tissue-mimicking phantom"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "raw RF channel data and beamformed B-mode images"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "tissue lesions and point targets"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "requires_login"
+    relevance: 0
+    relevance_reason: "Medical ultrasound beamforming challenge with deep learning."
+    decision: "reject"
+    reject_reason: "Medical ultrasound imaging (in vivo human/animal and tissue phantoms), not industrial metal NDT."
+    accessed: 2026-10-27
+
+  - name: "Kaggle-Welding-Defect-Object-Detection"
+    url: "https://www.kaggle.com/datasets/sujaykapadnis/welding-defect-object-detection"
+    doi: null
+    licence: "CC0 1.0"
+    licence_source_url: "https://www.kaggle.com/datasets/sujaykapadnis/welding-defect-object-detection"
+    material: "steel"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "optical RGB images (.jpg) and YOLO text labels"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "bounding boxes for surface welding defects"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "requires_login"
+    relevance: 0
+    relevance_reason: "Camera object detection dataset of surface weld defects."
+    decision: "reject"
+    reject_reason: "Optical photography (visual testing), not ultrasonic testing."
+    accessed: 2026-10-27
+
+  - name: "Kaggle-Radiographs-Welding-Defect-Detection"
+    url: "https://www.kaggle.com/datasets/ahmedabdelaty/radiographs-welding-defect-detection"
+    doi: null
+    licence: "unknown (not stated on page)"
+    licence_source_url: "https://www.kaggle.com/datasets/ahmedabdelaty/radiographs-welding-defect-detection"
+    material: "welded metal"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "X-ray radiograph images"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "radiographic defect classifications"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "requires_login"
+    relevance: 0
+    relevance_reason: "Radiographic inspection images of welds."
+    decision: "reject"
+    reject_reason: "Radiographic testing (RT / X-ray), not ultrasonic testing."
+    accessed: 2026-10-27
+
+  - name: "Papers-With-Code-TN3K"
+    url: "https://paperswithcode.com/dataset/tn3k"
+    doi: null
+    licence: "unknown (not stated on page)"
+    licence_source_url: "https://paperswithcode.com/dataset/tn3k"
+    material: "biological tissue"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "medical ultrasound B-mode images"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "segmentation masks of thyroid nodules"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "not_downloaded"
+    relevance: 0
+    relevance_reason: "Medical ultrasound thyroid nodule segmentation dataset."
+    decision: "reject"
+    reject_reason: "Medical ultrasound imaging, not industrial metal NDT."
+    accessed: 2026-10-27
+
+  - name: "Iowa-State-CNDE-Benchmarks"
+    url: "https://www.cnde.iastate.edu/"
+    doi: null
+    licence: "unknown (not stated on page)"
+    licence_source_url: "https://www.cnde.iastate.edu/"
+    material: "various metals"
+    technique: "other"
+    frequency_mhz: null
+    data_form: "simulation benchmark model specifications and code (UTSIM)"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "model simulation coordinates"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "not_downloaded"
+    relevance: 1
+    relevance_reason: "World Federation of NDE Centers (WFNDEC) simulation benchmarks and UTSIM tool."
+    decision: "reject"
+    reject_reason: "Simulation model descriptions and code; no direct public experimental flaw dataset downloadable on web portal."
+    accessed: 2026-10-27
+
+  - name: "Tunukovic-Weld-UT-Ultrasonics-2024"
+    url: "https://doi.org/10.1016/j.ndteint.2023.102949"
+    doi: "10.1016/j.ndteint.2023.102949"
+    licence: "unknown (not stated on page)"
+    licence_source_url: "https://doi.org/10.1016/j.ndteint.2023.102949"
+    material: "austenitic stainless steel (weld)"
+    technique: "PAUT"
+    frequency_mhz: null
+    data_form: "phased array ultrasonic scan files"
+    n_specimens: null
+    n_distinct_physical_flaws: null
+    label_type: "weld defect classifications"
+    size_on_disk: "unknown (not stated on page)"
+    download_status: "on_request"
+    relevance: 2
+    relevance_reason: "Deep learning research on ultrasonic inspection of austenitic stainless steel welds."
+    decision: "reject"
+    reject_reason: "Data on request: paper specifies data available only on request from corresponding author, no open repository download."
+    accessed: 2026-10-27
