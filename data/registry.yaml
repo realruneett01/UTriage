@@ -49,10 +49,10 @@ datasets:
     frequency_mhz: null
     data_form: "compressed binary images (.xz 480x7168) and metadata text files (.txt)"
     n_specimens: null
-    n_distinct_physical_flaws: null
+    n_distinct_physical_flaws: 6  # P41_01..P41_06_notch in real batches 013-019 (counted from .txt metadata 2026-10-27); 2xx batches are simulated
     label_type: "binary flaw indicator, flaw depth, scan-axis location, flaw size, and flaw type label"
     size_on_disk: "226.72 MB"
-    download_status: "not_downloaded"
+    download_status: "downloaded"
     relevance: 3
     relevance_reason: "Phased array ultrasonic dataset containing segmentation cracks, EDM notch flaw types, and CIVA-simulated flaws in dissimilar metal welds."
     decision: "accept"
@@ -90,11 +90,11 @@ datasets:
     data_form: "CSV time-series (oscilloscope A-scan waveforms with time and voltage)"
     n_specimens: 3
     n_distinct_physical_flaws: null
-    label_type: "plate crack scan files vs calibration step wedge thicknesses (1 to 8 mm)"
+    label_type: "none per file (README: CSV time vs volts only; no flaw location or presence labels) - verified 2026-10-27"
     size_on_disk: "44.14 MB"
-    download_status: "not_downloaded"
-    relevance: 2
-    relevance_reason: "Raw ultrasonic A-scan oscilloscope captures on steel plates with cracks and a step wedge at 5 MHz and 10 MHz."
+    download_status: "downloaded"
+    relevance: 1
+    relevance_reason: "Raw ultrasonic A-scan oscilloscope captures on steel plates with cracks and a step wedge at 5 MHz and 10 MHz. Unlabelled: usable only for qualitative anomaly-score checks, not as a labelled test set."
     decision: "accept"
     reject_reason: null
     accessed: 2026-10-27
