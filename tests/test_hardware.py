@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 import time
@@ -16,11 +17,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "experiments"))
 
 from run_hardware import (  # noqa: E402
     BenchmarkSpec,
+    _read_linux_cpu_name,
     benchmark_bar_model,
     benchmark_model_latency,
+    get_cpu_name,
     get_inference_machine,
     get_training_machine,
     measure_latency,
+    parse_args,
+    run_hardware,
     write_hardware_json,
 )
 
@@ -34,6 +39,34 @@ class _TinyFakeNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.fc(x)
+
+
+class _FakeRegKey:
+    """Fake registry key context manager for tests."""
+
+    def __enter__(self) -> _FakeRegKey:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        pass
+
+
+class _FakeWinreg:
+    """Mock winreg module returning predefined processor name."""
+
+    HKEY_LOCAL_MACHINE = 1
+
+    def __init__(self, name: str = "Mock CPU", raises: bool = False) -> None:
+        self.name = name
+        self.raises = raises
+
+    def OpenKey(self, key: int, subkey: str) -> _FakeRegKey:
+        if self.raises:
+            raise OSError("Registry key not found")
+        return _FakeRegKey()
+
+    def QueryValueEx(self, key: _FakeRegKey, value_name: str) -> tuple[str, int]:
+        return f"  {self.name}  ", 1
 
 
 def test_measure_latency_trivial_fn() -> None:
@@ -86,6 +119,7 @@ def test_get_inference_machine() -> None:
     info = get_inference_machine(threads=2)
     expected_keys = {
         "processor",
+        "cpu_name",
         "platform",
         "cpu_count",
         "torch_version",
@@ -146,3 +180,72 @@ def test_benchmark_bar_model_missing() -> None:
     assert res.get("status") == "skipped"
     assert "reason" in res
     assert "nonexistent_model_123.pt" in res["reason"]
+
+
+def test_get_cpu_name_winreg_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows registry processor name string is returned stripped."""
+    monkeypatch.setattr("run_hardware.winreg", _FakeWinreg("Intel Core i5-1135G7"))
+    monkeypatch.setattr("platform.system", lambda: "Windows")
+    assert get_cpu_name() == "Intel Core i5-1135G7"
+
+
+@pytest.mark.parametrize(
+    "winreg_mock",
+    [
+        _FakeWinreg(raises=True),
+        None,
+    ],
+)
+def test_get_cpu_name_fallback_none(
+    monkeypatch: pytest.MonkeyPatch,
+    winreg_mock: object,
+) -> None:
+    """Registry error or missing winreg falls back to None."""
+    monkeypatch.setattr("run_hardware.winreg", winreg_mock)
+    monkeypatch.setattr("platform.system", lambda: "Windows")
+    assert get_cpu_name() is None
+
+
+def test_read_linux_cpu_name(tmp_path: Path) -> None:
+    """Linux cpuinfo extracts stripped model name and handles missing file."""
+    cpuinfo = tmp_path / "cpuinfo"
+    cpuinfo.write_text("processor\t: 0\nmodel name\t: AMD Ryzen 7 5800X\n", encoding="utf-8")
+    assert _read_linux_cpu_name(cpuinfo) == "AMD Ryzen 7 5800X"
+    assert _read_linux_cpu_name(tmp_path / "missing") is None
+
+
+def test_parse_args_metadata_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Argument parser correctly sets metadata_only flag."""
+    monkeypatch.setattr(sys, "argv", ["run_hardware.py", "--metadata-only"])
+    args = parse_args()
+    assert args.metadata_only is True
+
+
+def test_metadata_only_preserves_latency(tmp_path: Path) -> None:
+    """Metadata-only updates machine info and leaves latency metrics unchanged."""
+    fake_path = tmp_path / "hardware.json"
+    orig_latency = {
+        "mlndt": {"median_ms": 14.2, "p95_ms": 20.9, "n": 500},
+        "bar_1d": {"median_ms": 0.95, "p95_ms": 2.5, "n": 500},
+    }
+    fake_doc = {
+        "inference_machine": {"processor": "old_proc", "cpu_count": 2},
+        "training_machine": {"device_name": "old_gpu", "source_file": "old.json"},
+        "cpu_latency_ms": orig_latency,
+    }
+    fake_path.write_text(json.dumps(fake_doc), encoding="utf-8")
+
+    args = argparse.Namespace(
+        output=str(fake_path),
+        metadata_only=True,
+        threads=2,
+        n=500,
+        warmup=20,
+    )
+    res = run_hardware(args)
+    loaded = json.loads(fake_path.read_text(encoding="utf-8"))
+
+    assert loaded["cpu_latency_ms"] == orig_latency
+    assert res["cpu_latency_ms"] == orig_latency
+    assert loaded["inference_machine"]["processor"] != "old_proc"
+    assert "cpu_name" in loaded["inference_machine"]

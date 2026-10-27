@@ -13,6 +13,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+try:
+    import winreg
+except ImportError:  # Non-Windows platforms
+    winreg = None  # type: ignore[assignment]
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -36,6 +41,55 @@ class BenchmarkSpec:
     n: int = 500
     warmup: int = 20
     threads: int = 1
+
+
+def _parse_cpuinfo_line(line: str) -> str | None:
+    """Extract CPU model name from a single cpuinfo line."""
+    stripped = line.strip()
+    if not stripped.startswith("model name") or ":" not in stripped:
+        return None
+    name = stripped.split(":", 1)[1].strip()
+    return name or None
+
+
+def _parse_cpuinfo_model(lines: Sequence[str]) -> str | None:
+    """Extract model name value from cpuinfo lines."""
+    for line in lines:
+        val = _parse_cpuinfo_line(line)
+        if val is not None:
+            return val
+    return None
+
+
+def _read_linux_cpu_name(cpuinfo: Path = Path("/proc/cpuinfo")) -> str | None:
+    """Read CPU model name from /proc/cpuinfo if available."""
+    if not cpuinfo.exists():
+        return None
+    try:
+        lines = cpuinfo.read_text(encoding="utf-8").splitlines()
+        return _parse_cpuinfo_model(lines)
+    except OSError:  # /proc/cpuinfo read error
+        return None
+
+
+def _read_windows_cpu_name() -> str | None:
+    """Read CPU name string from Windows registry."""
+    if winreg is None:
+        return None
+    reg_key = r"HARDWARE\DESCRIPTION\System\CentralProcessor\0"
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_key) as key:
+            val, _ = winreg.QueryValueEx(key, "ProcessorNameString")
+            return str(val).strip() if val else None
+    except (OSError, AttributeError):  # Registry query failure or mock fallback
+        return None
+
+
+def get_cpu_name() -> str | None:
+    """Read human-readable CPU model name across platforms."""
+    if platform.system() == "Windows":
+        return _read_windows_cpu_name()
+    return _read_linux_cpu_name()
 
 
 def measure_latency(
@@ -175,6 +229,7 @@ def get_inference_machine(threads: int) -> dict[str, Any]:
     """Capture inference platform hardware metadata."""
     return {
         "processor": platform.processor(),
+        "cpu_name": get_cpu_name(),
         "platform": platform.platform(),
         "cpu_count": os.cpu_count(),
         "torch_version": torch.__version__,
@@ -237,6 +292,21 @@ def write_hardware_json(
     return out_path
 
 
+def update_hardware_metadata(
+    path: Path,
+    threads: int | None = None,
+) -> dict[str, Any]:
+    """Rewrite machine metadata in existing hardware JSON while keeping latencies."""
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    existing_t = data.get("inference_machine", {}).get("torch_num_threads")
+    t = threads or existing_t or torch.get_num_threads()
+    data["inference_machine"] = get_inference_machine(t)
+    data["training_machine"] = get_training_machine()
+    write_hardware_json(data, path)
+    return data
+
+
 def parse_args() -> argparse.Namespace:
     """Parse benchmark command-line arguments."""
     parser = argparse.ArgumentParser(description="Benchmark CPU inference latency.")
@@ -244,16 +314,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--warmup", type=int, default=20, help="Warmup passes (default: 20)")
     parser.add_argument("--threads", type=int, default=None, help="Torch thread count")
     parser.add_argument("--output", type=str, default="results/hardware.json", help="Output path")
+    parser.add_argument(
+        "--metadata-only",
+        action="store_true",
+        help="Update only machine metadata in existing output file without re-benchmarking",
+    )
     return parser.parse_args()
 
 
 def run_hardware(args: argparse.Namespace) -> dict[str, Any]:
-    """Run full hardware benchmark suite and return results dict."""
+    """Run full hardware benchmark suite or update metadata in-place."""
     if args.threads is not None:
         torch.set_num_threads(args.threads)
     threads = torch.get_num_threads()
-    spec = BenchmarkSpec(n=args.n, warmup=args.warmup, threads=threads)
+    out_path = Path(args.output)
+    if getattr(args, "metadata_only", False):
+        return update_hardware_metadata(out_path, threads)
 
+    spec = BenchmarkSpec(n=args.n, warmup=args.warmup, threads=threads)
     val_batches = list_batches("validation", root=resolve_data_root())
     val_inputs = load_val_images(val_batches)
     mlndt_res = benchmark_mlndt_model(resolve_model_path("mlndt_best.pt"), val_inputs, spec)
@@ -279,8 +357,9 @@ def main() -> None:
     """Entry point for hardware benchmark experiment."""
     args = parse_args()
     results = run_hardware(args)
-    out_path = write_hardware_json(results, Path(args.output))
-    print(f"Hardware benchmarks written to {out_path}")
+    if not args.metadata_only:
+        write_hardware_json(results, Path(args.output))
+    print(f"Hardware benchmarks written to {args.output}")
 
 
 if __name__ == "__main__":
