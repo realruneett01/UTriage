@@ -1,0 +1,980 @@
+{
+  "label": "Real data (ML-NDT)",
+  "protocol": "Pre-registered design per docs/decisions/0010: H1 OR-union (flag = (p_sup >= 0.5) OR (anomaly_score >= T_anom)) and H2 score fusion (p_anom = empirical CDF of anomaly score on clean calibration images, s = (p_sup + p_anom) / 2, T_s = (1 - 0.01) quantile of s on clean calibration images). Evaluated on leave-one-crack-out (LOCO) folds across 3 physical cracks without test-set tuning.",
+  "target_fcr": 0.01,
+  "t_anom": 0.38145869612693817,
+  "anomaly_model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b",
+  "device": "cuda",
+  "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+  "folds": {
+    "crack_1.6": {
+      "held_out": "crack_1.6",
+      "models": {
+        "loco_crack_1.6_seed0.pt": {
+          "model_name": "loco_crack_1.6_seed0.pt",
+          "model_sha256": "430ad4982608b12dee45cb652464a5c268c1ce126e1db3aed0ce7087be97a7c3",
+          "t_s": 0.4951285290106236,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 4014,
+                "k": 16,
+                "rate": 0.003986048829098156,
+                "ci_low": 0.0022800354146044763,
+                "ci_high": 0.0064650433155115416,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "430ad4982608b12dee45cb652464a5c268c1ce126e1db3aed0ce7087be97a7c3"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 4014,
+                "k": 3649,
+                "rate": 0.9090682610861983,
+                "ci_low": 0.8997488946519808,
+                "ci_high": 0.9177870464143119,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 4014,
+                "k": 3649,
+                "rate": 0.9090682610861983,
+                "ci_low": 0.8997488946519808,
+                "ci_high": 0.9177870464143119,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "430ad4982608b12dee45cb652464a5c268c1ce126e1db3aed0ce7087be97a7c3"
+            },
+            "h2": {
+              "detection": {
+                "n": 4014,
+                "k": 3687,
+                "rate": 0.9185351270553064,
+                "ci_low": 0.9096401031827621,
+                "ci_high": 0.9268151082476583,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "430ad4982608b12dee45cb652464a5c268c1ce126e1db3aed0ce7087be97a7c3"
+            }
+          }
+        },
+        "loco_crack_1.6_seed1.pt": {
+          "model_name": "loco_crack_1.6_seed1.pt",
+          "model_sha256": "2aba3e9556f15e84451966ec0646ce40d3db5d8b8f93094a71caf14733e72710",
+          "t_s": 0.49508057960411606,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 4014,
+                "k": 526,
+                "rate": 0.1310413552566019,
+                "ci_low": 0.1207490361504996,
+                "ci_high": 0.14187392748143,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "2aba3e9556f15e84451966ec0646ce40d3db5d8b8f93094a71caf14733e72710"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 4014,
+                "k": 3649,
+                "rate": 0.9090682610861983,
+                "ci_low": 0.8997488946519808,
+                "ci_high": 0.9177870464143119,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 4014,
+                "k": 3660,
+                "rate": 0.9118086696562033,
+                "ci_low": 0.9026089568724769,
+                "ci_high": 0.920403627267457,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "2aba3e9556f15e84451966ec0646ce40d3db5d8b8f93094a71caf14733e72710"
+            },
+            "h2": {
+              "detection": {
+                "n": 4014,
+                "k": 3766,
+                "rate": 0.9382162431489786,
+                "ci_low": 0.9303190788105988,
+                "ci_high": 0.9454677945786797,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "2aba3e9556f15e84451966ec0646ce40d3db5d8b8f93094a71caf14733e72710"
+            }
+          }
+        },
+        "loco_crack_1.6_seed2.pt": {
+          "model_name": "loco_crack_1.6_seed2.pt",
+          "model_sha256": "b9f780b2def10efb32a42c27e5a661708c8320c1ce343a3f8fc3ec9ac5bf57ec",
+          "t_s": 0.49508272684012555,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 4014,
+                "k": 579,
+                "rate": 0.14424514200298955,
+                "ci_low": 0.13351356776779996,
+                "ci_high": 0.15549731880563794,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "b9f780b2def10efb32a42c27e5a661708c8320c1ce343a3f8fc3ec9ac5bf57ec"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 4014,
+                "k": 3649,
+                "rate": 0.9090682610861983,
+                "ci_low": 0.8997488946519808,
+                "ci_high": 0.9177870464143119,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 4014,
+                "k": 3653,
+                "rate": 0.9100647732934728,
+                "ci_low": 0.9007886301852297,
+                "ci_high": 0.9187388185123666,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "b9f780b2def10efb32a42c27e5a661708c8320c1ce343a3f8fc3ec9ac5bf57ec"
+            },
+            "h2": {
+              "detection": {
+                "n": 4014,
+                "k": 3761,
+                "rate": 0.9369706028898854,
+                "ci_low": 0.9290047881633364,
+                "ci_high": 0.9442927669051974,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "b9f780b2def10efb32a42c27e5a661708c8320c1ce343a3f8fc3ec9ac5bf57ec"
+            }
+          }
+        },
+        "loco_crack_1.6.pt": {
+          "model_name": "loco_crack_1.6.pt",
+          "model_sha256": "84aa74e90f03ee63ced1d2a14f3b452a6ce81a77820441be25342c8ae234cce6",
+          "t_s": 0.49508272684012555,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 4014,
+                "k": 579,
+                "rate": 0.14424514200298955,
+                "ci_low": 0.13351356776779996,
+                "ci_high": 0.15549731880563794,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "84aa74e90f03ee63ced1d2a14f3b452a6ce81a77820441be25342c8ae234cce6"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 4014,
+                "k": 3649,
+                "rate": 0.9090682610861983,
+                "ci_low": 0.8997488946519808,
+                "ci_high": 0.9177870464143119,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 4014,
+                "k": 3653,
+                "rate": 0.9100647732934728,
+                "ci_low": 0.9007886301852297,
+                "ci_high": 0.9187388185123666,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "84aa74e90f03ee63ced1d2a14f3b452a6ce81a77820441be25342c8ae234cce6"
+            },
+            "h2": {
+              "detection": {
+                "n": 4014,
+                "k": 3761,
+                "rate": 0.9369706028898854,
+                "ci_low": 0.9290047881633364,
+                "ci_high": 0.9442927669051974,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "84aa74e90f03ee63ced1d2a14f3b452a6ce81a77820441be25342c8ae234cce6"
+            }
+          }
+        }
+      },
+      "summary_3seeds": {
+        "supervised": {
+          "mean_detection_rate": 0.09309084869622986,
+          "min_detection_rate": 0.003986048829098156,
+          "max_detection_rate": 0.14424514200298955,
+          "mean_false_call_rate": 0.0,
+          "min_false_call_rate": 0.0,
+          "max_false_call_rate": 0.0
+        },
+        "anomaly": {
+          "mean_detection_rate": 0.9090682610861983,
+          "min_detection_rate": 0.9090682610861983,
+          "max_detection_rate": 0.9090682610861983,
+          "mean_false_call_rate": 0.017994858611825194,
+          "min_false_call_rate": 0.017994858611825194,
+          "max_false_call_rate": 0.017994858611825194
+        },
+        "h1": {
+          "mean_detection_rate": 0.9103139013452916,
+          "min_detection_rate": 0.9090682610861983,
+          "max_detection_rate": 0.9118086696562033,
+          "mean_false_call_rate": 0.017994858611825194,
+          "min_false_call_rate": 0.017994858611825194,
+          "max_false_call_rate": 0.017994858611825194
+        },
+        "h2": {
+          "mean_detection_rate": 0.9312406576980568,
+          "min_detection_rate": 0.9185351270553064,
+          "max_detection_rate": 0.9382162431489786,
+          "mean_false_call_rate": 0.008997429305912597,
+          "min_false_call_rate": 0.008997429305912597,
+          "max_false_call_rate": 0.008997429305912597
+        }
+      }
+    },
+    "crack_4.0": {
+      "held_out": "crack_4.0",
+      "models": {
+        "loco_crack_4.0_seed0.pt": {
+          "model_name": "loco_crack_4.0_seed0.pt",
+          "model_sha256": "36938c97203f4fcdc25400376ccf1b4e5cdf50e0c2c30cfa0939d7f5a98d82e0",
+          "t_s": 0.4950907600743878,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 4078,
+                "k": 671,
+                "rate": 0.16454144188327613,
+                "ci_low": 0.1532826643126528,
+                "ci_high": 0.17628299169102554,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "36938c97203f4fcdc25400376ccf1b4e5cdf50e0c2c30cfa0939d7f5a98d82e0"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 4078,
+                "k": 1306,
+                "rate": 0.3202550269740069,
+                "ci_low": 0.3059453046639004,
+                "ci_high": 0.3348226872076538,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 4078,
+                "k": 1610,
+                "rate": 0.39480137322216774,
+                "ci_low": 0.3797561651839312,
+                "ci_high": 0.40999746715835206,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "36938c97203f4fcdc25400376ccf1b4e5cdf50e0c2c30cfa0939d7f5a98d82e0"
+            },
+            "h2": {
+              "detection": {
+                "n": 4078,
+                "k": 2272,
+                "rate": 0.5571358509073076,
+                "ci_low": 0.5417314011646117,
+                "ci_high": 0.5724583648504545,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "36938c97203f4fcdc25400376ccf1b4e5cdf50e0c2c30cfa0939d7f5a98d82e0"
+            }
+          }
+        },
+        "loco_crack_4.0_seed1.pt": {
+          "model_name": "loco_crack_4.0_seed1.pt",
+          "model_sha256": "934e5c8f75f724760ee61bf47d6393557100c110e0d0107f8b7e8300f576b41d",
+          "t_s": 0.4960409634735035,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 4078,
+                "k": 486,
+                "rate": 0.11917606669936243,
+                "ci_low": 0.10938483451551302,
+                "ci_high": 0.12951645856662947,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "934e5c8f75f724760ee61bf47d6393557100c110e0d0107f8b7e8300f576b41d"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 4078,
+                "k": 1306,
+                "rate": 0.3202550269740069,
+                "ci_low": 0.3059453046639004,
+                "ci_high": 0.3348226872076538,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 4078,
+                "k": 1511,
+                "rate": 0.37052476704266796,
+                "ci_low": 0.35567680584926753,
+                "ci_high": 0.38555845791713556,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "934e5c8f75f724760ee61bf47d6393557100c110e0d0107f8b7e8300f576b41d"
+            },
+            "h2": {
+              "detection": {
+                "n": 4078,
+                "k": 2194,
+                "rate": 0.5380088278567925,
+                "ci_low": 0.5225620090636856,
+                "ci_high": 0.5534011420938192,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "934e5c8f75f724760ee61bf47d6393557100c110e0d0107f8b7e8300f576b41d"
+            }
+          }
+        },
+        "loco_crack_4.0_seed2.pt": {
+          "model_name": "loco_crack_4.0_seed2.pt",
+          "model_sha256": "cbada037b3bc7126919e20aeee8160a39563cc35f999defd55ced091585e36ea",
+          "t_s": 0.4950973060090539,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 4078,
+                "k": 0,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.0009041715332984823,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "cbada037b3bc7126919e20aeee8160a39563cc35f999defd55ced091585e36ea"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 4078,
+                "k": 1306,
+                "rate": 0.3202550269740069,
+                "ci_low": 0.3059453046639004,
+                "ci_high": 0.3348226872076538,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 4078,
+                "k": 1306,
+                "rate": 0.3202550269740069,
+                "ci_low": 0.3059453046639004,
+                "ci_high": 0.3348226872076538,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "cbada037b3bc7126919e20aeee8160a39563cc35f999defd55ced091585e36ea"
+            },
+            "h2": {
+              "detection": {
+                "n": 4078,
+                "k": 899,
+                "rate": 0.22045120156939677,
+                "ci_low": 0.2078090177324106,
+                "ci_high": 0.23349510365637216,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "cbada037b3bc7126919e20aeee8160a39563cc35f999defd55ced091585e36ea"
+            }
+          }
+        },
+        "loco_crack_4.0.pt": {
+          "model_name": "loco_crack_4.0.pt",
+          "model_sha256": "c1d6890dfb54aedc6df3ca7270fe01ba407519af2fd17e5857eed08b1a366421",
+          "t_s": 0.4950907600743878,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 4078,
+                "k": 671,
+                "rate": 0.16454144188327613,
+                "ci_low": 0.1532826643126528,
+                "ci_high": 0.17628299169102554,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "c1d6890dfb54aedc6df3ca7270fe01ba407519af2fd17e5857eed08b1a366421"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 4078,
+                "k": 1306,
+                "rate": 0.3202550269740069,
+                "ci_low": 0.3059453046639004,
+                "ci_high": 0.3348226872076538,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 4078,
+                "k": 1610,
+                "rate": 0.39480137322216774,
+                "ci_low": 0.3797561651839312,
+                "ci_high": 0.40999746715835206,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "c1d6890dfb54aedc6df3ca7270fe01ba407519af2fd17e5857eed08b1a366421"
+            },
+            "h2": {
+              "detection": {
+                "n": 4078,
+                "k": 2272,
+                "rate": 0.5571358509073076,
+                "ci_low": 0.5417314011646117,
+                "ci_high": 0.5724583648504545,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "c1d6890dfb54aedc6df3ca7270fe01ba407519af2fd17e5857eed08b1a366421"
+            }
+          }
+        }
+      },
+      "summary_3seeds": {
+        "supervised": {
+          "mean_detection_rate": 0.09457250286087952,
+          "min_detection_rate": 0.0,
+          "max_detection_rate": 0.16454144188327613,
+          "mean_false_call_rate": 0.0,
+          "min_false_call_rate": 0.0,
+          "max_false_call_rate": 0.0
+        },
+        "anomaly": {
+          "mean_detection_rate": 0.3202550269740069,
+          "min_detection_rate": 0.3202550269740069,
+          "max_detection_rate": 0.3202550269740069,
+          "mean_false_call_rate": 0.017994858611825194,
+          "min_false_call_rate": 0.017994858611825194,
+          "max_false_call_rate": 0.017994858611825194
+        },
+        "h1": {
+          "mean_detection_rate": 0.3618603890796142,
+          "min_detection_rate": 0.3202550269740069,
+          "max_detection_rate": 0.39480137322216774,
+          "mean_false_call_rate": 0.017994858611825194,
+          "min_false_call_rate": 0.017994858611825194,
+          "max_false_call_rate": 0.017994858611825194
+        },
+        "h2": {
+          "mean_detection_rate": 0.4385319601111655,
+          "min_detection_rate": 0.22045120156939677,
+          "max_detection_rate": 0.5571358509073076,
+          "mean_false_call_rate": 0.008997429305912597,
+          "min_false_call_rate": 0.008997429305912597,
+          "max_false_call_rate": 0.008997429305912597
+        }
+      }
+    },
+    "crack_8.6": {
+      "held_out": "crack_8.6",
+      "models": {
+        "loco_crack_8.6_seed0.pt": {
+          "model_name": "loco_crack_8.6_seed0.pt",
+          "model_sha256": "7285c522ffcc0e169a9dceec9baf2c1b4153803dc995b06c05a889619c96c31e",
+          "t_s": 0.49517553940707076,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "7285c522ffcc0e169a9dceec9baf2c1b4153803dc995b06c05a889619c96c31e"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "7285c522ffcc0e169a9dceec9baf2c1b4153803dc995b06c05a889619c96c31e"
+            },
+            "h2": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "7285c522ffcc0e169a9dceec9baf2c1b4153803dc995b06c05a889619c96c31e"
+            }
+          }
+        },
+        "loco_crack_8.6_seed1.pt": {
+          "model_name": "loco_crack_8.6_seed1.pt",
+          "model_sha256": "a9931327e1223927252e68c0a4969062ec52661ae15117d9a47e070520fceda8",
+          "t_s": 0.4953450803569351,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "a9931327e1223927252e68c0a4969062ec52661ae15117d9a47e070520fceda8"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "a9931327e1223927252e68c0a4969062ec52661ae15117d9a47e070520fceda8"
+            },
+            "h2": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "a9931327e1223927252e68c0a4969062ec52661ae15117d9a47e070520fceda8"
+            }
+          }
+        },
+        "loco_crack_8.6_seed2.pt": {
+          "model_name": "loco_crack_8.6_seed2.pt",
+          "model_sha256": "7b56f64f6e0e697b5eae164733701fef04f8861bc50665d489ba499778f7844f",
+          "t_s": 0.4951903401649972,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "7b56f64f6e0e697b5eae164733701fef04f8861bc50665d489ba499778f7844f"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "7b56f64f6e0e697b5eae164733701fef04f8861bc50665d489ba499778f7844f"
+            },
+            "h2": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "7b56f64f6e0e697b5eae164733701fef04f8861bc50665d489ba499778f7844f"
+            }
+          }
+        },
+        "loco_crack_8.6.pt": {
+          "model_name": "loco_crack_8.6.pt",
+          "model_sha256": "f9ead463bb31fe613d150b3b32999eaed60bf7a77272d9c456eefd3dc2b3d32c",
+          "t_s": 0.4951903401649972,
+          "methods": {
+            "supervised": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.0,
+                "n_false": 0,
+                "n_scans": 778
+              },
+              "model_sha256": "f9ead463bb31fe613d150b3b32999eaed60bf7a77272d9c456eefd3dc2b3d32c"
+            },
+            "anomaly": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b"
+            },
+            "h1": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.017994858611825194,
+                "n_false": 14,
+                "n_scans": 778
+              },
+              "model_sha256": "f9ead463bb31fe613d150b3b32999eaed60bf7a77272d9c456eefd3dc2b3d32c"
+            },
+            "h2": {
+              "detection": {
+                "n": 3925,
+                "k": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0,
+                "method": "Clopper-Pearson two-sided 95"
+              },
+              "false_calls": {
+                "rate": 0.008997429305912597,
+                "n_false": 7,
+                "n_scans": 778
+              },
+              "model_sha256": "f9ead463bb31fe613d150b3b32999eaed60bf7a77272d9c456eefd3dc2b3d32c"
+            }
+          }
+        }
+      },
+      "summary_3seeds": {
+        "supervised": {
+          "mean_detection_rate": 1.0,
+          "min_detection_rate": 1.0,
+          "max_detection_rate": 1.0,
+          "mean_false_call_rate": 0.0,
+          "min_false_call_rate": 0.0,
+          "max_false_call_rate": 0.0
+        },
+        "anomaly": {
+          "mean_detection_rate": 1.0,
+          "min_detection_rate": 1.0,
+          "max_detection_rate": 1.0,
+          "mean_false_call_rate": 0.017994858611825194,
+          "min_false_call_rate": 0.017994858611825194,
+          "max_false_call_rate": 0.017994858611825194
+        },
+        "h1": {
+          "mean_detection_rate": 1.0,
+          "min_detection_rate": 1.0,
+          "max_detection_rate": 1.0,
+          "mean_false_call_rate": 0.017994858611825194,
+          "min_false_call_rate": 0.017994858611825194,
+          "max_false_call_rate": 0.017994858611825194
+        },
+        "h2": {
+          "mean_detection_rate": 1.0,
+          "min_detection_rate": 1.0,
+          "max_detection_rate": 1.0,
+          "mean_false_call_rate": 0.008997429305912597,
+          "min_false_call_rate": 0.008997429305912597,
+          "max_false_call_rate": 0.008997429305912597
+        }
+      }
+    }
+  }
+}
