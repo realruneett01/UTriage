@@ -62,7 +62,7 @@ datasets:
   - name: "Zenodo-Pipe-Lens-PAUT"
     url: "https://zenodo.org/records/15692966"
     doi: "10.5281/zenodo.15692966"
-    licence: "CC BY 4.0"
+    licence: "MIT"  # corrected 2026-10-27: Zenodo API license id mit-license
     licence_source_url: "https://zenodo.org/records/15692966"
     material: "steel (pipe)"
     technique: "immersion"
@@ -73,8 +73,8 @@ datasets:
     label_type: "machined 1.5 mm flaw locations and ground-truth remaining wall thicknesses"
     size_on_disk: "18.52 GB"
     download_status: "not_downloaded"
-    relevance: 3
-    relevance_reason: "Immersion inspection of 140 mm submerged steel pipe using ultrasonic phased array and acoustic lens; features machined thickness-loss flaws."
+    relevance: 2
+    relevance_reason: "Immersion inspection of 140 mm submerged steel pipe using ultrasonic phased array and acoustic lens; features machined thickness-loss flaws (pitting-corrosion proxy, not cracks or inclusions; 19.4 GB, not downloaded)."
     decision: "accept"
     reject_reason: null
     accessed: 2026-10-27
