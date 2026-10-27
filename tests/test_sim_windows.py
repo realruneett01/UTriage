@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,6 +25,7 @@ from utriage.ml.sim_windows import (  # noqa: E402
     build_artefact_stress,
     build_region_test,
     build_train,
+    region_test_seed,
     sample_artefact_params,
     sample_region_params,
     sample_train_params,
@@ -151,3 +154,65 @@ def test_json_writer_tiny_run_with_stub_model(
     with out_file.open(encoding="utf-8") as fh:
         data = json.load(fh)
     _assert_json_payload_valid(data)
+
+
+def test_region_test_seed_stable_across_hash_seeds() -> None:
+    """Seed helper produces identical seeds regardless of PYTHONHASHSEED."""
+    cmd = [
+        sys.executable,
+        "-c",
+        (
+            "import sys; "
+            f"sys.path.insert(0, {repr(_SRC)}); "
+            "from utriage.ml.sim_windows import region_test_seed; "
+            "print(region_test_seed(42, 'freq_10mhz'))"
+        ),
+    ]
+    env1 = dict(os.environ, PYTHONHASHSEED="0")
+    env2 = dict(os.environ, PYTHONHASHSEED="99999")
+    out1 = subprocess.check_output(cmd, env=env1, text=True).strip()  # noqa: S603 - fixed argv, no shell
+    out2 = subprocess.check_output(cmd, env=env2, text=True).strip()  # noqa: S603 - fixed argv, no shell
+    assert out1 == out2
+    assert int(out1) != 42
+
+
+@pytest.mark.parametrize("region", DEFAULT_HOLDOUT_REGIONS, ids=lambda r: r.name)
+def test_region_test_seeds_differ_from_training_seed(
+    region: Region,
+    tiny_settings: SimGenSettings,
+) -> None:
+    """Region test seeds are strictly distinct from the training seed."""
+    train_seed = tiny_settings.seed
+    test_seed = region_test_seed(train_seed, region)
+    assert test_seed != train_seed
+    assert 1 <= (test_seed - train_seed) <= 9999
+
+
+@pytest.mark.parametrize(
+    ("missing_rules", "missing_ml", "missing_union"),
+    [
+        (True, False, False),
+        (False, True, False),
+        (False, False, True),
+    ],
+)
+def test_matrix_union_missing_false_calls(
+    missing_rules: bool,
+    missing_ml: bool,
+    missing_union: bool,
+) -> None:
+    """_eval_sim_union_prop reports unavailable when any cell lacks false_calls."""
+    from utriage.report.matrix import _eval_sim_union_prop
+
+    def _make_cell(has_fc: bool) -> dict[str, Any]:
+        c: dict[str, Any] = {"detection": {"k": 5}}
+        if has_fc:
+            c["false_calls"] = {"n_false": 0}
+        return c
+
+    res = _eval_sim_union_prop(
+        _make_cell(not missing_rules),
+        _make_cell(not missing_ml),
+        _make_cell(not missing_union),
+    )
+    assert res == {"available": False, "reason": "missing false_calls"}

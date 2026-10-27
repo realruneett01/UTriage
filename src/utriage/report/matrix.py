@@ -276,11 +276,11 @@ def _eval_sim_union_prop(
     rules_c: dict[str, Any], ml_c: dict[str, Any], u_c: dict[str, Any]
 ) -> dict[str, Any]:
     """Check union detection monotonicity: union >= max(rules, ml)."""
-    any_unavail = any(
-        c.get("available") is False or "detection" not in c for c in (rules_c, ml_c, u_c)
-    )
-    if any_unavail:
+    cells = (rules_c, ml_c, u_c)
+    if any(c.get("available") is False or "detection" not in c for c in cells):
         return {"available": False, "reason": "Component models unavailable"}
+    if any("false_calls" not in c for c in cells):
+        return {"available": False, "reason": "missing false_calls"}
     r_k, ml_k, u_k = (
         rules_c["detection"]["k"],
         ml_c["detection"]["k"],

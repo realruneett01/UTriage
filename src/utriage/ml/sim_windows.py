@@ -5,6 +5,7 @@ Synthetic data.
 
 from __future__ import annotations
 
+import zlib
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Any
@@ -155,13 +156,21 @@ def build_train(
     return windows_from_params(params, cfg, rng)
 
 
+def region_test_seed(seed: int | SimGenSettings, region: Region | str) -> int:
+    """Derive deterministic test seed for a held-out region."""
+    base_seed = seed.seed if isinstance(seed, SimGenSettings) else seed
+    name = region.name if isinstance(region, Region) else str(region)
+    offset = 1 + (zlib.crc32(name.encode()) % 9999)
+    return base_seed + offset
+
+
 def build_region_test(
     settings: SimGenSettings,
     region: Region,
     wcfg: WindowConfig | None = None,
 ) -> WindowSet:
     """Sample parameters in specified held-out region and generate WindowSet."""
-    rng = np.random.default_rng(settings.seed + abs(hash(region.name)) % 10000)
+    rng = np.random.default_rng(region_test_seed(settings.seed, region))
     params = sample_region_params(settings, region, rng)
     cfg = wcfg if wcfg is not None else WindowConfig(patch=False, seed=settings.seed)
     return windows_from_params(params, cfg, rng)
