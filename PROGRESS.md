@@ -90,12 +90,25 @@
 - Strathclyde FMC download blocked (HTTP 403) so the TFM imager is only tested on simulated FMC.
 - Step 3.1 joint sim+real training not done (1D bar windows vs 2D weld images).
 - Step 3.3 self-supervised pretraining not attempted.
-- LOCO early stopping is batch-held-out not crack-held-out.
+- LOCO early stopping is batch-held-out not crack-held-out (addressed by crack-held-out mode).
 - Cross-dataset mapping is an assumption.
 - All simulator constants UNVERIFIED.
 - Latency measured on the development machine CPU, not the target i5.
 - Held-out detection unstable across training runs.
-- results/failures adds about 68 MB of evidence files to the repo.
+- results/failures adds about 68 MB of evidence files to the repo (fixed: reduced to 7.3 MB).
+
+## Post-Phase 8 gap fixes (branch gaps-p8, 2026-10-27)
+- main branch created at the phase-8 tip;
+- crack-held-out LOCO results (copy from `results/loco_crackval_metrics.json`, `experiments/run_loco.py --val-mode crack`):
+  - crack_1.6 (val crack_4.0): detection 4012/4014 (rate 0.9995), false calls 753/778 (rate 0.9679, upper95 0.9776), a50=0.795, a90=0.849, a90_95=0.953 mm.
+  - crack_4.0 (val crack_8.6): detection 2449/4078 (rate 0.6005), false calls 0/778 (rate 0.0, upper95 0.0038), a50=2.951, a90=3.284, a90_95=3.306 mm.
+  - crack_8.6 (val crack_1.6): detection 3925/3925 (rate 1.0), false calls 11/778 (rate 0.0141, upper95 0.0233), separable data with Clopper-Pearson lower bound 0.9992 (a90_95 null).
+- failure analysis corrected (false calls only at threshold, 0 per fold; near-miss clean images listed separately; 7.3 MB instead of 68 MB - `results/failure_modes.md`);
+- Strathclyde still blocked (DOI route login/challenge page, file route HTTP 403 - request access from the data owner);
+- security fixes: safe output names and size cap in workflow, explicit weights_only model loading, zip-slip guard in the downloader, tamper-evident audit log anchor, honest downloader User-Agent;
+- docs: README sections, pitch and demo script corrected;
+- app page 7 Evidence and limits;
+- cli.py health stays 9.65 (Typer options).
 
 ## Remaining (owner only)
 - ADR 0007 (Nuitka offline build) is Proposed: approve or reject before a release build.

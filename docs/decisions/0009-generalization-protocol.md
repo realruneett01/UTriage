@@ -58,3 +58,14 @@ The following items from `docs/phase8-spec.md` were not implemented:
 - **Model memorization documented**: Supervised models exhibit memorization of known cracks, as detailed in `results/fit_diagnostics.json`.
 - **Cross-dataset domain gap**: Cross-dataset transfer to independent real test data failed under the documented feature mapping (`results/cross_dataset_metrics.json`), demonstrating that domain adaptation across differing UT inspection modalities remains unsolved.
 - **Safety architecture maintained**: The rules engine remains the primary baseline authority, with ML acting solely in an advisory capacity.
+
+## Update (2026-10-27): Crack-Held-Out Early-Stopping Mode
+
+A crack-held-out early-stopping mode now exists (`experiments/run_loco.py --val-mode crack`, `results/loco_crackval_metrics.json`). In this mode, early stopping validates on the second remaining crack rather than a held-out batch of the training crack:
+
+- **Fold crack_1.6** (val crack_4.0): detection 4012/4014 (rate 0.9995), false calls 753/778 (rate 0.9679, upper95 0.9776), a90/95 = 0.953 mm.
+- **Fold crack_4.0** (val crack_8.6): detection 2449/4078 (rate 0.6005), false calls 0/778 (rate 0.0, upper95 0.0038), a90/95 = 3.306 mm.
+- **Fold crack_8.6** (val crack_1.6): detection 3925/3925 (rate 1.0), false calls 11/778 (rate 0.0141, upper95 0.0233), separable data with Clopper-Pearson lower bound 0.9992 (a90/95 null).
+
+Per-fold outcomes show that results swing strongly with the choice of early-stopping crack: crack_1.6 achieves high detection (4012/4014) but false calls rise sharply to 753/778, whereas crack_4.0 detection drops to 2449/4078 with 0/778 false calls, and crack_8.6 achieves 3925/3925 detection with 11/778 false calls. Batch mode stays the default for comparability.
+
