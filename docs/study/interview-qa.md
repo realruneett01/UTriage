@@ -76,3 +76,35 @@ Answer:
 
 25. Why does UTriage strictly omit any automated part release or acceptance functionality within its code, user interface, and generated reports?
 Answer:
+
+## Phase 8 - generalization (answer these yourself)
+
+1. Why does a naive random split across scan slices or extracted patches cause severe data leakage when multiple training and test examples originate from the same physical crack specimen?
+Answer:
+
+2. What shared background characteristics, such as transducer coupling variations, plate geometry echoes, or specimen grain structure, allow a model to memorize a specific specimen rather than learning general flaw acoustics?
+Answer:
+
+3. How does a leave-one-crack-out evaluation protocol isolate specimen memorization, and why is holding out an entire physical flaw required to establish an honest detection rate?
+Answer:
+
+4. What are the statistical limitations of leave-one-crack-out validation when the total pool of physical flaw specimens is small, and why does this prevent rigorous estimation of probability of detection curves?
+Answer:
+
+5. Why do ultrasonic classifiers trained to high nominal accuracy on a single laboratory dataset often suffer complete performance collapse when evaluated on external scans from different inspection systems?
+Answer:
+
+6. What differences in inspection hardware, center frequency, digitizer sampling rate, and probe beam profiles must be harmonized before an external cross-dataset test can be considered meaningful?
+Answer:
+
+7. Which physical acoustic phenomena, such as probe inclination, surface roughness, grain anisotropy, and couplant layer variations, are commonly omitted in synthetic simulators and cause synthetic-trained models to fail on plant scans?
+Answer:
+
+8. How do transient inspection artefacts, such as water path turbulence or front-wall aeration bubbles, trigger false calls in an anomaly detector trained solely on flaw-free reference scans?
+Answer:
+
+9. How should an inspector set the reconstruction error threshold for an unflawed-baseline model to guarantee an acceptable false-call rate without masking subtle, low-amplitude flaw indications?
+Answer:
+
+10. How do expected calibration error and reliability diagrams reveal overconfidence in ultrasonic indication triage, and why is an uncalibrated output probability dangerous when setting review thresholds?
+Answer:
