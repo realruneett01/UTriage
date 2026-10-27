@@ -1,0 +1,200 @@
+{
+  "label": "Real data (ML-NDT)",
+  "protocol": "Leave-one-crack-out (LOCO) cross-validation with crack-held-out validation. Train on 1 remaining crack and non-holdout unflawed, validation on held-out validation crack and official validation unflawed, test on held-out test crack and holdout-batch unflawed only.",
+  "run_note": "GPU training is not bit-reproducible; re-training changes the weights and the held-out results - always cite the sha256.",
+  "folds": [
+    {
+      "held_out": "crack_1.6",
+      "n_train": 10562,
+      "n_val": 4200,
+      "n_test_flawed": 4014,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 4012,
+        "n_flawed": 4014,
+        "rate": 0.9995017438963627
+      },
+      "false_calls": {
+        "n_false": 753,
+        "n_unflawed": 778,
+        "rate": 0.967866323907455,
+        "upper95": 0.9775618179301747
+      },
+      "pod": {
+        "beta0": 7.666337662919783,
+        "beta1": 33.422329897171736,
+        "cov": [
+          [
+            2.78564113603016,
+            34.69489569852186
+          ],
+          [
+            34.69489569852186,
+            527.3253600578515
+          ]
+        ],
+        "n": 4014,
+        "a50": 0.7950281826882434,
+        "a90": 0.8490505957011824,
+        "a90_95": 0.9534446410366902,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": 0.223768036706107,
+      "seconds": 296.62,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "model_sha256": "ae0801f0fb2d5e75294c285d0b97803eff26f53309325940dd64d89688e94e6b",
+      "model_mtime": "2026-10-27T12:54:11.161629+00:00",
+      "val_crack": "crack_4.0",
+      "val_crack_id": "crack_4.0",
+      "protocol_note": "Leave-one-crack-out (LOCO) cross-validation with crack-held-out validation. Train on 1 remaining crack and non-holdout unflawed, validation on held-out validation crack and official validation unflawed, test on held-out test crack and holdout-batch unflawed only."
+    },
+    {
+      "held_out": "crack_4.0",
+      "n_train": 10606,
+      "n_val": 4051,
+      "n_test_flawed": 4078,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 2449,
+        "n_flawed": 4078,
+        "rate": 0.6005394801373222
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "beta0": -22.282944356581506,
+        "beta1": 20.588489277047252,
+        "cov": [
+          [
+            0.5011460070723436,
+            -0.4561151878177726
+          ],
+          [
+            -0.4561151878177726,
+            0.41758492232493977
+          ]
+        ],
+        "n": 4078,
+        "a50": 2.9514633215609023,
+        "a90": 3.283868370231425,
+        "a90_95": 3.3056630606704416,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": 0.15804545463241454,
+      "seconds": 378.03,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "model_sha256": "9e8a76f751a72eb2205d21fdd7c9a8748a0d6dceb806ee77b4000341438fbf0b",
+      "model_mtime": "2026-10-27T13:00:33.278079+00:00",
+      "val_crack": "crack_8.6",
+      "val_crack_id": "crack_8.6",
+      "protocol_note": "Leave-one-crack-out (LOCO) cross-validation with crack-held-out validation. Train on 1 remaining crack and non-holdout unflawed, validation on held-out validation crack and official validation unflawed, test on held-out test crack and holdout-batch unflawed only."
+    },
+    {
+      "held_out": "crack_8.6",
+      "n_train": 10672,
+      "n_val": 4144,
+      "n_test_flawed": 3925,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 3925,
+        "n_flawed": 3925,
+        "rate": 1.0
+      },
+      "false_calls": {
+        "n_false": 11,
+        "n_unflawed": 778,
+        "rate": 0.014138817480719794,
+        "upper95": 0.023294556016500576
+      },
+      "pod": {
+        "n_flawed": 3925,
+        "n_hit": 3925,
+        "min_size": 4.468533992767334,
+        "max_size": 8.599480628967285,
+        "size_p10": 4.866891479492188,
+        "size_p50": 6.515909671783447,
+        "pod_lower95": 0.9992370473051781,
+        "method": "binomial Clopper-Pearson one-sided 95",
+        "note": "POD lower bound over the whole tested size range, not a POD curve.",
+        "reason": "Data is separable: only hits or only misses present.",
+        "a90_95": null
+      },
+      "best_val_loss": 0.29048248173302205,
+      "seconds": 256.21,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "model_sha256": "b2ed5656608fc0dc3d697361cd569457a6ceb93e211bfe171e97445939497b76",
+      "model_mtime": "2026-10-27T13:04:53.488811+00:00",
+      "val_crack": "crack_1.6",
+      "val_crack_id": "crack_1.6",
+      "protocol_note": "Leave-one-crack-out (LOCO) cross-validation with crack-held-out validation. Train on 1 remaining crack and non-holdout unflawed, validation on held-out validation crack and official validation unflawed, test on held-out test crack and holdout-batch unflawed only."
+    }
+  ],
+  "official_validation": {
+    "flag": "leaky: validation shares all 3 physical cracks with training (see results/leakage_audit.json)",
+    "model_path": "models\\mlndt_best.pt",
+    "n_flawed": 111,
+    "n_unflawed": 89,
+    "detections": {
+      "n_hit": 111,
+      "n_flawed": 111,
+      "rate": 1.0
+    },
+    "false_calls": {
+      "n_false": 0,
+      "n_unflawed": 89,
+      "rate": 0.0,
+      "upper95": 0.03309972123627414
+    },
+    "pod": {
+      "n_flawed": 111,
+      "n_hit": 111,
+      "min_size": 0.9353771209716797,
+      "max_size": 8.50500774383545,
+      "size_p10": 1.1331126689910889,
+      "size_p50": 3.104783535003662,
+      "pod_lower95": 0.9733723583066243,
+      "method": "binomial Clopper-Pearson one-sided 95",
+      "note": "POD lower bound over the whole tested size range, not a POD curve.",
+      "reason": "Data is separable: only hits or only misses present.",
+      "a90_95": null
+    }
+  },
+  "part_a": {
+    "flag": "leaky: validation shares all 3 physical cracks with training (see results/leakage_audit.json)",
+    "model_path": "models\\mlndt_best.pt",
+    "n_flawed": 111,
+    "n_unflawed": 89,
+    "detections": {
+      "n_hit": 111,
+      "n_flawed": 111,
+      "rate": 1.0
+    },
+    "false_calls": {
+      "n_false": 0,
+      "n_unflawed": 89,
+      "rate": 0.0,
+      "upper95": 0.03309972123627414
+    },
+    "pod": {
+      "n_flawed": 111,
+      "n_hit": 111,
+      "min_size": 0.9353771209716797,
+      "max_size": 8.50500774383545,
+      "size_p10": 1.1331126689910889,
+      "size_p50": 3.104783535003662,
+      "pod_lower95": 0.9733723583066243,
+      "method": "binomial Clopper-Pearson one-sided 95",
+      "note": "POD lower bound over the whole tested size range, not a POD curve.",
+      "reason": "Data is separable: only hits or only misses present.",
+      "a90_95": null
+    }
+  },
+  "protocol_note": "Leave-one-crack-out (LOCO) cross-validation with crack-held-out validation. Train on 1 remaining crack and non-holdout unflawed, validation on held-out validation crack and official validation unflawed, test on held-out test crack and holdout-batch unflawed only.",
+  "val_mode": "crack"
+}
