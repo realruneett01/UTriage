@@ -75,24 +75,32 @@ def data_size_curve(
 
 
 def _evaluate_set(train_metric: float, heldout_val: float, rule: FitRule) -> dict[str, Any]:
-    """Compute gap and verdict for a single evaluation set."""
+    """Compute gap and verdicts for a single evaluation set."""
     gap = float(train_metric - heldout_val)
+    verdicts: list[str] = []
     if train_metric < rule.target_train_metric:
-        verdict = "underfitting"
-    elif gap > rule.max_gap:
-        verdict = "overfitting"
-    else:
-        verdict = "ok"
-    return {"heldout_metric": float(heldout_val), "gap": gap, "verdict": verdict}
+        verdicts.append("underfitting")
+    if gap > rule.max_gap:
+        verdicts.append("overfitting")
+    if not verdicts:
+        verdicts = ["ok"]
+    return {
+        "heldout_metric": float(heldout_val),
+        "gap": gap,
+        "verdict": "+".join(verdicts),
+        "verdicts": verdicts,
+    }
 
 
-def _worst_case_verdict(verdicts: list[str], default: str) -> str:
-    """Determine the worst-case verdict from evaluated sets."""
-    if any(v == "underfitting" for v in verdicts):
-        return "underfitting"
-    if any(v == "overfitting" for v in verdicts):
-        return "overfitting"
-    return default if not verdicts else "ok"
+def _union_verdicts(sets: dict[str, dict[str, Any]], default: list[str]) -> list[str]:
+    """Compute union of verdicts across evaluated sets."""
+    if not sets:
+        return default
+    combined: list[str] = []
+    for issue in ("underfitting", "overfitting"):
+        if any(issue in s.get("verdicts", []) for s in sets.values()):
+            combined.append(issue)
+    return combined if combined else ["ok"]
 
 
 def diagnose(
@@ -105,15 +113,13 @@ def diagnose(
     sets: dict[str, dict[str, Any]] = {
         name: _evaluate_set(tr, val, rule) for name, val in heldout_metrics.items()
     }
-    default = "underfitting" if tr < rule.target_train_metric else "ok"
-    verdict_list = [s["verdict"] for s in sets.values()]
-    overall = _worst_case_verdict(verdict_list, default=default)
+    default = ["underfitting"] if tr < rule.target_train_metric else ["ok"]
+    overall_verdicts = _union_verdicts(sets, default=default)
     return {
         "train_metric": tr,
         "sets": sets,
-        "evaluations": sets,
-        "verdict": overall,
-        "overall_verdict": overall,
+        "verdict": "+".join(overall_verdicts),
+        "verdicts": overall_verdicts,
         "rule": rule.rule_text,
     }
 

@@ -88,27 +88,27 @@ def test_data_size_curve_calls_run_in_order() -> None:
             0.70,
             {"val": 0.65},
             "underfitting",
-            {"val": {"gap": 0.05, "verdict": "underfitting"}},
+            {"val": {"gap": 0.05, "verdict": "underfitting", "verdicts": ["underfitting"]}},
         ),
         (
             0.92,
             {"val": 0.75},
             "overfitting",
-            {"val": {"gap": 0.17, "verdict": "overfitting"}},
+            {"val": {"gap": 0.17, "verdict": "overfitting", "verdicts": ["overfitting"]}},
         ),
         (
             0.92,
             {"val": 0.88},
             "ok",
-            {"val": {"gap": 0.04, "verdict": "ok"}},
+            {"val": {"gap": 0.04, "verdict": "ok", "verdicts": ["ok"]}},
         ),
         (
             0.92,
             {"val": 0.88, "loco": 0.70},
             "overfitting",
             {
-                "val": {"gap": 0.04, "verdict": "ok"},
-                "loco": {"gap": 0.22, "verdict": "overfitting"},
+                "val": {"gap": 0.04, "verdict": "ok", "verdicts": ["ok"]},
+                "loco": {"gap": 0.22, "verdict": "overfitting", "verdicts": ["overfitting"]},
             },
         ),
         (
@@ -123,6 +123,18 @@ def test_data_size_curve_calls_run_in_order() -> None:
             "ok",
             {},
         ),
+        (
+            0.70,
+            {"val": 0.55},
+            "underfitting+overfitting",
+            {
+                "val": {
+                    "gap": 0.15,
+                    "verdict": "underfitting+overfitting",
+                    "verdicts": ["underfitting", "overfitting"],
+                }
+            },
+        ),
     ],
 )
 def test_diagnose_cases(
@@ -136,12 +148,15 @@ def test_diagnose_cases(
     diag = diagnose(train_metric, heldout_metrics, rule)
 
     assert diag["verdict"] == expected_verdict
-    assert diag["overall_verdict"] == expected_verdict
+    assert diag["verdicts"] == expected_verdict.split("+")
+    assert "evaluations" not in diag
+    assert "overall_verdict" not in diag
     assert "target" in diag["rule"].lower() or "underfitting" in diag["rule"].lower()
 
     for name, exp in expected_sets.items():
         assert diag["sets"][name]["gap"] == pytest.approx(exp["gap"])
         assert diag["sets"][name]["verdict"] == exp["verdict"]
+        assert diag["sets"][name]["verdicts"] == exp["verdicts"]
 
     serialized = json.dumps(diag)
     assert expected_verdict in serialized

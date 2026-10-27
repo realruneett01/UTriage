@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,7 @@ import torch.nn as nn  # noqa: E402
 
 from utriage.ml.bar_data import WindowSet  # noqa: E402
 from utriage.ml.bar_models import TrainerAdapter, WindowDataset, WindowNet  # noqa: E402
+from utriage.ml.datasets import list_batches  # noqa: E402
 from utriage.ml.diagnostics import (  # noqa: E402
     FitRule,
     data_size_curve,
@@ -38,6 +40,8 @@ from utriage.ml.diagnostics import (  # noqa: E402
     learning_curve,
     plot_learning_curve,
 )
+from utriage.ml.infer import load_model  # noqa: E402
+from utriage.ml.loco import IndexedMlNdtDataset, LocoFold, make_folds  # noqa: E402
 from utriage.ml.sim_windows import (  # noqa: E402
     SimGenSettings,
     build_in_distribution_test,
@@ -63,11 +67,22 @@ class FitDiagnosticsConfig:
     anomaly_metrics_path: Path = Path("results/anomaly_metrics.json")
     out_json: Path = Path("results/fit_diagnostics.json")
     figures_dir: Path = Path("results/figures")
+    models_dir: Path = Path("models")
     fractions: tuple[float, ...] = (0.10, 0.25, 0.50, 1.0)
     epochs: int = 10
     quick: bool = False
     device: str = "auto"
     seed: int = 42
+
+
+@dataclass(frozen=True)
+class LocoEvalContext:
+    """Execution context for LOCO fold scoring."""
+
+    models_dir: Path = Path("models")
+    device: str = "auto"
+    seed: int = 42
+    max_samples: int = 2000
 
 
 @dataclass(frozen=True)
@@ -149,14 +164,19 @@ def extract_loco_learning_curves(path: Path) -> dict[str, Any]:
 
 def _extract_anomaly_model_curve(sub: dict[str, Any], key: str) -> dict[str, Any]:
     """Extract single model curve or reason for missing validation history."""
-    lc = sub.get("learning_curve")
+    lc = sub.get("learning_curve") or sub.get("history")
     if isinstance(lc, dict) and lc.get("val_loss"):
         return {"available": True, "curve": lc}
     if isinstance(lc, list) and lc and isinstance(lc[0], dict) and "val_loss" in lc[0]:
         return {"available": True, "curve": learning_curve(lc)}
+    null_desc = (
+        "key 'learning_curve' is null"
+        if sub.get("learning_curve") is None
+        else "no validation loss history"
+    )
     return {
         "available": False,
-        "reason": f"Anomaly {key} model has no validation loss history",
+        "reason": f"Anomaly {key} model has {null_desc}",
     }
 
 
@@ -169,8 +189,107 @@ def extract_anomaly_learning_curves(path: Path) -> dict[str, Any]:
         key: _extract_anomaly_model_curve(data.get(key, {}), key) for key in ("real", "synthetic")
     }
     available = any(m.get("available") is True for m in models.values())
-    reason = None if available else "Anomaly models do not record validation loss history"
+    reason = (
+        None
+        if available
+        else "Anomaly models do not record validation loss history (learning_curve is null)"
+    )
     return {"available": available, "models": models, "reason": reason}
+
+
+def _repo_parent_root() -> Path | None:
+    """Locate root directory of parent repository across worktrees."""
+    try:
+        cmd = ["git", "rev-parse", "--git-common-dir"]
+        common = subprocess.check_output(  # noqa: S603
+            cmd, text=True, stderr=subprocess.DEVNULL
+        ).strip()
+        return Path(common).resolve().parent
+    except (subprocess.SubprocessError, OSError):
+        # Fall back if git directory inspection fails
+        return None
+
+
+def _find_loco_model_path(held_out: str, models_dir: Path | None = None) -> Path | None:
+    """Locate loco checkpoint in local models_dir or parent repository."""
+    m_dir = models_dir if models_dir is not None else Path("models")
+    clean = held_out if held_out.startswith("crack_") else held_out.replace("loco_", "")
+    filename = f"loco_{clean}.pt"
+    local_p = m_dir / filename
+    if local_p.exists():
+        return local_p
+    parent = _repo_parent_root()
+    if parent is not None:
+        cand = parent / "models" / filename
+        if cand.exists():
+            return cand
+    return None
+
+
+def _rebuild_loco_folds() -> dict[str, LocoFold] | None:
+    """Rebuild LOCO folds from ML-NDT dataset exactly as run_loco does."""
+    try:
+        tr_batches = list_batches("training")
+        val_batches = list_batches("validation")
+        if not tr_batches:
+            return None
+        folds = make_folds(tr_batches, val_batches, seed=0)
+        return {f.held_out: f for f in folds}
+    except (OSError, ValueError, RuntimeError):
+        # Narrow reason: ML-NDT dataset missing or unreadable
+        return None
+
+
+def _sample_flawed_train_items(
+    fold: LocoFold, max_samples: int = 2000, seed: int = 42
+) -> list[tuple[Path, int]]:
+    """Sample up to max_samples flawed training images from fold with a seed."""
+    ds = IndexedMlNdtDataset(fold.train)
+    flaw_labels, eq_sizes = ds.get_labels()
+    flawed_mask = (flaw_labels == 1.0) & (eq_sizes > 0.0)
+    flawed_indices = np.where(flawed_mask)[0]
+    if len(flawed_indices) == 0:
+        return []
+    if len(flawed_indices) <= max_samples:
+        return [fold.train[i] for i in flawed_indices]
+    rng = np.random.default_rng(seed)
+    sampled_idx = rng.permutation(len(flawed_indices))[:max_samples]
+    return [fold.train[flawed_indices[i]] for i in sampled_idx]
+
+
+def _score_fold_train_sample(
+    model_path: Path,
+    sampled_items: list[tuple[Path, int]],
+    device: str = "auto",
+    threshold: float = 0.5,
+) -> float:
+    """Score flawed training images on GPU and return empirical detection rate."""
+    if not sampled_items:
+        return 0.0
+    dev = pick_device(device)
+    model, _ = load_model(model_path, device=str(dev))
+    model.eval()
+    ds = IndexedMlNdtDataset(sampled_items)
+    cfg = TrainConfig(batch_size=64, device=str(dev))
+    probs, _ = predict(model, ds, cfg)
+    hits = (probs >= threshold).astype(int)
+    return float(np.sum(hits) / len(sampled_items))
+
+
+def _compute_fold_train_metric(
+    held_out: str, fold: LocoFold | None, ctx: LocoEvalContext
+) -> tuple[float | None, int, str | None]:
+    """Score flawed training images of fold to obtain training detection rate."""
+    model_p = _find_loco_model_path(held_out, ctx.models_dir)
+    if model_p is None:
+        return None, 0, f"Model loco_{held_out}.pt not found"
+    if fold is None:
+        return None, 0, "Could not rebuild LOCO folds (ML-NDT data not available)"
+    flawed_samples = _sample_flawed_train_items(fold, max_samples=ctx.max_samples, seed=ctx.seed)
+    if not flawed_samples:
+        return None, 0, "No flawed training samples found in fold"
+    rate = _score_fold_train_sample(model_p, flawed_samples, device=ctx.device)
+    return rate, len(flawed_samples), None
 
 
 def _extract_train_detection_rate(fold_dict: dict[str, Any]) -> float | None:
@@ -185,26 +304,76 @@ def _extract_train_detection_rate(fold_dict: dict[str, Any]) -> float | None:
 
 
 def _diagnose_single_loco_fold(
-    f: dict[str, Any], rule: FitRule
+    f: dict[str, Any],
+    rule: FitRule,
+    fold: LocoFold | None = None,
+    ctx: LocoEvalContext | None = None,
 ) -> tuple[str, dict[str, Any], bool]:
-    """Diagnose single fold if train detection was recorded."""
+    """Diagnose single fold using recorded or computed train detection rate."""
+    eval_ctx = ctx or LocoEvalContext()
     name = str(f.get("held_out", "unknown"))
-    tr_det = _extract_train_detection_rate(f)
     det_info = f.get("detections")
     test_det = det_info.get("rate") if isinstance(det_info, dict) else None
-    if tr_det is not None and test_det is not None:
-        diag = diagnose(float(tr_det), {name: float(test_det)}, rule)
-        return name, {"available": True, "diagnosis": diag}, True
-    return name, {"available": False, "reason": "Fold training detection rate not recorded"}, False
+    if test_det is None:
+        return name, {"available": False, "reason": "Test detection rate not recorded"}, False
+
+    tr_det = _extract_train_detection_rate(f)
+    n_sampled = 0
+    seed = eval_ctx.seed
+    if tr_det is None:
+        tr_det, n_sampled, err = _compute_fold_train_metric(name, fold, eval_ctx)
+        if tr_det is None:
+            return name, {"available": False, "reason": err or "Train metric unavailable"}, False
+    elif isinstance(f.get("train_detection"), dict):
+        n_sampled = int(f["train_detection"].get("n_flawed", 0))
+
+    diag = diagnose(float(tr_det), {name: float(test_det)}, rule)
+    res = {
+        "available": True,
+        "train_detection_rate": float(tr_det),
+        "heldout_detection_rate": float(test_det),
+        "n_sampled": n_sampled,
+        "seed": seed,
+        "diagnosis": diag,
+    }
+    return name, res, True
 
 
-def diagnose_loco_folds(loco_data: dict[str, Any] | None, rule: FitRule) -> dict[str, Any]:
-    """Diagnose LOCO fold train-vs-test gap if training detection was recorded."""
+def _evaluate_all_loco_folds(
+    folds: list[dict[str, Any]],
+    rule: FitRule,
+    rebuilt_folds: dict[str, LocoFold] | None,
+    ctx: LocoEvalContext,
+) -> tuple[dict[str, Any], bool]:
+    """Evaluate each LOCO fold and track if any was recorded."""
+    fold_diags: dict[str, Any] = {}
+    any_recorded = False
+    for f in folds:
+        name = str(f.get("held_out", "unknown"))
+        rebuilt = rebuilt_folds.get(name) if rebuilt_folds else None
+        fname, res, recorded = _diagnose_single_loco_fold(f, rule, rebuilt, ctx)
+        fold_diags[fname] = res
+        if recorded:
+            any_recorded = True
+    return fold_diags, any_recorded
+
+
+def diagnose_loco_folds(
+    loco_data: dict[str, Any] | None,
+    rule: FitRule,
+    ctx: LocoEvalContext | None = None,
+) -> dict[str, Any]:
+    """Diagnose LOCO fold train-vs-test gap using computed or recorded train detection."""
+    note = (
+        "early stopping used the official validation images without the "
+        "held-out crack, i.e. batch-held-out, not crack-held-out."
+    )
     if not loco_data:
         return {
             "available": False,
             "reason": "results/loco_metrics.json not found",
             "rule": rule.rule_text,
+            "note": note,
         }
     folds = loco_data.get("folds", [])
     if not folds:
@@ -212,27 +381,18 @@ def diagnose_loco_folds(loco_data: dict[str, Any] | None, rule: FitRule) -> dict
             "available": False,
             "reason": "No folds recorded in loco_metrics",
             "rule": rule.rule_text,
+            "note": note,
         }
-    fold_diags: dict[str, Any] = {}
-    any_recorded = False
-    for f in folds:
-        name, res, recorded = _diagnose_single_loco_fold(f, rule)
-        fold_diags[name] = res
-        if recorded:
-            any_recorded = True
-    reason = (
-        None
-        if any_recorded
-        else (
-            "Fold training detection rate not recorded in loco_metrics.json "
-            "(only test detections recorded)"
-        )
-    )
+    eval_ctx = ctx or LocoEvalContext()
+    rebuilt = _rebuild_loco_folds()
+    fold_diags, any_rec = _evaluate_all_loco_folds(folds, rule, rebuilt, eval_ctx)
+    reason = None if any_rec else "Fold training detection rate could not be computed or found"
     return {
-        "available": any_recorded,
+        "available": any_rec,
         "reason": reason,
         "folds": fold_diags,
         "rule": rule.rule_text,
+        "note": note,
     }
 
 
@@ -448,6 +608,19 @@ def plot_data_size_curve(results: list[dict[str, Any]], out_path: Path) -> Path:
     return out_path
 
 
+def _plot_named_curves(curves_dict: dict[str, Any], figures_dir: Path, prefix: str) -> list[str]:
+    """Plot curves from a name-to-entry dictionary."""
+    paths: list[str] = []
+    for name, data in curves_dict.items():
+        if data.get("available") and "curve" in data:
+            fp = figures_dir / f"{prefix}_{name}.png"
+            title = f"{prefix.replace('_', ' ').title()} {name.title()}"
+            plot_learning_curve(data["curve"], fp, title)
+            data["figure"] = str(fp)
+            paths.append(str(fp))
+    return paths
+
+
 def _save_learning_figures(learning_curves: dict[str, Any], figures_dir: Path) -> list[str]:
     """Plot available learning curves and return generated file paths."""
     fig_paths: list[str] = []
@@ -458,14 +631,10 @@ def _save_learning_figures(learning_curves: dict[str, Any], figures_dir: Path) -
         ml_res["figure"] = str(p)
         fig_paths.append(str(p))
 
-    loco_res = learning_curves.get("loco", {})
-    if loco_res.get("available") and "folds" in loco_res:
-        for f_name, f_data in loco_res["folds"].items():
-            if f_data.get("available") and "curve" in f_data:
-                fp = figures_dir / f"fit_learning_curve_loco_{f_name}.png"
-                plot_learning_curve(f_data["curve"], fp, f"LOCO Fold {f_name}")
-                f_data["figure"] = str(fp)
-                fig_paths.append(str(fp))
+    loco_folds = learning_curves.get("loco", {}).get("folds", {})
+    fig_paths.extend(_plot_named_curves(loco_folds, figures_dir, "fit_learning_curve_loco"))
+    anom_models = learning_curves.get("anomaly", {}).get("models", {})
+    fig_paths.extend(_plot_named_curves(anom_models, figures_dir, "fit_learning_curve_anomaly"))
     return fig_paths
 
 
@@ -515,7 +684,12 @@ def run_fit_diagnostics(cfg: FitDiagnosticsConfig) -> dict[str, Any]:
     fig_paths.append(str(ds_fig))
 
     rule = FitRule(target_train_metric=0.9, max_gap=0.1)
-    loco_diag = diagnose_loco_folds(_load_json_if_exists(cfg.loco_metrics_path), rule)
+    loco_ctx = LocoEvalContext(
+        models_dir=cfg.models_dir,
+        device=cfg.device,
+        seed=cfg.seed,
+    )
+    loco_diag = diagnose_loco_folds(_load_json_if_exists(cfg.loco_metrics_path), rule, loco_ctx)
     mlndt_diag = diagnose_mlndt(_load_json_if_exists(cfg.mlndt_metrics_path), rule)
 
     payload = _assemble_payload(
@@ -534,6 +708,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--device", type=str, default="auto", help="Compute device ('auto', 'cuda', 'cpu')"
     )
+    parser.add_argument(
+        "--models-dir",
+        type=Path,
+        default=Path("models"),
+        help="Directory containing model checkpoints",
+    )
     parser.add_argument("--out-json", type=Path, default=Path("results/fit_diagnostics.json"))
     parser.add_argument("--figures-dir", type=Path, default=Path("results/figures"))
     return parser.parse_args()
@@ -546,6 +726,7 @@ def main() -> None:
         epochs=args.epochs,
         quick=args.quick,
         device=args.device,
+        models_dir=args.models_dir,
         out_json=args.out_json,
         figures_dir=args.figures_dir,
     )
