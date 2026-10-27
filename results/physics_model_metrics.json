@@ -1,5 +1,10 @@
 {
   "label": "Real data (ML-NDT)",
+  "run_label": "pre-registered",
+  "detector_config": {
+    "sha256": "1f8fe64b33391503e3cd1427cb112e56b9dd2b6b45436e111192a2a431661035",
+    "is_default": true
+  },
   "protocol": "Leave-one-crack-out (LOCO) cross-validation evaluating interpretable hand-crafted physics features with logistic regression (ADR 0010 H3). Features standardized with StandardScaler fitted on fold train set only; decision threshold at probability >= 0.5.",
   "feature_names": [
     "peak_amplitude",
