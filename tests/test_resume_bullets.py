@@ -67,121 +67,105 @@ def _make_fake_claims(*, include_cross: bool = True) -> list[dict[str, Any]]:
         {
             "id": "leakage",
             "text": (
-                "Physical crack separation verified across batches; "
-                "train and test share 0 physical cracks."
+                "The old random batch split shares all 3 physical cracks "
+                "between train and test, so earlier test scores are superseded."
             ),
             "evidence_file": "results/leakage_audit.json",
-            "evidence_path": "splits.test",
+            "evidence_path": "shared_cracks_train_test",
             "scope_limit": "public dataset",
-            "numbers": {"shared_cracks": 0.0},
+            "numbers": {"shared_cracks": 3.0},
         },
         {
             "id": "loco_crack_1.6",
             "text": (
-                "crack 1.6 mm: 19 of 4014 detected "
-                "(rate 0.005, 95% CI [0.003, 0.007]), a90/95 = 2.47 mm"
+                "Leave-one-crack-out crack_1.6: detection 19/4014 "
+                "(rate 0.005, 95% CI [0.003, 0.007]), false calls 0.02 per scan."
             ),
-            "evidence_file": "results/loco_metrics.json",
-            "evidence_path": "folds[0]",
+            "evidence_file": "results/generalization_matrix.json",
+            "evidence_path": "rows.supervised.mlndt_loco_crack_1.6",
             "scope_limit": "public dataset, leave-one-crack-out",
-            "numbers": {"rate": 0.005, "ci_low": 0.003, "ci_high": 0.007, "a90_95": 2.47},
+            "numbers": {"k": 19.0, "n": 4014.0, "rate": 0.005},
         },
         {
             "id": "loco_crack_4.0",
             "text": (
-                "crack 4.0 mm: 4078 of 4078 detected "
-                "(rate 1.000, 95% CI [0.999, 1.000]), a90/95 = 0.72 mm"
+                "Leave-one-crack-out crack_4.0: detection 4078/4078 "
+                "(rate 1.000, 95% CI [0.999, 1.000]), false calls 0.00 per scan."
             ),
-            "evidence_file": "results/loco_metrics.json",
-            "evidence_path": "folds[1]",
+            "evidence_file": "results/generalization_matrix.json",
+            "evidence_path": "rows.supervised.mlndt_loco_crack_4.0",
             "scope_limit": "public dataset, leave-one-crack-out",
-            "numbers": {"rate": 1.000, "ci_low": 0.999, "ci_high": 1.000, "a90_95": 0.72},
+            "numbers": {"k": 4078.0, "n": 4078.0, "rate": 1.000},
         },
         {
             "id": "loco_crack_8.6",
             "text": (
-                "crack 8.6 mm: 3925 of 3925 detected "
-                "(rate 1.000, 95% CI [0.999, 1.000]), a90/95 = 0.72 mm"
+                "Leave-one-crack-out crack_8.6: detection 3925/3925 "
+                "(rate 1.000, 95% CI [0.999, 1.000]), false calls 0.00 per scan."
             ),
-            "evidence_file": "results/loco_metrics.json",
-            "evidence_path": "folds[2]",
+            "evidence_file": "results/generalization_matrix.json",
+            "evidence_path": "rows.supervised.mlndt_loco_crack_8.6",
             "scope_limit": "public dataset, leave-one-crack-out",
-            "numbers": {"rate": 1.000, "ci_low": 0.999, "ci_high": 1.000, "a90_95": 0.72},
+            "numbers": {"k": 3925.0, "n": 3925.0, "rate": 1.000},
         },
         {
             "id": "anomaly_crack_1.6",
             "text": (
-                "crack 1.6 mm: 3649 of 4014 detected "
-                "(rate 0.909, 95% CI [0.900, 0.918]) with false-call rate 0.018"
+                "Anomaly model crack_1.6: detection 3649/4014 "
+                "(rate 0.909, 95% CI [0.900, 0.918]), false calls 0.018 per scan."
             ),
-            "evidence_file": "results/anomaly_metrics.json",
-            "evidence_path": "real.per_crack.crack_1.6",
+            "evidence_file": "results/generalization_matrix.json",
+            "evidence_path": "rows.anomaly.mlndt_loco_crack_1.6",
             "scope_limit": "public dataset, leave-one-crack-out",
-            "numbers": {"rate": 0.909, "ci_low": 0.900, "ci_high": 0.918, "fcr": 0.018},
+            "numbers": {"k": 3649.0, "n": 4014.0, "rate": 0.909, "false_call_rate": 0.018},
         },
         {
             "id": "anomaly_crack_4.0",
-            "text": "crack 4.0 mm: 4078 of 4078 detected (rate 1.000, 95% CI [0.999, 1.000])",
-            "evidence_file": "results/anomaly_metrics.json",
-            "evidence_path": "real.per_crack.crack_4.0",
+            "text": (
+                "Anomaly model crack_4.0: detection 4078/4078 "
+                "(rate 1.000, 95% CI [0.999, 1.000]), false calls 0.00 per scan."
+            ),
+            "evidence_file": "results/generalization_matrix.json",
+            "evidence_path": "rows.anomaly.mlndt_loco_crack_4.0",
             "scope_limit": "public dataset, leave-one-crack-out",
-            "numbers": {"rate": 1.000, "ci_low": 0.999, "ci_high": 1.000},
-        },
-        {
-            "id": "anomaly_crack_8.6",
-            "text": "crack 8.6 mm: 3925 of 3925 detected (rate 1.000, 95% CI [0.999, 1.000])",
-            "evidence_file": "results/anomaly_metrics.json",
-            "evidence_path": "real.per_crack.crack_8.6",
-            "scope_limit": "public dataset, leave-one-crack-out",
-            "numbers": {"rate": 1.000, "ci_low": 0.999, "ci_high": 1.000},
+            "numbers": {"k": 4078.0, "n": 4078.0, "rate": 1.000},
         },
         {
             "id": "sim_regions",
             "text": (
-                "Simulator held-out parameter regions: detection rate 0.772 "
-                "(95% CI [0.728, 0.813]) at matched false-call rate 0.029"
+                "Simulator held-out regions (ML vs rules): false calls "
+                "exceed 0.3 per window at unseen frequency and above-range noise."
             ),
-            "evidence_file": "results/sim_generalization.json",
-            "evidence_path": "test_sets.in_distribution",
+            "evidence_file": "results/generalization_matrix.json",
+            "evidence_path": "rows",
             "scope_limit": "simulated",
-            "numbers": {"rate": 0.772, "ci_low": 0.728, "ci_high": 0.813, "fcr": 0.029},
+            "numbers": {"threshold": 0.3},
         },
         {
             "id": "union_property",
             "text": (
-                "Rules union property holds across all indications: "
-                "ML layer can only add flags, never remove them"
+                "The union property holds across all columns with 0 violations "
+                "(ML adds flags, never removes a rules flag)."
             ),
             "evidence_file": "results/generalization_matrix.json",
             "evidence_path": "union_property",
-            "scope_limit": "independent prototype, advisory",
-            "numbers": {},
+            "scope_limit": "advisory",
+            "numbers": {"n_violations": 0.0},
         },
         {
             "id": "latency",
-            "text": "CPU inference latency: median 14.2 ms, p95 21.0 ms across 500 scans",
+            "text": "CPU latency on development CPU: median 14.2 ms, p95 21.0 ms.",
             "evidence_file": "results/hardware.json",
             "evidence_path": "cpu_latency_ms.mlndt",
-            "scope_limit": "independent prototype, advisory",
-            "numbers": {"median_ms": 14.2, "p95_ms": 21.0, "n": 500.0},
-        },
-        {
-            "id": "evidence_limit",
-            "text": "Evidence base bounded by 3 distinct physical cracks in public research data",
-            "evidence_file": "results/data_inventory.md",
-            "evidence_path": "summary",
-            "scope_limit": "public dataset",
-            "numbers": {"distinct_cracks": 3.0},
+            "scope_limit": "advisory",
+            "numbers": {"median_ms": 14.2, "p95_ms": 21.0},
         },
     ]
     if include_cross:
         claims.append(
             {
                 "id": "cross_dataset",
-                "text": (
-                    "Cross-dataset test on external austenitic weld: "
-                    "0 false calls across unflawed specimens"
-                ),
+                "text": "Cross-dataset evaluation: 0 false calls across unflawed specimens.",
                 "evidence_file": "results/cross_dataset_metrics.json",
                 "evidence_path": "summary",
                 "scope_limit": "cross-dataset",
@@ -202,15 +186,36 @@ def _number_in_claims(num_str: str, claims: list[dict[str, Any]]) -> bool:
     return False
 
 
-def test_bullet_count_and_framing(tmp_path: Path) -> None:
-    """Verify build_bullets returns 4-6 bullets with framing bullet first."""
+def test_bullet_word_limit_and_sentence(tmp_path: Path) -> None:
+    """Verify each bullet is at most 40 words and forms a single sentence."""
     claims = _make_fake_claims(include_cross=True)
     _write_claims(tmp_path / "claims.json", claims)
     bullets = build_bullets(tmp_path)
-    assert 4 <= len(bullets) <= 6
-    assert bullets[0].startswith("Independent prototype: advisory, offline triage")
-    assert "ML can only add flags to the rules engine" in bullets[0]
-    assert bullets[0].endswith("(independent prototype, advisory).")
+    assert 5 <= len(bullets) <= 6
+    for b in bullets:
+        words = b.split()
+        assert len(words) <= 40, f"Bullet exceeds 40 words ({len(words)}): {b}"
+        assert b.count(". ") == 0, f"Bullet contains multiple sentences: {b}"
+        assert b.endswith(")."), f"Bullet does not end with scope tag: {b}"
+
+
+def test_story_order_and_verbs(tmp_path: Path) -> None:
+    """Verify bullets follow story order with action verbs and scope tags."""
+    claims = _make_fake_claims(include_cross=True)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert len(bullets) == 6
+    expected = [
+        ("Built", "(advisory)."),
+        ("Audited", "(public dataset)."),
+        ("Detected", "(leave-one-crack-out)."),
+        ("Trained", "(leave-one-crack-out)."),
+        ("Observed", "(simulated)."),
+        ("Verified", "(advisory)."),
+    ]
+    for b, (verb, tag) in zip(bullets, expected, strict=True):
+        assert b.startswith(f"{verb} "), f"Expected verb {verb} in {b}"
+        assert b.endswith(tag), f"Expected tag {tag} in {b}"
 
 
 def test_every_number_in_claims(tmp_path: Path) -> None:
@@ -222,6 +227,34 @@ def test_every_number_in_claims(tmp_path: Path) -> None:
         numbers = re.findall(r"\b\d+(?:\.\d+)?\b", bullet)
         for num in numbers:
             assert _number_in_claims(num, claims), f"Number {num} in {bullet!r} not in claims"
+
+
+@pytest.mark.parametrize(
+    "missing_id",
+    [
+        "leakage",
+        "loco_crack_8.6",
+        "anomaly_crack_1.6",
+        "sim_regions",
+        "union_property",
+        "latency",
+    ],
+)
+def test_skipping_missing_claim(tmp_path: Path, missing_id: str) -> None:
+    """Verify skipping bullet when an underlying claim is missing."""
+    claims = [c for c in _make_fake_claims(include_cross=True) if c["id"] != missing_id]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert len(bullets) == 5
+
+
+def test_missing_cross_dataset_claim(tmp_path: Path) -> None:
+    """Verify omission of cross-dataset claim omits cross-dataset mention."""
+    claims = _make_fake_claims(include_cross=False)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert len(bullets) == 6
+    assert not any("cross-dataset" in b.lower() for b in bullets)
 
 
 def test_no_forbidden_phrases(tmp_path: Path) -> None:
@@ -249,7 +282,7 @@ def test_no_forbidden_phrases(tmp_path: Path) -> None:
 def test_forbidden_phrase_raises(tmp_path: Path, phrase: str) -> None:
     """Verify build_bullets raises ValueError if any bullet contains a forbidden phrase."""
     claims = _make_fake_claims()
-    claims[1]["text"] = f"Evaluation was {phrase} on real data"
+    claims[0]["text"] = f"Evaluation was {phrase} on real data"
     _write_claims(tmp_path / "claims.json", claims)
     with pytest.raises(ValueError, match="[Ff]orbidden"):
         build_bullets(tmp_path)
@@ -261,24 +294,6 @@ def test_missing_claims_json(tmp_path: Path) -> None:
         build_bullets(tmp_path)
 
 
-def test_missing_cross_dataset_claim(tmp_path: Path) -> None:
-    """Verify omission of cross-dataset claim results in no cross-dataset bullet."""
-    claims = _make_fake_claims(include_cross=False)
-    _write_claims(tmp_path / "claims.json", claims)
-    bullets = build_bullets(tmp_path)
-    assert len(bullets) == 5
-    assert not any("cross-dataset" in b.lower() for b in bullets)
-
-
-def test_all_bullets_have_scope_tags(tmp_path: Path) -> None:
-    """Verify every bullet ends with a short scope tag in parentheses."""
-    claims = _make_fake_claims(include_cross=True)
-    _write_claims(tmp_path / "claims.json", claims)
-    bullets = build_bullets(tmp_path)
-    for b in bullets:
-        assert re.search(r"\([^)]+\)\.$", b) is not None, f"Bullet lacks scope tag: {b}"
-
-
 def test_real_results() -> None:
     """Verify build_bullets succeeds on real repository results directory if present."""
     results_dir = Path(__file__).resolve().parents[1] / "results"
@@ -286,7 +301,7 @@ def test_real_results() -> None:
     if not claims_path.exists():
         pytest.skip(f"{claims_path} does not exist yet")
     bullets = build_bullets(results_dir)
-    assert 4 <= len(bullets) <= 6
+    assert 5 <= len(bullets) <= 6
     for bullet in bullets:
         assert bullet.endswith(").")
 
@@ -299,6 +314,6 @@ def test_main(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     main(["--results", str(tmp_path), "--output", str(out_file)])
     captured = capsys.readouterr()
     lines = [line for line in captured.out.splitlines() if line.startswith("- ")]
-    assert 4 <= len(lines) <= 6
+    assert len(lines) == 6
     assert out_file.exists()
     assert len(out_file.read_text(encoding="utf-8").splitlines()) == len(lines)
