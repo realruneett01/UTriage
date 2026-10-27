@@ -1,8 +1,9 @@
 """Phase 8 reproduction and pipeline orchestration (project plan Phase 8).
 
 Regenerates all Phase 8 experiments from scratch in sequence:
-audit -> LOCO -> anomaly -> sim generalization -> cross-dataset -> diagnostics ->
-failures -> hardware -> data inventory -> generalization matrix -> claims/resume bullets.
+audit -> LOCO -> anomaly -> sim generalization -> cross-dataset -> hybrid ->
+physics model -> false call analysis -> diagnostics -> failures -> hardware ->
+data inventory -> generalization matrix -> claims/resume bullets.
 """
 
 from __future__ import annotations
@@ -27,6 +28,9 @@ EXPERIMENT_SCRIPTS: tuple[str, ...] = (
     "experiments/run_anomaly.py",
     "experiments/run_sim_generalization.py",
     "experiments/run_cross_dataset.py",
+    "experiments/run_hybrid.py",
+    "experiments/run_physics_model.py",
+    "experiments/run_false_call_analysis.py",
     "experiments/run_fit_diagnostics.py",
     "experiments/run_failures.py",
     "experiments/run_hardware.py",
@@ -44,7 +48,21 @@ QUICK_CAPABLE: frozenset[str] = frozenset(
         "run_anomaly.py",
         "run_sim_generalization.py",
         "run_cross_dataset.py",
+        "run_hybrid.py",
+        "run_physics_model.py",
+        "run_false_call_analysis.py",
         "run_fit_diagnostics.py",
+        "run_failures.py",
+    }
+)
+
+CONFIG_CAPABLE: frozenset[str] = frozenset(
+    {
+        "run_loco.py",
+        "run_anomaly.py",
+        "run_hybrid.py",
+        "run_physics_model.py",
+        "run_false_call_analysis.py",
         "run_failures.py",
     }
 )
@@ -59,6 +77,8 @@ class Phase8Config:
     skip: tuple[str, ...] = ()
     results_dir: Path = Path("results")
     timeout_seconds: int = 1800
+    config: Path | None = None
+    set: tuple[str, ...] = ()
 
 
 def _is_skipped(script: str, skip_list: tuple[str, ...]) -> bool:
@@ -67,11 +87,22 @@ def _is_skipped(script: str, skip_list: tuple[str, ...]) -> bool:
     return any(s in (script, path.name, path.stem) for s in skip_list)
 
 
+def _append_config_args(cmd: list[str], cfg: Phase8Config) -> None:
+    """Append config and set override flags to command."""
+    if cfg.config is not None:
+        cmd.extend(["--config", str(cfg.config)])
+    for override in cfg.set or ():
+        cmd.extend(["--set", override])
+
+
 def _build_cmd(script: str, cfg: Phase8Config) -> list[str]:
-    """Form executable command line with optional --quick argument."""
+    """Form executable command line with optional arguments."""
     cmd = [sys.executable, script]
-    if cfg.quick and Path(script).name in QUICK_CAPABLE:
+    name = Path(script).name
+    if cfg.quick and name in QUICK_CAPABLE:
         cmd.append("--quick")
+    if name in CONFIG_CAPABLE:
+        _append_config_args(cmd, cfg)
     return cmd
 
 
@@ -79,6 +110,9 @@ def _run_single_script(script: str, cfg: Phase8Config) -> None:
     """Execute a single pipeline python script with subprocess."""
     if _is_skipped(script, cfg.skip):
         print(f"Skipping {script}", flush=True)
+        return
+    if not Path(script).is_file():
+        print(f"Skipping {script} (file does not exist yet)", flush=True)
         return
     cmd = _build_cmd(script, cfg)
     print(f"Running {' '.join(cmd)}...", flush=True)
@@ -148,6 +182,19 @@ def _add_cli_flags(parser: argparse.ArgumentParser) -> None:
         default=[],
         help="Skip specific script by name or stem (repeatable)",
     )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Path to detector config YAML",
+    )
+    parser.add_argument(
+        "--set",
+        dest="set",
+        action="append",
+        default=[],
+        help="Config override KEY=VALUE (repeatable)",
+    )
 
 
 def _build_cli_parser() -> argparse.ArgumentParser:
@@ -179,6 +226,8 @@ def parse_args(args: list[str] | None = None) -> Phase8Config:
         skip=tuple(parsed.skip),
         results_dir=parsed.results_dir,
         timeout_seconds=parsed.timeout,
+        config=parsed.config,
+        set=tuple(parsed.set) if parsed.set else (),
     )
 
 
