@@ -8,7 +8,7 @@ version = "0.0.1"
 description = "Advisory, offline triage of ultrasonic (UT) indications for aerospace bar inspection."
 readme = "project plan"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { file = "LICENSE" }
 dependencies = [
     "numpy",
     "scipy",
