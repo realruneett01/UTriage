@@ -127,61 +127,107 @@ def _partition_crack_flaws(
     return crack_flawed, all_flawed
 
 
-def prepare_real_splits(cfg: AnomalyConfig) -> RealSplits:
-    """Partition real ML-NDT data into flaw-free train, calibration, and test sets."""
+def _load_indexed_splits(
+    cfg: AnomalyConfig,
+) -> tuple[
+    list[tuple[Path, int, str | None]],
+    list[tuple[Path, int, str | None]],
+    list[tuple[Path, int, str | None]],
+]:
+    """Load image indices for non-holdout, holdout, and validation batches."""
     tr_batches = list_batches("training", root=cfg.root)
     val_batches = list_batches("validation", root=cfg.root)
     non_ho, ho = split_holdout(tr_batches, test_frac=0.1, seed=cfg.seed)
+    return image_index(non_ho), image_index(ho), image_index(val_batches)
 
-    non_ho_idx = image_index(non_ho)
-    ho_idx = image_index(ho)
-    val_idx = image_index(val_batches)
 
-    train_items = [(b, idx) for b, idx, c in non_ho_idx if c is None]
-    train_set = set(train_items)
-    flaw_in_train = sum(1 for b, idx, c in non_ho_idx if (b, idx) in train_set and c is not None)
+def _clean_items(indexed: list[tuple[Path, int, str | None]]) -> list[tuple[Path, int]]:
+    """Filter flaw-free items from indexed batches."""
+    return [(b, idx) for b, idx, c in indexed if c is None]
 
-    cal_items = [(b, idx) for b, idx, c in val_idx if c is None]
-    test_unflawed = [(b, idx) for b, idx, c in ho_idx if c is None]
+
+def _count_flaws_in_train(
+    indexed: list[tuple[Path, int, str | None]],
+    train_set: set[tuple[Path, int]],
+) -> int:
+    """Count flawed samples accidentally present in training partition."""
+    return sum(1 for b, idx, c in indexed if (b, idx) in train_set and c is not None)
+
+
+def _cap_items(
+    items: list[tuple[Path, int]],
+    limit: int,
+    quick: bool,
+) -> list[tuple[Path, int]]:
+    """Cap item list to limit when quick mode is active."""
+    return items[:limit] if quick else items
+
+
+def prepare_real_splits(cfg: AnomalyConfig) -> RealSplits:
+    """Partition real ML-NDT data into flaw-free train, calibration, and test sets."""
+    non_ho_idx, ho_idx, val_idx = _load_indexed_splits(cfg)
+    train_items = _clean_items(non_ho_idx)
+    flaw_count = _count_flaws_in_train(non_ho_idx, set(train_items))
+    cal_items = _clean_items(val_idx)
+    test_unflawed = _clean_items(ho_idx)
     crack_flawed, all_flawed = _partition_crack_flaws(non_ho_idx + ho_idx, cfg.quick)
 
     return RealSplits(
-        train_items=train_items[:64] if cfg.quick else train_items,
-        cal_items=cal_items[:32] if cfg.quick else cal_items,
-        test_unflawed_items=test_unflawed[:32] if cfg.quick else test_unflawed,
+        train_items=_cap_items(train_items, 64, cfg.quick),
+        cal_items=_cap_items(cal_items, 32, cfg.quick),
+        test_unflawed_items=_cap_items(test_unflawed, 32, cfg.quick),
         crack_flawed_items=crack_flawed,
         all_flawed_items=all_flawed,
-        train_flaw_count=flaw_in_train,
+        train_flaw_count=flaw_count,
     )
 
 
-def prepare_synthetic_data(quick: bool = False, seed: int = 0) -> SyntheticData:
-    """Prepare clean train/cal windows and test windows from bar simulator."""
+def _make_synth_train(wcfg: WindowConfig, quick: bool) -> tuple[np.ndarray, np.ndarray]:
+    """Generate and partition synthetic training and calibration clean windows."""
     n_tr_bars = 2 if quick else 20
     per_bar = 20 if quick else 50
-    wcfg = WindowConfig(patch=False, seed=seed)
     wset_tr = make_training_set(wcfg, n_bars=n_tr_bars, per_bar=per_bar)
     clean_all = wset_tr.x[wset_tr.y == 0]
+    split_idx = int(0.7 * len(clean_all))
+    return clean_all[:split_idx], clean_all[split_idx:]
 
-    n_clean = len(clean_all)
-    split_idx = int(0.7 * n_clean)
-    tr_clean = clean_all[:split_idx]
-    cal_clean = clean_all[split_idx:]
 
+def _make_synth_test(wcfg: WindowConfig, quick: bool) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Generate synthetic test flawed windows, clean windows, and flaw sizes."""
     n_te_bars = 1 if quick else 4
     sizes = (0.5, 1.0) if quick else (0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2)
     scales = (1.0,) if quick else (0.5, 1.0, 1.5, 2.0)
     wset_te = make_test_set(wcfg, n_bars=n_te_bars, sizes_mm=sizes, noise_scales=scales)
-
     flaw_mask = wset_te.y == 1
-    clean_mask = wset_te.y == 0
+    return wset_te.x[flaw_mask], wset_te.x[~flaw_mask], wset_te.size_mm[flaw_mask]
+
+
+def prepare_synthetic_data(quick: bool = False, seed: int = 0) -> SyntheticData:
+    """Prepare clean train/cal windows and test windows from bar simulator."""
+    wcfg = WindowConfig(patch=False, seed=seed)
+    tr_clean, cal_clean = _make_synth_train(wcfg, quick)
+    test_flaw, test_clean, flaw_sizes = _make_synth_test(wcfg, quick)
     return SyntheticData(
         tr_clean=tr_clean,
         cal_clean=cal_clean,
-        test_flaw=wset_te.x[flaw_mask],
-        test_clean=wset_te.x[clean_mask],
-        flaw_sizes=wset_te.size_mm[flaw_mask],
+        test_flaw=test_flaw,
+        test_clean=test_clean,
+        flaw_sizes=flaw_sizes,
     )
+
+
+def _score_dataloader(
+    model: nn.Module,
+    loader: DataLoader,
+    dev: torch.device,
+) -> np.ndarray:
+    """Compute anomaly scores across dataloader batches."""
+    scores: list[float] = []
+    for batch in loader:
+        x = batch[0]
+        s = anomaly_score(model, x.to(dev))
+        scores.extend(s.detach().cpu().numpy().tolist())
+    return np.array(scores, dtype=np.float32)
 
 
 def _score_indexed_dataset(
@@ -193,13 +239,8 @@ def _score_indexed_dataset(
     """Compute anomaly scores for a list of ML-NDT indexed image items."""
     if not items:
         return np.empty(0, dtype=np.float32)
-    ds = IndexedMlNdtDataset(items)
-    loader = DataLoader(ds, batch_size=batch_size, shuffle=False)
-    scores: list[float] = []
-    for x, _, _ in loader:
-        s = anomaly_score(model, x.to(dev))
-        scores.extend(s.detach().cpu().numpy().tolist())
-    return np.array(scores, dtype=np.float32)
+    loader = DataLoader(IndexedMlNdtDataset(items), batch_size=batch_size, shuffle=False)
+    return _score_dataloader(model, loader, dev)
 
 
 def _score_windows(
@@ -211,13 +252,10 @@ def _score_windows(
     """Compute anomaly scores for synthetic 1D A-scan windows."""
     if len(windows) == 0:
         return np.empty(0, dtype=np.float32)
-    tensor_ds = TensorDataset(torch.from_numpy(windows))
-    loader = DataLoader(tensor_ds, batch_size=batch_size, shuffle=False)
-    scores: list[float] = []
-    for (x,) in loader:
-        s = anomaly_score(model, x.to(dev))
-        scores.extend(s.detach().cpu().numpy().tolist())
-    return np.array(scores, dtype=np.float32)
+    loader = DataLoader(
+        TensorDataset(torch.from_numpy(windows)), batch_size=batch_size, shuffle=False
+    )
+    return _score_dataloader(model, loader, dev)
 
 
 def _build_eval_cell(data: CellInput) -> dict[str, Any]:
@@ -242,17 +280,16 @@ def _build_eval_cell(data: CellInput) -> dict[str, Any]:
     )
 
 
-def _train_2d_model(
-    splits: RealSplits,
+def _fit_autoencoder(
+    model: nn.Module,
+    train_ds: torch.utils.data.Dataset,
     cfg: AnomalyConfig,
     dev: torch.device,
-) -> tuple[ConvAE2D, list[float]]:
-    """Train ConvAE2D autoencoder on flaw-free real data."""
-    train_ds = IndexedMlNdtDataset(splits.train_items)
+) -> list[float]:
+    """Train autoencoder model on specified dataset."""
     loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True)
-    model = ConvAE2D()
     epochs = 1 if cfg.quick else cfg.epochs
-    losses = train_autoencoder(
+    return train_autoencoder(
         model,
         loader,
         epochs=epochs,
@@ -260,6 +297,16 @@ def _train_2d_model(
         weight_decay=cfg.weight_decay,
         device=dev,
     )
+
+
+def _train_2d_model(
+    splits: RealSplits,
+    cfg: AnomalyConfig,
+    dev: torch.device,
+) -> tuple[ConvAE2D, list[float]]:
+    """Train ConvAE2D autoencoder on flaw-free real data."""
+    model = ConvAE2D()
+    losses = _fit_autoencoder(model, IndexedMlNdtDataset(splits.train_items), cfg, dev)
     return model, losses
 
 
@@ -269,18 +316,8 @@ def _train_1d_model(
     dev: torch.device,
 ) -> tuple[ConvAE1D, list[float]]:
     """Train ConvAE1D autoencoder on simulated clean windows."""
-    train_ds = TensorDataset(torch.from_numpy(synth.tr_clean))
-    loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True)
     model = ConvAE1D()
-    epochs = 1 if cfg.quick else cfg.epochs
-    losses = train_autoencoder(
-        model,
-        loader,
-        epochs=epochs,
-        lr=cfg.lr,
-        weight_decay=cfg.weight_decay,
-        device=dev,
-    )
+    losses = _fit_autoencoder(model, TensorDataset(torch.from_numpy(synth.tr_clean)), cfg, dev)
     return model, losses
 
 
@@ -311,14 +348,72 @@ def _format_learning_curve(history: Any) -> dict[str, Any] | None:
     if not isinstance(history, list) or not history:
         return None
     first = history[0]
-    if (
-        isinstance(first, dict)
-        and "epoch" in first
-        and "train_loss" in first
-        and "val_loss" in first
-    ):
-        return learning_curve(history)
-    return None
+    if not isinstance(first, dict):
+        return None
+    required_keys = ("epoch", "train_loss", "val_loss")
+    if not all(k in first for k in required_keys):
+        return None
+    return learning_curve(history)
+
+
+def _device_name(dev: torch.device) -> str:
+    """Return human-readable device name."""
+    return torch.cuda.get_device_name(dev) if dev.type == "cuda" else "cpu"
+
+
+def _count_real_images(splits: RealSplits) -> dict[str, int]:
+    """Count image quantities across real partitions."""
+    n_unflawed = len(splits.test_unflawed_items)
+    n_flawed = len(splits.all_flawed_items)
+    return {
+        "training_clean": len(splits.train_items),
+        "calibration_clean": len(splits.cal_items),
+        "test_unflawed": n_unflawed,
+        "test_flawed": n_flawed,
+        "total_test": n_unflawed + n_flawed,
+    }
+
+
+def _eval_real_splits(
+    model: nn.Module,
+    splits: RealSplits,
+    cfg: AnomalyConfig,
+    dev: torch.device,
+) -> tuple[EvalContext, dict[str, Any], dict[str, Any]]:
+    """Compute calibration threshold and score crack test partitions."""
+    cal_scores = _score_indexed_dataset(model, splits.cal_items, dev, cfg.batch_size)
+    threshold = fit_threshold(cal_scores, false_call_rate=cfg.target_fcr)
+    unflawed_scores = _score_indexed_dataset(model, splits.test_unflawed_items, dev, cfg.batch_size)
+    ctx = EvalContext(cal_scores, unflawed_scores, threshold, dev)
+    per_crack, overall = _eval_crack_cells(model, splits, ctx)
+    return ctx, per_crack, overall
+
+
+def _assemble_real_metrics(
+    splits: RealSplits,
+    cfg: AnomalyConfig,
+    ctx: EvalContext,
+    cells: tuple[dict[str, Any], dict[str, Any], list[float]],
+) -> dict[str, Any]:
+    """Assemble final real data anomaly evaluation metrics dictionary."""
+    per_crack, overall, losses = cells
+    return {
+        "label": "Real data (ML-NDT)",
+        "protocol": (
+            "ConvAE2D trained ONLY on flaw-free images of non-holdout batches; "
+            "threshold calibration on flaw-free validation images; "
+            "tested on physical cracks plus holdout unflawed images"
+        ),
+        "threshold": float(ctx.threshold),
+        "target_fcr": float(cfg.target_fcr),
+        "device": str(ctx.dev),
+        "device_name": _device_name(ctx.dev),
+        "probability_mapping": "empirical CDF of calibration clean scores",
+        "n_images": _count_real_images(splits),
+        "per_crack": per_crack,
+        "overall": overall,
+        "learning_curve": _format_learning_curve(losses),
+    }
 
 
 def _run_real_anomaly(
@@ -328,59 +423,49 @@ def _run_real_anomaly(
 ) -> tuple[dict[str, Any], ConvAE2D]:
     """Train ConvAE2D on flaw-free data and evaluate on cracks and holdout unflawed."""
     model, losses = _train_2d_model(splits, cfg, dev)
-    cal_scores = _score_indexed_dataset(model, splits.cal_items, dev, cfg.batch_size)
-    threshold = fit_threshold(cal_scores, false_call_rate=cfg.target_fcr)
-    unflawed_scores = _score_indexed_dataset(model, splits.test_unflawed_items, dev, cfg.batch_size)
-
-    ctx = EvalContext(cal_scores, unflawed_scores, threshold, dev)
-    per_crack, overall = _eval_crack_cells(model, splits, ctx)
-
-    dev_name = torch.cuda.get_device_name(dev) if dev.type == "cuda" else "cpu"
-    metrics = {
-        "label": "Real data (ML-NDT)",
-        "protocol": (
-            "ConvAE2D trained ONLY on flaw-free images of non-holdout batches; "
-            "threshold calibration on flaw-free validation images; "
-            "tested on physical cracks plus holdout unflawed images"
-        ),
-        "threshold": float(threshold),
-        "target_fcr": float(cfg.target_fcr),
-        "device": str(dev),
-        "device_name": dev_name,
-        "probability_mapping": "empirical CDF of calibration clean scores",
-        "n_images": {
-            "training_clean": len(splits.train_items),
-            "calibration_clean": len(splits.cal_items),
-            "test_unflawed": len(splits.test_unflawed_items),
-            "test_flawed": len(splits.all_flawed_items),
-            "total_test": len(splits.test_unflawed_items) + len(splits.all_flawed_items),
-        },
-        "per_crack": per_crack,
-        "overall": overall,
-        "learning_curve": _format_learning_curve(losses),
-    }
+    ctx, per_crack, overall = _eval_real_splits(model, splits, cfg, dev)
+    metrics = _assemble_real_metrics(splits, cfg, ctx, (per_crack, overall, losses))
     return metrics, model
 
 
-def _run_synthetic_anomaly(
+def _count_synth_windows(synth: SyntheticData) -> dict[str, int]:
+    """Count window quantities across synthetic partitions."""
+    n_flaw = len(synth.test_flaw)
+    n_clean = len(synth.test_clean)
+    return {
+        "training_clean": len(synth.tr_clean),
+        "calibration_clean": len(synth.cal_clean),
+        "test_flaw": n_flaw,
+        "test_clean": n_clean,
+        "total_test": n_flaw + n_clean,
+    }
+
+
+def _eval_synth_windows(
+    model: nn.Module,
     synth: SyntheticData,
     cfg: AnomalyConfig,
     dev: torch.device,
-) -> tuple[dict[str, Any], ConvAE1D]:
-    """Train ConvAE1D on simulated clean windows and evaluate on test windows."""
-    model, losses = _train_1d_model(synth, cfg, dev)
+) -> tuple[float, dict[str, Any]]:
+    """Evaluate synthetic test windows against calibrated threshold."""
     cal_scores = _score_windows(model, synth.cal_clean, dev, cfg.batch_size)
     threshold = fit_threshold(cal_scores, false_call_rate=cfg.target_fcr)
-
     flaw_scores = _score_windows(model, synth.test_flaw, dev, cfg.batch_size)
     clean_scores = _score_windows(model, synth.test_clean, dev, cfg.batch_size)
     n_phys = len(np.unique(synth.flaw_sizes)) if len(synth.flaw_sizes) > 0 else 0
-
     inp = CellInput(flaw_scores, clean_scores, cal_scores, synth.flaw_sizes, threshold, n_phys)
-    cell_data = _build_eval_cell(inp)
+    return threshold, _build_eval_cell(inp)
 
-    dev_name = torch.cuda.get_device_name(dev) if dev.type == "cuda" else "cpu"
-    metrics = {
+
+def _assemble_synth_metrics(
+    synth: SyntheticData,
+    cfg: AnomalyConfig,
+    eval_res: tuple[float, dict[str, Any], list[float]],
+    dev: torch.device,
+) -> dict[str, Any]:
+    """Assemble final synthetic data anomaly evaluation metrics dictionary."""
+    threshold, cell_data, losses = eval_res
+    return {
         "label": "Synthetic data",
         "protocol": (
             "ConvAE1D trained on simulated clean windows; "
@@ -390,26 +475,30 @@ def _run_synthetic_anomaly(
         "threshold": float(threshold),
         "target_fcr": float(cfg.target_fcr),
         "device": str(dev),
-        "device_name": dev_name,
+        "device_name": _device_name(dev),
         "probability_mapping": "empirical CDF of calibration clean scores",
-        "n_windows": {
-            "training_clean": len(synth.tr_clean),
-            "calibration_clean": len(synth.cal_clean),
-            "test_flaw": len(synth.test_flaw),
-            "test_clean": len(synth.test_clean),
-            "total_test": len(synth.test_flaw) + len(synth.test_clean),
-        },
+        "n_windows": _count_synth_windows(synth),
         "cell": cell_data,
         "learning_curve": _format_learning_curve(losses),
     }
+
+
+def _run_synthetic_anomaly(
+    synth: SyntheticData,
+    cfg: AnomalyConfig,
+    dev: torch.device,
+) -> tuple[dict[str, Any], ConvAE1D]:
+    """Train ConvAE1D on simulated clean windows and evaluate on test windows."""
+    model, losses = _train_1d_model(synth, cfg, dev)
+    threshold, cell_data = _eval_synth_windows(model, synth, cfg, dev)
+    metrics = _assemble_synth_metrics(synth, cfg, (threshold, cell_data, losses), dev)
     return metrics, model
 
 
 def _make_serializable(obj: Any) -> Any:
     """Convert numpy scalar types and arrays to native Python primitives."""
     if isinstance(obj, (np.floating, float)):
-        val = float(obj)
-        return None if np.isnan(val) else val
+        return None if np.isnan(obj) else float(obj)
     if isinstance(obj, (np.integer, int)):
         return int(obj)
     if isinstance(obj, np.ndarray):
@@ -419,6 +508,12 @@ def _make_serializable(obj: Any) -> Any:
     if isinstance(obj, (list, tuple)):
         return [_make_serializable(v) for v in obj]
     return obj
+
+
+def _save_model_weights(model: nn.Module, path: Path) -> None:
+    """Save model checkpoint to destination path."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), path)
 
 
 def run_anomaly(cfg: AnomalyConfig) -> dict[str, Any]:
@@ -432,10 +527,8 @@ def run_anomaly(cfg: AnomalyConfig) -> dict[str, Any]:
     synth = prepare_synthetic_data(quick=cfg.quick, seed=cfg.seed)
     synth_metrics, model_1d = _run_synthetic_anomaly(synth, cfg, dev)
 
-    cfg.model_2d_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(model_2d.state_dict(), cfg.model_2d_path)
-    cfg.model_1d_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(model_1d.state_dict(), cfg.model_1d_path)
+    _save_model_weights(model_2d, cfg.model_2d_path)
+    _save_model_weights(model_1d, cfg.model_1d_path)
 
     payload = {"real": real_metrics, "synthetic": synth_metrics}
     cfg.out_json.parent.mkdir(parents=True, exist_ok=True)
