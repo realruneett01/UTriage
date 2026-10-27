@@ -23,7 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 ml = ["torch"]
 app = ["streamlit"]
-dev = ["pytest", "hypothesis", "ruff"]
+dev = ["pytest", "hypothesis", "ruff", "pytest-cov"]
 
 [project.scripts]
 utriage = "utriage.cli:app"
@@ -49,3 +49,11 @@ ignore = []
 
 [tool.ruff.lint.mccabe]
 max-complexity = 6
+
+[tool.coverage.run]
+source = ["src/utriage"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
