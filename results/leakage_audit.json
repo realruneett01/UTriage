@@ -1,0 +1,60 @@
+{
+  "label": "Real data (ML-NDT)",
+  "splits": {
+    "train": {
+      "n_batches": 179,
+      "n_images": 17810,
+      "images_per_crack": {
+        "crack_1.6": 3591,
+        "crack_4.0": 3657,
+        "crack_8.6": 3547
+      },
+      "n_unflawed": 7015,
+      "labels_consistent": true
+    },
+    "test": {
+      "n_batches": 20,
+      "n_images": 2000,
+      "images_per_crack": {
+        "crack_1.6": 423,
+        "crack_4.0": 421,
+        "crack_8.6": 378
+      },
+      "n_unflawed": 778,
+      "labels_consistent": true
+    },
+    "validation": {
+      "n_batches": 2,
+      "n_images": 200,
+      "images_per_crack": {
+        "crack_1.6": 41,
+        "crack_4.0": 33,
+        "crack_8.6": 37
+      },
+      "n_unflawed": 89,
+      "labels_consistent": true
+    }
+  },
+  "cracks_in_train": [
+    "crack_1.6",
+    "crack_4.0",
+    "crack_8.6"
+  ],
+  "cracks_in_test": [
+    "crack_1.6",
+    "crack_4.0",
+    "crack_8.6"
+  ],
+  "shared_cracks_train_test": [
+    "crack_1.6",
+    "crack_4.0",
+    "crack_8.6"
+  ],
+  "shared_cracks_train_validation": [
+    "crack_1.6",
+    "crack_4.0",
+    "crack_8.6"
+  ],
+  "leakage_by_physical_crack": true,
+  "note": "Old test split is a random batch split; every physical crack appears in train and test, so test scores measure interpolation within known cracks, not detection of unseen cracks."
+}
