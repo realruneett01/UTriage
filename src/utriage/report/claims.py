@@ -576,6 +576,85 @@ def _collect_final_claims(r_dir: Path, matrix: dict[str, Any]) -> list[Claim]:
     return [c for c in trailing if c is not None]
 
 
+def _format_fold_crackval(fold: dict[str, Any]) -> tuple[str, bool, dict[str, float]]:
+    """Format single fold metrics for crack-held-out LOCO."""
+    held_out = str(fold.get("held_out", ""))
+    val_crack = str(fold.get("val_crack", ""))
+    det = fold.get("detections", {})
+    fc = fold.get("false_calls", {})
+    k = int(det.get("n_hit", det.get("k", 0)))
+    n = int(det.get("n_flawed", det.get("n", 0)))
+    n_false = int(fc.get("n_false", 0))
+    n_clean = int(fc.get("n_unflawed", fc.get("n_scans", 0)))
+    part = (
+        f"held-out {held_out}, validation {val_crack}: "
+        f"detections {k}/{n}, false calls {n_false}/{n_clean}"
+    )
+    is_high_fc = n_clean > 0 and n_false > (n_clean / 2)
+    nums = {
+        f"{held_out}_k": float(k),
+        f"{held_out}_n": float(n),
+        f"{held_out}_n_false": float(n_false),
+        f"{held_out}_n_unflawed": float(n_clean),
+    }
+    return part, is_high_fc, nums
+
+
+def _format_crackval_swing_sentence(high_fc_folds: list[str]) -> str:
+    """Format conclusion sentence noting results swing and naming high-false-call fold."""
+    if not high_fc_folds:
+        return "Results swing strongly with the choice of early-stopping crack."
+    label = "folds" if len(high_fc_folds) > 1 else "fold"
+    folds_str = ", ".join(high_fc_folds)
+    return (
+        "Results swing strongly with the choice of early-stopping crack: "
+        f"false calls exceed half the clean images in {label} {folds_str}."
+    )
+
+
+def _collect_crackval_folds(
+    folds: list[dict[str, Any]],
+) -> tuple[list[str], list[str], dict[str, float]]:
+    """Collect formatted fold descriptions, high false-call folds, and numeric counts."""
+    parts: list[str] = []
+    high_fc: list[str] = []
+    numbers: dict[str, float] = {}
+    for fold in folds:
+        part, is_high, nums = _format_fold_crackval(fold)
+        parts.append(part)
+        numbers.update(nums)
+        if is_high:
+            high_fc.append(str(fold.get("held_out", "")))
+    return parts, high_fc, numbers
+
+
+def _build_loco_crackval_claim(results_dir: Path) -> Claim | None:
+    """Build claim for leave-one-crack-out with crack-held-out validation."""
+    path = results_dir / "loco_crackval_metrics.json"
+    data = _load_json(path)
+    if data is None:
+        return None
+    folds = data.get("folds")
+    if not isinstance(folds, list) or not folds:
+        print("Skipping loco_crackval: no folds data found", file=sys.stderr)
+        return None
+    parts, high_fc, numbers = _collect_crackval_folds(folds)
+    swing = _format_crackval_swing_sentence(high_fc)
+    text = (
+        "Leave-one-crack-out with crack-held-out early stopping "
+        f"(train on one crack, early-stop on another): {'; '.join(parts)}. {swing}"
+    )
+    scope = "one weld PAUT public dataset, 3 physical cracks, each fold trains on a single crack"
+    return Claim(
+        id="loco_crackval",
+        text=text,
+        evidence_file="results/loco_crackval_metrics.json",
+        evidence_path="folds",
+        scope_limit=scope,
+        numbers=numbers,
+    )
+
+
 def build_claims(results_dir: Path | str) -> list[Claim]:
     """Build all verified claims composed only from allowed results files."""
     r_dir = Path(results_dir)
@@ -590,5 +669,9 @@ def build_claims(results_dir: Path | str) -> list[Claim]:
         claims.extend(_collect_matrix_claims(matrix))
 
     mat_dict = matrix if matrix is not None else {}
+    c_crackval = _build_loco_crackval_claim(r_dir)
+    if c_crackval is not None:
+        claims.append(c_crackval)
+
     claims.extend(_collect_final_claims(r_dir, mat_dict))
     return claims

@@ -459,3 +459,107 @@ def test_sim_in_distribution_claim(fake_results_dir: Path) -> None:
     assert "ML det 0.89 vs rules 0.77" in claim.text
     assert "false calls 0.020 vs 0.030" in claim.text
     assert claim.scope_limit == "Synthetic data, UNVERIFIED constants"
+
+
+def _make_crackval_fold(
+    held_out: str,
+    val_crack: str,
+    det: tuple[int, int],
+    fc: tuple[int, int],
+) -> dict[str, Any]:
+    """Helper creating a single fold dictionary for loco_crackval_metrics.json."""
+    k, n = det
+    n_false, n_unflawed = fc
+    rate = k / n if n > 0 else 0.0
+    fc_rate = n_false / n_unflawed if n_unflawed > 0 else 0.0
+    return {
+        "held_out": held_out,
+        "val_crack": val_crack,
+        "detections": {"n_hit": k, "n_flawed": n, "rate": rate},
+        "false_calls": {"n_false": n_false, "n_unflawed": n_unflawed, "rate": fc_rate},
+        "model_sha256": "fake_sha256_hash",
+    }
+
+
+def _make_crackval_data(*, high_fc: bool = True) -> dict[str, Any]:
+    """Helper creating fake loco_crackval_metrics dictionary."""
+    fc_1 = 753 if high_fc else 50
+    return {
+        "label": "Real data (ML-NDT)",
+        "protocol": "Leave-one-crack-out with crack-held-out validation",
+        "folds": [
+            _make_crackval_fold("crack_1.6", "crack_4.0", (4012, 4014), (fc_1, 778)),
+            _make_crackval_fold("crack_4.0", "crack_8.6", (2449, 4078), (0, 778)),
+            _make_crackval_fold("crack_8.6", "crack_1.6", (3925, 3925), (11, 778)),
+        ],
+    }
+
+
+def test_loco_crackval_claim_present_with_numbers(tmp_path: Path) -> None:
+    """Verify loco_crackval claim is built from metrics with exact numbers."""
+    from utriage.report.claims import build_claims
+
+    data = _make_crackval_data(high_fc=True)
+    (tmp_path / "loco_crackval_metrics.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim = next((c for c in claims if c.id == "loco_crackval"), None)
+    assert claim is not None
+    assert claim.evidence_file == "results/loco_crackval_metrics.json"
+    assert claim.evidence_path == "folds"
+    assert claim.scope_limit == (
+        "one weld PAUT public dataset, 3 physical cracks, each fold trains on a single crack"
+    )
+    for expected_str in (
+        "Leave-one-crack-out with crack-held-out early stopping",
+        "held-out crack_1.6, validation crack_4.0: detections 4012/4014, false calls 753/778",
+        "held-out crack_4.0, validation crack_8.6: detections 2449/4078, false calls 0/778",
+        "held-out crack_8.6, validation crack_1.6: detections 3925/3925, false calls 11/778",
+    ):
+        assert expected_str in claim.text
+    assert claim.numbers["crack_1.6_k"] == 4012.0
+    assert claim.numbers["crack_1.6_n"] == 4014.0
+    assert claim.numbers["crack_1.6_n_false"] == 753.0
+    assert claim.numbers["crack_1.6_n_unflawed"] == 778.0
+    for key, val in claim.numbers.items():
+        candidates = [f"{val:.3f}", f"{val:.2f}", f"{val:.1f}", str(int(val))]
+        assert any(cand in claim.text for cand in candidates), f"{key} ({val}) not in text"
+
+
+def test_loco_crackval_missing_file_skipped(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Verify loco_crackval claim is skipped with printed reason when file missing."""
+    from utriage.report.claims import build_claims
+
+    claims = build_claims(tmp_path)
+    claim_ids = [c.id for c in claims]
+    assert "loco_crackval" not in claim_ids
+    captured = capsys.readouterr().err
+    assert "Skipping claims requiring loco_crackval_metrics.json: file not found" in captured
+
+
+@pytest.mark.parametrize(
+    ("high_fc", "fold_name", "expect_named"),
+    [
+        (True, "crack_1.6", True),
+        (False, "crack_1.6", False),
+    ],
+)
+def test_loco_crackval_false_calls_swing_sentence(
+    tmp_path: Path,
+    high_fc: bool,
+    fold_name: str,
+    expect_named: bool,
+) -> None:
+    """Verify swing sentence names fold where false calls exceed half clean images."""
+    from utriage.report.claims import build_claims
+
+    data = _make_crackval_data(high_fc=high_fc)
+    (tmp_path / "loco_crackval_metrics.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim = next(c for c in claims if c.id == "loco_crackval")
+    assert "Results swing strongly with the choice of early-stopping crack" in claim.text
+    if expect_named:
+        assert f"false calls exceed half the clean images in fold {fold_name}" in claim.text
+    else:
+        assert "exceed half" not in claim.text
