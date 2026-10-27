@@ -29,6 +29,12 @@ import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
 from torch.utils.data import DataLoader  # noqa: E402
 
+from utriage.detector_config import (  # noqa: E402
+    DEFAULT_PATH,
+    DetectorConfig,
+    config_fingerprint,
+    load_detector_config,
+)
 from utriage.integrity import sha256_file  # noqa: E402
 from utriage.ml.anomaly import ConvAE2D, anomaly_score  # noqa: E402
 from utriage.ml.datasets import MLNDT_ROOT, list_batches  # noqa: E402
@@ -59,6 +65,23 @@ class HybridConfig:
     device: str = "auto"
     quick: bool = False
     seed: int = 0
+    config_path: Path | None = None
+    overrides: tuple[str, ...] | list[str] | None = None
+    detector_config: DetectorConfig | None = None
+
+
+@dataclass(frozen=True)
+class EvalSettings:
+    """Evaluation settings for thresholding, fusion, and model discovery."""
+
+    sup_threshold: float = 0.5
+    anom_target_fcr: float = 0.01
+    fused_target_fcr: float = 0.01
+    mode: str = "or_union"
+    dev: torch.device = torch.device("cpu")
+    seeds: tuple[int, ...] = (0, 1, 2)
+    models_dir: Path = Path("models")
+    quick: bool = False
 
 
 @dataclass(frozen=True)
@@ -213,10 +236,16 @@ def _score_supervised(
     return probs
 
 
-def _eval_cell(flags: np.ndarray, y: np.ndarray, sha: str) -> dict[str, Any]:
-    """Evaluate detector flags and attach model sha256."""
+def _eval_cell(
+    flags: np.ndarray,
+    y: np.ndarray,
+    sha: str,
+    primary: bool = False,
+) -> dict[str, Any]:
+    """Evaluate detector flags, attach model sha256, and primary status."""
     res = evaluate_detector(flags, y)
     res["model_sha256"] = sha
+    res["primary"] = primary
     return res
 
 
@@ -224,27 +253,27 @@ def _evaluate_weights(
     weights_path: Path,
     fold_ctx: FoldAnomalyContext,
     cal_ctx: CalibContext,
-    dev: torch.device,
+    settings: EvalSettings,
 ) -> dict[str, Any]:
     """Score fold test set with supervised model and evaluate hybrid detectors."""
-    sup_model, _ = load_model(weights_path, device=str(dev))
+    sup_model, _ = load_model(weights_path, device=str(settings.dev))
     model_sha = sha256_file(weights_path)
-    p_sup_test = _score_supervised(sup_model, fold_ctx.test_items, dev)
-    p_sup_calib = _score_supervised(sup_model, cal_ctx.items, dev)
+    p_sup_test = _score_supervised(sup_model, fold_ctx.test_items, settings.dev)
+    p_sup_calib = _score_supervised(sup_model, cal_ctx.items, settings.dev)
     s_calib = fused_score(p_sup_calib, cal_ctx.p_anom_calib)
-    t_s = quantile_threshold(s_calib, cal_ctx.target_fcr)
+    t_s = quantile_threshold(s_calib, settings.fused_target_fcr)
     s_test = fused_score(p_sup_test, fold_ctx.p_anom_test)
 
-    flags_sup = p_sup_test >= 0.5
+    flags_sup = p_sup_test >= settings.sup_threshold
     flags_anom = fold_ctx.a_score_test >= fold_ctx.t_anom
-    flags_h1 = or_union(p_sup_test, fold_ctx.a_score_test, fold_ctx.t_anom)
+    flags_h1 = or_union(p_sup_test, fold_ctx.a_score_test, fold_ctx.t_anom, settings.sup_threshold)
     flags_h2 = s_test >= t_s
     y = fold_ctx.y_test
     methods = {
-        "supervised": _eval_cell(flags_sup, y, model_sha),
-        "anomaly": _eval_cell(flags_anom, y, fold_ctx.anomaly_sha),
-        "h1": _eval_cell(flags_h1, y, model_sha),
-        "h2": _eval_cell(flags_h2, y, model_sha),
+        "supervised": _eval_cell(flags_sup, y, model_sha, primary=False),
+        "anomaly": _eval_cell(flags_anom, y, fold_ctx.anomaly_sha, primary=False),
+        "h1": _eval_cell(flags_h1, y, model_sha, primary=settings.mode in ("or_union", "both")),
+        "h2": _eval_cell(flags_h2, y, model_sha, primary=settings.mode in ("fused", "both")),
     }
     return {
         "model_name": weights_path.name,
@@ -256,9 +285,16 @@ def _evaluate_weights(
 
 def _compute_seed_summary(
     seed_cells: list[dict[str, Any]],
-) -> dict[str, dict[str, float]]:
+    mode: str = "or_union",
+) -> dict[str, dict[str, Any]]:
     """Compute mean/min/max detection and false call rates across seeds."""
-    summary: dict[str, dict[str, float]] = {}
+    summary: dict[str, dict[str, Any]] = {}
+    is_primary = {
+        "supervised": False,
+        "anomaly": False,
+        "h1": mode in ("or_union", "both"),
+        "h2": mode in ("fused", "both"),
+    }
     for method in ("supervised", "anomaly", "h1", "h2"):
         d_rates = [c[method]["detection"]["rate"] for c in seed_cells if method in c]
         fc_rates = [c[method]["false_calls"]["rate"] for c in seed_cells if method in c]
@@ -271,6 +307,7 @@ def _compute_seed_summary(
             "mean_false_call_rate": float(np.mean(valid_fc)) if valid_fc else 0.0,
             "min_false_call_rate": float(np.min(valid_fc)) if valid_fc else 0.0,
             "max_false_call_rate": float(np.max(valid_fc)) if valid_fc else 0.0,
+            "primary": is_primary[method],
         }
     return summary
 
@@ -278,20 +315,20 @@ def _compute_seed_summary(
 def _eval_candidate_models(
     fold_ctx: FoldAnomalyContext,
     cal_ctx: CalibContext,
-    anom_info: AnomalyModelInfo,
-    cfg: HybridConfig,
+    settings: EvalSettings,
+    models_dir: Path,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Evaluate seed models and single model for a fold."""
     crack = fold_ctx.held_out
-    candidates = [f"loco_{crack}_seed{s}.pt" for s in range(3)] + [f"loco_{crack}.pt"]
+    candidates = [f"loco_{crack}_seed{s}.pt" for s in settings.seeds] + [f"loco_{crack}.pt"]
     models_dict: dict[str, Any] = {}
     seed_cells: list[dict[str, Any]] = []
 
     for fname in candidates:
-        m_path = _resolve_model_path(fname, cfg.models_dir)
+        m_path = _resolve_model_path(fname, models_dir)
         if not m_path.exists():
             continue
-        res = _evaluate_weights(m_path, fold_ctx, cal_ctx, anom_info.dev)
+        res = _evaluate_weights(m_path, fold_ctx, cal_ctx, settings)
         models_dict[fname] = res
         if "_seed" in fname:
             seed_cells.append(res["methods"])
@@ -303,12 +340,12 @@ def _run_fold_evaluation(
     fold: Any,
     cal_ctx: CalibContext,
     anom_info: AnomalyModelInfo,
-    cfg: HybridConfig,
+    settings: EvalSettings,
 ) -> dict[str, Any]:
     """Evaluate all available models on fold test set."""
-    test_items = _prepare_test_items(fold.test, cfg.quick)
+    test_items = _prepare_test_items(fold.test, settings.quick)
     y_test, _ = IndexedMlNdtDataset(test_items).get_labels()
-    a_score_test = _score_anomaly(anom_info.model, test_items, anom_info.dev)
+    a_score_test = _score_anomaly(anom_info.model, test_items, settings.dev)
     p_anom_test = cal_ctx.ecdf_fn(a_score_test)
     fold_ctx = FoldAnomalyContext(
         held_out=fold.held_out,
@@ -319,31 +356,35 @@ def _run_fold_evaluation(
         t_anom=anom_info.t_anom,
         anomaly_sha=anom_info.sha256,
     )
-    models_dict, seed_cells = _eval_candidate_models(fold_ctx, cal_ctx, anom_info, cfg)
+    models_dict, seed_cells = _eval_candidate_models(
+        fold_ctx, cal_ctx, settings, settings.models_dir
+    )
+    summary = _compute_seed_summary(seed_cells, mode=settings.mode)
     return {
         "held_out": fold.held_out,
         "models": models_dict,
-        "summary_3seeds": _compute_seed_summary(seed_cells),
+        "summary_3seeds": summary,
+        "aggregate": summary,
     }
 
 
 def _build_calib_context(
     val_batches: list[Path],
     anom_model: nn.Module,
-    dev: torch.device,
-    cfg: HybridConfig,
+    metrics_path: Path,
+    settings: EvalSettings,
 ) -> tuple[CalibContext, float]:
     """Prepare clean calibration items, anomaly scores, and threshold."""
-    cal_items = _get_calibration_items(val_batches, cfg.quick)
-    a_score_calib = _score_anomaly(anom_model, cal_items, dev)
-    t_anom = _load_or_fit_t_anom(cfg.anomaly_metrics_path, a_score_calib, cfg.target_fcr)
+    cal_items = _get_calibration_items(val_batches, settings.quick)
+    a_score_calib = _score_anomaly(anom_model, cal_items, settings.dev)
+    t_anom = _load_or_fit_t_anom(metrics_path, a_score_calib, settings.anom_target_fcr)
     ecdf_fn = ecdf(a_score_calib)
     p_anom_calib = ecdf_fn(a_score_calib)
     ctx = CalibContext(
         items=cal_items,
         p_anom_calib=p_anom_calib,
         ecdf_fn=ecdf_fn,
-        target_fcr=cfg.target_fcr,
+        target_fcr=settings.anom_target_fcr,
     )
     return ctx, t_anom
 
@@ -351,13 +392,19 @@ def _build_calib_context(
 def _build_payload(
     fold_results: dict[str, Any],
     anom_info: AnomalyModelInfo,
+    det_cfg: DetectorConfig,
     dev: torch.device,
-    cfg: HybridConfig,
 ) -> dict[str, Any]:
-    """Construct top-level metrics dictionary citing ADR 0010."""
+    """Construct top-level metrics dictionary citing ADR 0010 and config."""
     dev_name = torch.cuda.get_device_name(dev) if dev.type == "cuda" else "CPU"
+    fp = config_fingerprint(det_cfg)
+    run_label = "pre-registered" if fp["is_default"] else "exploratory"
+    primary_map = {"or_union": "h1", "fused": "h2", "both": "both"}
     return {
         "label": "Real data (ML-NDT)",
+        "run_label": run_label,
+        "detector_config": fp,
+        "primary": primary_map.get(det_cfg.hybrid.mode, "h1"),
         "protocol": (
             "Pre-registered design per docs/decisions/0010: H1 OR-union (flag = (p_sup >= 0.5) "
             "OR (anomaly_score >= T_anom)) and H2 score fusion (p_anom = empirical CDF of "
@@ -365,7 +412,7 @@ def _build_payload(
             "quantile of s on clean calibration images). Evaluated on leave-one-crack-out (LOCO) "
             "folds across 3 physical cracks without test-set tuning."
         ),
-        "target_fcr": cfg.target_fcr,
+        "target_fcr": det_cfg.anomaly.target_fcr,
         "t_anom": float(anom_info.t_anom),
         "anomaly_model_sha256": anom_info.sha256,
         "device": str(dev),
@@ -380,37 +427,60 @@ def _save_results(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _resolve_detector_config(cfg: HybridConfig) -> DetectorConfig:
+    """Resolve DetectorConfig from cfg instance, config file path, or overrides."""
+    if cfg.detector_config is not None:
+        return cfg.detector_config
+    overrides_list = list(cfg.overrides) if cfg.overrides is not None else []
+    if cfg.target_fcr != 0.01 and not any("target_fcr" in o for o in overrides_list):
+        overrides_list.append(f"anomaly.target_fcr={cfg.target_fcr}")
+    return load_detector_config(
+        path=cfg.config_path, overrides=overrides_list if overrides_list else None
+    )
+
+
 def run_hybrid(cfg: HybridConfig) -> dict[str, Any]:
     """Execute hybrid detection experiment across LOCO folds and write results."""
     set_seed(cfg.seed)
+    det_cfg = _resolve_detector_config(cfg)
     dev = pick_device(cfg.device)
-    dev_name = torch.cuda.get_device_name(dev) if dev.type == "cuda" else "CPU"
-    logger.info("Running hybrid evaluation on %s (%s)", dev, dev_name)
+    logger.info("Running hybrid evaluation on %s", dev)
 
     anom_path = _resolve_model_path("anomaly_2d.pt", cfg.models_dir)
     if not anom_path.exists():
         raise FileNotFoundError(f"Anomaly model checkpoint not found: {anom_path}")
-    anom_sha = sha256_file(anom_path)
     anom_model = _load_anomaly_model(anom_path, dev)
 
+    settings = EvalSettings(
+        sup_threshold=det_cfg.supervised.threshold,
+        anom_target_fcr=det_cfg.anomaly.target_fcr,
+        fused_target_fcr=det_cfg.hybrid.fused_target_fcr,
+        mode=det_cfg.hybrid.mode,
+        dev=dev,
+        seeds=tuple(det_cfg.evaluation.seeds),
+        models_dir=cfg.models_dir,
+        quick=cfg.quick,
+    )
     root = _find_data_root(cfg.root)
-    tr_batches = list_batches("training", root=root)
-    val_batches = list_batches("validation", root=root)
-    cal_ctx, t_anom = _build_calib_context(val_batches, anom_model, dev, cfg)
-    anom_info = AnomalyModelInfo(model=anom_model, t_anom=t_anom, sha256=anom_sha, dev=dev)
+    tr_b = list_batches("training", root=root)
+    val_b = list_batches("validation", root=root)
+    cal_ctx, t_anom = _build_calib_context(val_b, anom_model, cfg.anomaly_metrics_path, settings)
+    anom_info = AnomalyModelInfo(
+        model=anom_model, t_anom=t_anom, sha256=sha256_file(anom_path), dev=dev
+    )
 
-    folds = make_folds(tr_batches, val_batches, seed=cfg.seed, val_mode="batch")
-    fold_results: dict[str, Any] = {}
-    for fold in folds:
-        fold_results[fold.held_out] = _run_fold_evaluation(fold, cal_ctx, anom_info, cfg)
-
-    payload = _build_payload(fold_results, anom_info, dev, cfg)
+    val_mode = det_cfg.evaluation.loco_val_mode
+    folds = make_folds(tr_b, val_b, seed=cfg.seed, val_mode=val_mode)
+    fold_results = {
+        fold.held_out: _run_fold_evaluation(fold, cal_ctx, anom_info, settings) for fold in folds
+    }
+    payload = _build_payload(fold_results, anom_info, det_cfg, dev)
     _save_results(cfg.out_json, payload)
     return payload
 
 
-def main() -> None:
-    """Parse command-line arguments and run hybrid evaluation."""
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Construct CLI argument parser for hybrid detection runner."""
     parser = argparse.ArgumentParser(description="Run hybrid detection evaluation.")
     parser.add_argument("--root", type=Path, default=MLNDT_ROOT)
     parser.add_argument("--models-dir", type=Path, default=Path("models"))
@@ -418,21 +488,40 @@ def main() -> None:
         "--anomaly-metrics", type=Path, default=Path("results/anomaly_metrics.json")
     )
     parser.add_argument("--out-json", type=Path, default=Path("results/hybrid_metrics.json"))
-    parser.add_argument("--target-fcr", type=float, default=0.01)
+    parser.add_argument("--target-fcr", type=float, default=None)
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--config", type=Path, default=DEFAULT_PATH, help="Path to detector config YAML"
+    )
+    parser.add_argument(
+        "--set",
+        dest="overrides",
+        action="append",
+        default=None,
+        help="Override config setting as KEY=VALUE",
+    )
+    return parser
 
+
+def main() -> None:
+    """Parse CLI arguments and run hybrid detection evaluation."""
+    parser = _build_arg_parser()
+    args = parser.parse_args()
+    overrides = list(args.overrides) if args.overrides else []
+    if args.target_fcr is not None:
+        overrides.append(f"anomaly.target_fcr={args.target_fcr}")
     cfg = HybridConfig(
         root=args.root,
         models_dir=args.models_dir,
         anomaly_metrics_path=args.anomaly_metrics,
         out_json=args.out_json,
-        target_fcr=args.target_fcr,
         device=args.device,
         quick=args.quick,
         seed=args.seed,
+        config_path=args.config,
+        overrides=overrides if overrides else None,
     )
     run_hybrid(cfg)
 

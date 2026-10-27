@@ -11,13 +11,18 @@ from utriage.ml.anomaly import fit_threshold
 from utriage.pod.metrics import detection_summary, false_calls_per_scan
 
 
-def or_union(p_sup: np.ndarray, a_score: np.ndarray, t_anom: float) -> np.ndarray:
-    """Compute H1 logical OR union flag = (p_sup >= 0.5) | (a_score >= t_anom)."""
+def or_union(
+    p_sup: np.ndarray,
+    a_score: np.ndarray,
+    t_anom: float,
+    threshold: float = 0.5,
+) -> np.ndarray:
+    """Compute H1 logical OR union flag = (p_sup >= threshold) | (a_score >= t_anom)."""
     p_arr = np.asarray(p_sup, dtype=float)
     a_arr = np.asarray(a_score, dtype=float)
     if p_arr.shape != a_arr.shape:
         raise ValueError(f"Shape mismatch: {p_arr.shape} != {a_arr.shape}")
-    return (p_arr >= 0.5) | (a_arr >= float(t_anom))
+    return (p_arr >= float(threshold)) | (a_arr >= float(t_anom))
 
 
 def ecdf(calib_scores: np.ndarray) -> Callable[[np.ndarray | float], np.ndarray]:

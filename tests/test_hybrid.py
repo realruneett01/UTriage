@@ -92,6 +92,22 @@ def test_or_union_hand_arrays(
     assert np.array_equal(res, np.array(expected))
 
 
+@pytest.mark.parametrize(
+    ("threshold", "expected"),
+    [
+        (0.5, [False, False, True, False]),
+        (0.7, [False, False, False, False]),
+        (0.4, [False, True, True, False]),
+    ],
+)
+def test_or_union_custom_threshold(threshold: float, expected: list[bool]) -> None:
+    """Verify or_union respects custom supervised threshold."""
+    p_sup = np.array([0.1, 0.45, 0.55, 0.2])
+    a_score = np.array([0.1, 0.2, 0.1, 0.2])
+    res = or_union(p_sup, a_score, t_anom=0.5, threshold=threshold)
+    assert np.array_equal(res, np.array(expected))
+
+
 @pytest.mark.parametrize("seed", [1, 2, 3])
 def test_or_union_safety_property(seed: int) -> None:
     """Ensure OR-union never produces fewer positive flags than either detector."""
@@ -211,6 +227,41 @@ def _setup_stubs(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     return fake_root, models_dir, anom_json, out_json
 
 
+def _check_method_cell(cell: dict[str, Any]) -> None:
+    """Verify common structure of a detector evaluation cell."""
+    assert "detection" in cell
+    assert "false_calls" in cell
+    assert "model_sha256" in cell
+    assert "primary" in cell
+
+
+def _check_rate_summary(summary: dict[str, Any]) -> None:
+    """Verify mean, min, and max rates in an aggregate summary cell."""
+    assert "mean_detection_rate" in summary
+    assert "min_detection_rate" in summary
+    assert "max_detection_rate" in summary
+    assert "mean_false_call_rate" in summary
+    assert "min_false_call_rate" in summary
+    assert "max_false_call_rate" in summary
+    assert "primary" in summary
+
+
+def _check_fold_structure(fold_data: dict[str, Any], crack: str) -> None:
+    """Verify fold models, summary_3seeds, and aggregate blocks."""
+    assert "models" in fold_data
+    assert "summary_3seeds" in fold_data
+    assert "aggregate" in fold_data
+
+    w_entry = fold_data["models"][f"loco_{crack}.pt"]
+    assert len(w_entry["model_sha256"]) == 64
+
+    for method in ("supervised", "anomaly", "h1", "h2"):
+        assert method in w_entry["methods"]
+        _check_method_cell(w_entry["methods"][method])
+        _check_rate_summary(fold_data["summary_3seeds"][method])
+        _check_rate_summary(fold_data["aggregate"][method])
+
+
 def test_run_hybrid_on_stubs(tmp_path: Path) -> None:
     """Verify run_hybrid runner runs on stub models and produces compliant JSON output."""
     from experiments.run_hybrid import HybridConfig, run_hybrid
@@ -227,31 +278,107 @@ def test_run_hybrid_on_stubs(tmp_path: Path) -> None:
     result = run_hybrid(cfg)
 
     assert result["label"] == "Real data (ML-NDT)"
+    assert result["run_label"] == "pre-registered"
+    assert result["detector_config"]["is_default"] is True
+    assert len(result["detector_config"]["sha256"]) == 64
+    assert result["primary"] == "h1"
     assert "ADR 0010" in result["protocol"] or "0010" in result["protocol"]
     assert out_json.exists()
 
     payload = json.loads(out_json.read_text(encoding="utf-8"))
-    assert payload["label"] == "Real data (ML-NDT)"
-
     for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
-        fold_data = payload["folds"][crack]
-        assert "models" in fold_data
-        assert "summary_3seeds" in fold_data
+        _check_fold_structure(payload["folds"][crack], crack)
+        assert payload["folds"][crack]["aggregate"]["h1"]["primary"] is True
+        assert payload["folds"][crack]["aggregate"]["h2"]["primary"] is False
 
-        weights_file = f"loco_{crack}.pt"
-        w_entry = fold_data["models"][weights_file]
-        assert "model_sha256" in w_entry
-        assert len(w_entry["model_sha256"]) == 64
 
-        for method in ("supervised", "anomaly", "h1", "h2"):
-            assert method in w_entry["methods"]
-            cell = w_entry["methods"][method]
-            assert "detection" in cell
-            assert "false_calls" in cell
-            assert "model_sha256" in cell
+def test_run_hybrid_custom_config(tmp_path: Path) -> None:
+    """Verify run_hybrid with custom YAML file marks exploratory and selects primary."""
+    from experiments.run_hybrid import HybridConfig, run_hybrid
 
-            m_sum = fold_data["summary_3seeds"][method]
-            assert "mean_detection_rate" in m_sum
-            assert "min_detection_rate" in m_sum
-            assert "max_detection_rate" in m_sum
-            assert "mean_false_call_rate" in m_sum
+    fake_root, models_dir, anom_json, out_json = _setup_stubs(tmp_path)
+    cfg_file = tmp_path / "detectors.yaml"
+    cfg_content = (
+        "supervised:\n"
+        "  threshold: 0.7\n"
+        "anomaly:\n"
+        "  target_fcr: 0.05\n"
+        "hybrid:\n"
+        "  mode: fused\n"
+        "  fused_target_fcr: 0.02\n"
+    )
+    cfg_file.write_text(cfg_content, encoding="utf-8")
+    cfg = HybridConfig(
+        root=fake_root,
+        models_dir=models_dir,
+        anomaly_metrics_path=anom_json,
+        out_json=out_json,
+        device="cpu",
+        quick=True,
+        config_path=cfg_file,
+    )
+    result = run_hybrid(cfg)
+
+    assert result["run_label"] == "exploratory"
+    assert result["detector_config"]["is_default"] is False
+    assert result["primary"] == "h2"
+    fold_agg = result["folds"]["crack_1.6"]["aggregate"]
+    assert fold_agg["h1"]["primary"] is False
+    assert fold_agg["h2"]["primary"] is True
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        ("or_union", ("h1", True, False)),
+        ("fused", ("h2", False, True)),
+        ("both", ("both", True, True)),
+    ],
+)
+def test_run_hybrid_modes_and_overrides(
+    tmp_path: Path,
+    mode: str,
+    expected: tuple[str, bool, bool],
+) -> None:
+    """Verify hybrid.mode overrides select primary mode correctly across H1 and H2."""
+    from experiments.run_hybrid import HybridConfig, run_hybrid
+
+    expected_primary, h1_pri, h2_pri = expected
+    fake_root, models_dir, anom_json, out_json = _setup_stubs(tmp_path)
+    cfg = HybridConfig(
+        root=fake_root,
+        models_dir=models_dir,
+        anomaly_metrics_path=anom_json,
+        out_json=out_json,
+        device="cpu",
+        quick=True,
+        overrides=[f"hybrid.mode={mode}", "supervised.threshold=0.6"],
+    )
+    result = run_hybrid(cfg)
+
+    assert result["run_label"] == "exploratory"
+    assert result["primary"] == expected_primary
+    fold_agg = result["folds"]["crack_1.6"]["aggregate"]
+    assert fold_agg["h1"]["primary"] is h1_pri
+    assert fold_agg["h2"]["primary"] is h2_pri
+
+
+def test_cli_parser_config_and_overrides(tmp_path: Path) -> None:
+    """Verify CLI parser accepts --config and repeatable --set arguments."""
+    from experiments.run_hybrid import _build_arg_parser
+
+    cfg_file = tmp_path / "detectors.yaml"
+    cfg_file.write_text("hybrid:\n  mode: fused\n", encoding="utf-8")
+    parser = _build_arg_parser()
+    args = parser.parse_args(
+        [
+            "--config",
+            str(cfg_file),
+            "--set",
+            "hybrid.mode=both",
+            "--set",
+            "supervised.threshold=0.7",
+        ]
+    )
+    assert args.config == cfg_file
+    assert args.overrides == ["hybrid.mode=both", "supervised.threshold=0.7"]
