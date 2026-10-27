@@ -67,6 +67,31 @@ class CaseCollector:
     records: list[dict[str, Any]]
     counts: dict[str, int]
     p10: float = SMALL_FLAW_P10_DEFAULT
+    png_limit: int = 20
+
+
+@dataclass(frozen=True)
+class CaseRequest:
+    """Request parameters for a failure case record."""
+
+    idx: int
+    kind: str
+    save_png: bool = True
+
+
+@dataclass(frozen=True)
+class CaseSpec:
+    """Specification for recording a single failure case."""
+
+    idx: int
+    kind: str
+    cause: str
+    save_png: bool
+
+
+def _build_case_id(kind: str, fold: str, batch_stem: str, img_idx: int) -> str:
+    """Construct unique failure case identifier incorporating batch stem."""
+    return f"{kind}_{fold}_{batch_stem}_{img_idx}"
 
 
 def _parse_args() -> argparse.Namespace:
@@ -149,55 +174,55 @@ def _format_evidence(kind: str, meta: dict[str, Any]) -> str:
 
 def _save_case(
     ctx: FoldContext,
-    idx: int,
-    kind: str,
-    cause: str,
+    spec: CaseSpec,
+    img: np.ndarray,
+    meta: dict[str, Any],
 ) -> dict[str, Any]:
     """Save failure case plot and return structured evidence record."""
-    bins_path, img_idx = ctx.test_items[idx]
-    img = read_image(bins_path, img_idx)
-    meta = read_flaw_meta(bins_path)[img_idx]
-    score = float(ctx.probs[idx])
-    name = f"{kind}_{ctx.fold_name}_{img_idx}"
-    save_failure_case(img, meta, score, ctx.fold_dir, name)
+    bins_path, img_idx = ctx.test_items[spec.idx]
+    score = float(ctx.probs[spec.idx])
+    name = _build_case_id(spec.kind, ctx.fold_name, bins_path.stem, img_idx)
+    save_failure_case(img, meta, score, ctx.fold_dir, name, save_png=spec.save_png)
     return {
         "name": name,
         "fold": ctx.fold_name,
-        "kind": kind,
+        "kind": spec.kind,
         "score": score,
-        "cause": cause,
-        "evidence": _format_evidence(kind, meta),
+        "cause": spec.cause,
+        "has_png": spec.save_png,
+        "evidence": _format_evidence(spec.kind, meta),
     }
 
 
 def _record_case(
     ctx: FoldContext,
-    idx: int,
-    kind: str,
+    req: CaseRequest,
     acc: CaseCollector,
 ) -> None:
-    """Classify failure, persist plot, and accumulate evidence and counts."""
-    bins_path, img_idx = ctx.test_items[idx]
+    """Classify failure, persist plot or evidence, and accumulate counts."""
+    bins_path, img_idx = ctx.test_items[req.idx]
+    img = read_image(bins_path, img_idx)
     meta = read_flaw_meta(bins_path)[img_idx]
     cause = (
-        classify_failure(meta, "miss", p10_threshold=acc.p10)
-        if kind == "miss"
-        else classify_failure(meta, "false_call")
+        classify_failure(meta, "miss", p10_threshold=acc.p10, img=img)
+        if req.kind == "miss"
+        else classify_failure(meta, "false_call", img=img)
     )
     acc.counts[cause] += 1
-    acc.records.append(_save_case(ctx, idx, kind, cause))
+    spec = CaseSpec(idx=req.idx, kind=req.kind, cause=cause, save_png=req.save_png)
+    acc.records.append(_save_case(ctx, spec, img, meta))
 
 
 def _collect_cases(
     ctx: FoldContext,
     indices: np.ndarray,
     kind: str,
-    p10: float = SMALL_FLAW_P10_DEFAULT,
+    acc: CaseCollector,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """Record cases across indices and return record list and cause counts."""
-    acc = CaseCollector(records=[], counts=collections.defaultdict(int), p10=p10)
-    for idx in indices:
-        _record_case(ctx, idx, kind, acc)
+    for i, idx in enumerate(indices):
+        req = CaseRequest(idx=int(idx), kind=kind, save_png=(i < acc.png_limit))
+        _record_case(ctx, req, acc)
     return acc.records, dict(acc.counts)
 
 
@@ -208,7 +233,14 @@ def _process_misses(
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """Collect detection misses and save case plots and evidence."""
     miss_indices = np.where(ctx.flawed_mask & (~ctx.hits))[0]
-    return _collect_cases(ctx, miss_indices[:5] if quick else miss_indices, "miss", p10)
+    if len(miss_indices) == 0:
+        return [], {}
+    sorted_order = np.argsort(-ctx.probs[miss_indices])
+    sorted_indices = miss_indices[sorted_order]
+    target_indices = sorted_indices[:5] if quick else sorted_indices
+    png_limit = 5 if quick else 20
+    acc = CaseCollector([], collections.defaultdict(int), p10=p10, png_limit=png_limit)
+    return _collect_cases(ctx, target_indices, "miss", acc)
 
 
 def _process_false_calls(
@@ -221,7 +253,8 @@ def _process_false_calls(
         return [], {}
     sorted_order = np.argsort(-ctx.probs[unflawed_indices])
     top_indices = unflawed_indices[sorted_order][: 5 if quick else 20]
-    return _collect_cases(ctx, top_indices, "false_call")
+    acc = CaseCollector([], collections.defaultdict(int), png_limit=len(top_indices))
+    return _collect_cases(ctx, top_indices, "false_call", acc)
 
 
 def _score_fold_test(
@@ -278,6 +311,22 @@ def _load_sim_gen(sim_path: Path) -> dict:
         return {}
 
 
+def _write_summary_json(out_dir: Path, summaries: list[dict[str, Any]]) -> Path:
+    """Save per-fold cause breakdown counts to summary.json."""
+    summary_data = {
+        s["fold"]: {
+            "n_misses": s["n_misses"],
+            "miss_causes": s["miss_causes"],
+            "n_false_calls": s["n_false_calls"],
+            "false_call_causes": s["false_call_causes"],
+        }
+        for s in summaries
+    }
+    summary_path = out_dir / "summary.json"
+    summary_path.write_text(json.dumps(summary_data, indent=2), encoding="utf-8")
+    return summary_path
+
+
 def _process_folds(
     models: list[Path],
     fold_map: dict[str, LocoFold],
@@ -314,8 +363,11 @@ def main() -> None:
 
     cfg = FailureConfig(out_dir=out_dir, quick=args.quick, device=str(dev))
     summaries, cases = _process_folds(models, fold_map, cfg)
+    _write_summary_json(out_dir, summaries)
+
     sim_gen = _load_sim_gen(Path("results/sim_generalization.json"))
-    md_content = build_failure_modes_md(summaries, cases, sim_gen)
+    png_count = sum(1 for c in cases if c.get("has_png", True))
+    md_content = build_failure_modes_md(summaries, cases, sim_gen, png_count=png_count)
     report_path = Path(args.report_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(md_content, encoding="utf-8")
