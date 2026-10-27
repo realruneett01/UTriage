@@ -1,0 +1,3176 @@
+{
+  "label": "Real data (NDT_ML_Flaw, LGPL-3.0, not redistributed)",
+  "dataset": "NDT_ML_Flaw",
+  "licence": "LGPL-3.0",
+  "batches_evaluated": [
+    "batch_013",
+    "batch_014",
+    "batch_015",
+    "batch_016",
+    "batch_017",
+    "batch_018",
+    "batch_019"
+  ],
+  "verified_format_facts": {
+    "image_shape": [
+      480,
+      7168
+    ],
+    "dtype": "int16 (little-endian)",
+    "bytes_per_image": 6881280,
+    "images_per_batch": 1000,
+    "decompressed_batch_bytes": 6881280000,
+    "flaw_area_sample_range": [
+      1100,
+      3100
+    ],
+    "time_axis": 1,
+    "scan_axis": 0,
+    "real_flaw_batches": "013-019",
+    "simulated_flaw_batches": "2xx (excluded)"
+  },
+  "preprocessing_assumptions": {
+    "envelope_method": "scipy.signal.hilbert analytic magnitude along axis 1 (7168 samples)",
+    "flaw_area_crop": "Axis 1 cropped to samples 1050-3150 (flaw area 1100-3100 + 50 margin)",
+    "time_axis_determination": "Axis 1 identified as time/depth: 1100-3100 sample range only fits in 7168 dimension",
+    "resampling": "Bilinear spatial-temporal zoom to (256, 256) matching ML-NDT input space",
+    "standardisation": "Per-image zero-mean unit-variance standardisation matching ML-NDT pipeline"
+  },
+  "models": {
+    "mlndt_best.pt": {
+      "overall": {
+        "detection": {
+          "n": 3442,
+          "k": 3442,
+          "rate": 1.0,
+          "ci_low": 0.9989288485105008,
+          "ci_high": 1.0,
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "false_calls": {
+          "rate": 1.0,
+          "n_false": 3558,
+          "n_scans": 3558
+        },
+        "ece": 0.5082857142857142,
+        "reliability": {
+          "bin_edges": [
+            0.0,
+            0.1,
+            0.2,
+            0.30000000000000004,
+            0.4,
+            0.5,
+            0.6000000000000001,
+            0.7000000000000001,
+            0.8,
+            0.9,
+            1.0
+          ],
+          "mean_conf": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1.0
+          ],
+          "frac_pos": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0.4917142857142857
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            7000
+          ]
+        },
+        "pod": {
+          "n_flawed": 3442,
+          "n_hit": 3442,
+          "min_size": 2.0,
+          "max_size": 26.0,
+          "size_p10": 2.0,
+          "size_p50": 6.0,
+          "pod_lower95": 0.9991300322518013,
+          "method": "binomial Clopper-Pearson one-sided 95",
+          "note": "POD lower bound over the whole tested size range, not a POD curve.",
+          "fittable": false,
+          "reason": "Data is separable: only hits or only misses present.",
+          "a90_95": null
+        },
+        "n_images": 7000,
+        "n_physical_flaws": 6,
+        "counts": {
+          "images": 7000,
+          "distinct_physical_flaws": 6,
+          "hits": 3442,
+          "total_flaws_tested": 3442
+        }
+      },
+      "by_flaw_type": {
+        "P41_01": {
+          "detection": {
+            "n": 547,
+            "k": 547,
+            "rate": 1.0,
+            "ci_low": 0.9932788505203028,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              547
+            ]
+          },
+          "pod": {
+            "n_flawed": 547,
+            "n_hit": 547,
+            "min_size": 2.0,
+            "max_size": 2.0,
+            "size_p10": 2.0,
+            "size_p50": 2.0,
+            "pod_lower95": 0.994538310919341,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 547,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 547,
+            "distinct_physical_flaws": 1,
+            "hits": 547,
+            "total_flaws_tested": 547
+          }
+        },
+        "P41_02": {
+          "detection": {
+            "n": 543,
+            "k": 543,
+            "rate": 1.0,
+            "ci_low": 0.9932295072761215,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              543
+            ]
+          },
+          "pod": {
+            "n_flawed": 543,
+            "n_hit": 543,
+            "min_size": 3.0,
+            "max_size": 3.0,
+            "size_p10": 3.0,
+            "size_p50": 3.0,
+            "pod_lower95": 0.994498188363472,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 543,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 543,
+            "distinct_physical_flaws": 1,
+            "hits": 543,
+            "total_flaws_tested": 543
+          }
+        },
+        "P41_03": {
+          "detection": {
+            "n": 621,
+            "k": 621,
+            "rate": 1.0,
+            "ci_low": 0.9940773836872362,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              621
+            ]
+          },
+          "pod": {
+            "n_flawed": 621,
+            "n_hit": 621,
+            "min_size": 26.0,
+            "max_size": 26.0,
+            "size_p10": 26.0,
+            "size_p50": 26.0,
+            "pod_lower95": 0.9951875714907096,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 621,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 621,
+            "distinct_physical_flaws": 1,
+            "hits": 621,
+            "total_flaws_tested": 621
+          }
+        },
+        "P41_04": {
+          "detection": {
+            "n": 558,
+            "k": 558,
+            "rate": 1.0,
+            "ci_low": 0.9934109088136088,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              558
+            ]
+          },
+          "pod": {
+            "n_flawed": 558,
+            "n_hit": 558,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9946456898610715,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 558,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 558,
+            "distinct_physical_flaws": 1,
+            "hits": 558,
+            "total_flaws_tested": 558
+          }
+        },
+        "P41_05": {
+          "detection": {
+            "n": 574,
+            "k": 574,
+            "rate": 1.0,
+            "ci_low": 0.9935939872923901,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              574
+            ]
+          },
+          "pod": {
+            "n_flawed": 574,
+            "n_hit": 574,
+            "min_size": 17.0,
+            "max_size": 17.0,
+            "size_p10": 17.0,
+            "size_p50": 17.0,
+            "pod_lower95": 0.9947945497844186,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 574,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 574,
+            "distinct_physical_flaws": 1,
+            "hits": 574,
+            "total_flaws_tested": 574
+          }
+        },
+        "P41_06_notch": {
+          "detection": {
+            "n": 599,
+            "k": 599,
+            "rate": 1.0,
+            "ci_low": 0.9938605276384576,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              599
+            ]
+          },
+          "pod": {
+            "n_flawed": 599,
+            "n_hit": 599,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9950112627972248,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 599,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 599,
+            "distinct_physical_flaws": 1,
+            "hits": 599,
+            "total_flaws_tested": 599
+          }
+        }
+      }
+    },
+    "anomaly_2d.pt": {
+      "overall": {
+        "detection": {
+          "n": 3442,
+          "k": 3442,
+          "rate": 1.0,
+          "ci_low": 0.9989288485105008,
+          "ci_high": 1.0,
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "false_calls": {
+          "rate": 1.0,
+          "n_false": 3558,
+          "n_scans": 3558
+        },
+        "ece": 0.5082857142857142,
+        "reliability": {
+          "bin_edges": [
+            0.0,
+            0.1,
+            0.2,
+            0.30000000000000004,
+            0.4,
+            0.5,
+            0.6000000000000001,
+            0.7000000000000001,
+            0.8,
+            0.9,
+            1.0
+          ],
+          "mean_conf": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1.0
+          ],
+          "frac_pos": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0.4917142857142857
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            7000
+          ]
+        },
+        "pod": {
+          "n_flawed": 3442,
+          "n_hit": 3442,
+          "min_size": 2.0,
+          "max_size": 26.0,
+          "size_p10": 2.0,
+          "size_p50": 6.0,
+          "pod_lower95": 0.9991300322518013,
+          "method": "binomial Clopper-Pearson one-sided 95",
+          "note": "POD lower bound over the whole tested size range, not a POD curve.",
+          "fittable": false,
+          "reason": "Data is separable: only hits or only misses present.",
+          "a90_95": null
+        },
+        "n_images": 7000,
+        "n_physical_flaws": 6,
+        "counts": {
+          "images": 7000,
+          "distinct_physical_flaws": 6,
+          "hits": 3442,
+          "total_flaws_tested": 3442
+        }
+      },
+      "by_flaw_type": {
+        "P41_01": {
+          "detection": {
+            "n": 547,
+            "k": 547,
+            "rate": 1.0,
+            "ci_low": 0.9932788505203028,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              547
+            ]
+          },
+          "pod": {
+            "n_flawed": 547,
+            "n_hit": 547,
+            "min_size": 2.0,
+            "max_size": 2.0,
+            "size_p10": 2.0,
+            "size_p50": 2.0,
+            "pod_lower95": 0.994538310919341,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 547,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 547,
+            "distinct_physical_flaws": 1,
+            "hits": 547,
+            "total_flaws_tested": 547
+          }
+        },
+        "P41_02": {
+          "detection": {
+            "n": 543,
+            "k": 543,
+            "rate": 1.0,
+            "ci_low": 0.9932295072761215,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              543
+            ]
+          },
+          "pod": {
+            "n_flawed": 543,
+            "n_hit": 543,
+            "min_size": 3.0,
+            "max_size": 3.0,
+            "size_p10": 3.0,
+            "size_p50": 3.0,
+            "pod_lower95": 0.994498188363472,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 543,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 543,
+            "distinct_physical_flaws": 1,
+            "hits": 543,
+            "total_flaws_tested": 543
+          }
+        },
+        "P41_03": {
+          "detection": {
+            "n": 621,
+            "k": 621,
+            "rate": 1.0,
+            "ci_low": 0.9940773836872362,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              621
+            ]
+          },
+          "pod": {
+            "n_flawed": 621,
+            "n_hit": 621,
+            "min_size": 26.0,
+            "max_size": 26.0,
+            "size_p10": 26.0,
+            "size_p50": 26.0,
+            "pod_lower95": 0.9951875714907096,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 621,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 621,
+            "distinct_physical_flaws": 1,
+            "hits": 621,
+            "total_flaws_tested": 621
+          }
+        },
+        "P41_04": {
+          "detection": {
+            "n": 558,
+            "k": 558,
+            "rate": 1.0,
+            "ci_low": 0.9934109088136088,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              558
+            ]
+          },
+          "pod": {
+            "n_flawed": 558,
+            "n_hit": 558,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9946456898610715,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 558,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 558,
+            "distinct_physical_flaws": 1,
+            "hits": 558,
+            "total_flaws_tested": 558
+          }
+        },
+        "P41_05": {
+          "detection": {
+            "n": 574,
+            "k": 574,
+            "rate": 1.0,
+            "ci_low": 0.9935939872923901,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              574
+            ]
+          },
+          "pod": {
+            "n_flawed": 574,
+            "n_hit": 574,
+            "min_size": 17.0,
+            "max_size": 17.0,
+            "size_p10": 17.0,
+            "size_p50": 17.0,
+            "pod_lower95": 0.9947945497844186,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 574,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 574,
+            "distinct_physical_flaws": 1,
+            "hits": 574,
+            "total_flaws_tested": 574
+          }
+        },
+        "P41_06_notch": {
+          "detection": {
+            "n": 599,
+            "k": 599,
+            "rate": 1.0,
+            "ci_low": 0.9938605276384576,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              599
+            ]
+          },
+          "pod": {
+            "n_flawed": 599,
+            "n_hit": 599,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9950112627972248,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 599,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 599,
+            "distinct_physical_flaws": 1,
+            "hits": 599,
+            "total_flaws_tested": 599
+          }
+        }
+      }
+    },
+    "loco_crack_1.6.pt": {
+      "overall": {
+        "detection": {
+          "n": 3442,
+          "k": 3442,
+          "rate": 1.0,
+          "ci_low": 0.9989288485105008,
+          "ci_high": 1.0,
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "false_calls": {
+          "rate": 1.0,
+          "n_false": 3558,
+          "n_scans": 3558
+        },
+        "ece": 0.5082857142857142,
+        "reliability": {
+          "bin_edges": [
+            0.0,
+            0.1,
+            0.2,
+            0.30000000000000004,
+            0.4,
+            0.5,
+            0.6000000000000001,
+            0.7000000000000001,
+            0.8,
+            0.9,
+            1.0
+          ],
+          "mean_conf": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1.0
+          ],
+          "frac_pos": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0.4917142857142857
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            7000
+          ]
+        },
+        "pod": {
+          "n_flawed": 3442,
+          "n_hit": 3442,
+          "min_size": 2.0,
+          "max_size": 26.0,
+          "size_p10": 2.0,
+          "size_p50": 6.0,
+          "pod_lower95": 0.9991300322518013,
+          "method": "binomial Clopper-Pearson one-sided 95",
+          "note": "POD lower bound over the whole tested size range, not a POD curve.",
+          "fittable": false,
+          "reason": "Data is separable: only hits or only misses present.",
+          "a90_95": null
+        },
+        "n_images": 7000,
+        "n_physical_flaws": 6,
+        "counts": {
+          "images": 7000,
+          "distinct_physical_flaws": 6,
+          "hits": 3442,
+          "total_flaws_tested": 3442
+        }
+      },
+      "by_flaw_type": {
+        "P41_01": {
+          "detection": {
+            "n": 547,
+            "k": 547,
+            "rate": 1.0,
+            "ci_low": 0.9932788505203028,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              547
+            ]
+          },
+          "pod": {
+            "n_flawed": 547,
+            "n_hit": 547,
+            "min_size": 2.0,
+            "max_size": 2.0,
+            "size_p10": 2.0,
+            "size_p50": 2.0,
+            "pod_lower95": 0.994538310919341,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 547,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 547,
+            "distinct_physical_flaws": 1,
+            "hits": 547,
+            "total_flaws_tested": 547
+          }
+        },
+        "P41_02": {
+          "detection": {
+            "n": 543,
+            "k": 543,
+            "rate": 1.0,
+            "ci_low": 0.9932295072761215,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              543
+            ]
+          },
+          "pod": {
+            "n_flawed": 543,
+            "n_hit": 543,
+            "min_size": 3.0,
+            "max_size": 3.0,
+            "size_p10": 3.0,
+            "size_p50": 3.0,
+            "pod_lower95": 0.994498188363472,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 543,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 543,
+            "distinct_physical_flaws": 1,
+            "hits": 543,
+            "total_flaws_tested": 543
+          }
+        },
+        "P41_03": {
+          "detection": {
+            "n": 621,
+            "k": 621,
+            "rate": 1.0,
+            "ci_low": 0.9940773836872362,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              621
+            ]
+          },
+          "pod": {
+            "n_flawed": 621,
+            "n_hit": 621,
+            "min_size": 26.0,
+            "max_size": 26.0,
+            "size_p10": 26.0,
+            "size_p50": 26.0,
+            "pod_lower95": 0.9951875714907096,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 621,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 621,
+            "distinct_physical_flaws": 1,
+            "hits": 621,
+            "total_flaws_tested": 621
+          }
+        },
+        "P41_04": {
+          "detection": {
+            "n": 558,
+            "k": 558,
+            "rate": 1.0,
+            "ci_low": 0.9934109088136088,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              558
+            ]
+          },
+          "pod": {
+            "n_flawed": 558,
+            "n_hit": 558,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9946456898610715,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 558,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 558,
+            "distinct_physical_flaws": 1,
+            "hits": 558,
+            "total_flaws_tested": 558
+          }
+        },
+        "P41_05": {
+          "detection": {
+            "n": 574,
+            "k": 574,
+            "rate": 1.0,
+            "ci_low": 0.9935939872923901,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              574
+            ]
+          },
+          "pod": {
+            "n_flawed": 574,
+            "n_hit": 574,
+            "min_size": 17.0,
+            "max_size": 17.0,
+            "size_p10": 17.0,
+            "size_p50": 17.0,
+            "pod_lower95": 0.9947945497844186,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 574,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 574,
+            "distinct_physical_flaws": 1,
+            "hits": 574,
+            "total_flaws_tested": 574
+          }
+        },
+        "P41_06_notch": {
+          "detection": {
+            "n": 599,
+            "k": 599,
+            "rate": 1.0,
+            "ci_low": 0.9938605276384576,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              599
+            ]
+          },
+          "pod": {
+            "n_flawed": 599,
+            "n_hit": 599,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9950112627972248,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 599,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 599,
+            "distinct_physical_flaws": 1,
+            "hits": 599,
+            "total_flaws_tested": 599
+          }
+        }
+      }
+    },
+    "loco_crack_4.0.pt": {
+      "overall": {
+        "detection": {
+          "n": 3442,
+          "k": 3442,
+          "rate": 1.0,
+          "ci_low": 0.9989288485105008,
+          "ci_high": 1.0,
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "false_calls": {
+          "rate": 1.0,
+          "n_false": 3558,
+          "n_scans": 3558
+        },
+        "ece": 0.5082857142857142,
+        "reliability": {
+          "bin_edges": [
+            0.0,
+            0.1,
+            0.2,
+            0.30000000000000004,
+            0.4,
+            0.5,
+            0.6000000000000001,
+            0.7000000000000001,
+            0.8,
+            0.9,
+            1.0
+          ],
+          "mean_conf": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1.0
+          ],
+          "frac_pos": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0.4917142857142857
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            7000
+          ]
+        },
+        "pod": {
+          "n_flawed": 3442,
+          "n_hit": 3442,
+          "min_size": 2.0,
+          "max_size": 26.0,
+          "size_p10": 2.0,
+          "size_p50": 6.0,
+          "pod_lower95": 0.9991300322518013,
+          "method": "binomial Clopper-Pearson one-sided 95",
+          "note": "POD lower bound over the whole tested size range, not a POD curve.",
+          "fittable": false,
+          "reason": "Data is separable: only hits or only misses present.",
+          "a90_95": null
+        },
+        "n_images": 7000,
+        "n_physical_flaws": 6,
+        "counts": {
+          "images": 7000,
+          "distinct_physical_flaws": 6,
+          "hits": 3442,
+          "total_flaws_tested": 3442
+        }
+      },
+      "by_flaw_type": {
+        "P41_01": {
+          "detection": {
+            "n": 547,
+            "k": 547,
+            "rate": 1.0,
+            "ci_low": 0.9932788505203028,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              547
+            ]
+          },
+          "pod": {
+            "n_flawed": 547,
+            "n_hit": 547,
+            "min_size": 2.0,
+            "max_size": 2.0,
+            "size_p10": 2.0,
+            "size_p50": 2.0,
+            "pod_lower95": 0.994538310919341,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 547,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 547,
+            "distinct_physical_flaws": 1,
+            "hits": 547,
+            "total_flaws_tested": 547
+          }
+        },
+        "P41_02": {
+          "detection": {
+            "n": 543,
+            "k": 543,
+            "rate": 1.0,
+            "ci_low": 0.9932295072761215,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              543
+            ]
+          },
+          "pod": {
+            "n_flawed": 543,
+            "n_hit": 543,
+            "min_size": 3.0,
+            "max_size": 3.0,
+            "size_p10": 3.0,
+            "size_p50": 3.0,
+            "pod_lower95": 0.994498188363472,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 543,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 543,
+            "distinct_physical_flaws": 1,
+            "hits": 543,
+            "total_flaws_tested": 543
+          }
+        },
+        "P41_03": {
+          "detection": {
+            "n": 621,
+            "k": 621,
+            "rate": 1.0,
+            "ci_low": 0.9940773836872362,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              621
+            ]
+          },
+          "pod": {
+            "n_flawed": 621,
+            "n_hit": 621,
+            "min_size": 26.0,
+            "max_size": 26.0,
+            "size_p10": 26.0,
+            "size_p50": 26.0,
+            "pod_lower95": 0.9951875714907096,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 621,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 621,
+            "distinct_physical_flaws": 1,
+            "hits": 621,
+            "total_flaws_tested": 621
+          }
+        },
+        "P41_04": {
+          "detection": {
+            "n": 558,
+            "k": 558,
+            "rate": 1.0,
+            "ci_low": 0.9934109088136088,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              558
+            ]
+          },
+          "pod": {
+            "n_flawed": 558,
+            "n_hit": 558,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9946456898610715,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 558,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 558,
+            "distinct_physical_flaws": 1,
+            "hits": 558,
+            "total_flaws_tested": 558
+          }
+        },
+        "P41_05": {
+          "detection": {
+            "n": 574,
+            "k": 574,
+            "rate": 1.0,
+            "ci_low": 0.9935939872923901,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              574
+            ]
+          },
+          "pod": {
+            "n_flawed": 574,
+            "n_hit": 574,
+            "min_size": 17.0,
+            "max_size": 17.0,
+            "size_p10": 17.0,
+            "size_p50": 17.0,
+            "pod_lower95": 0.9947945497844186,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 574,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 574,
+            "distinct_physical_flaws": 1,
+            "hits": 574,
+            "total_flaws_tested": 574
+          }
+        },
+        "P41_06_notch": {
+          "detection": {
+            "n": 599,
+            "k": 599,
+            "rate": 1.0,
+            "ci_low": 0.9938605276384576,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              599
+            ]
+          },
+          "pod": {
+            "n_flawed": 599,
+            "n_hit": 599,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9950112627972248,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 599,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 599,
+            "distinct_physical_flaws": 1,
+            "hits": 599,
+            "total_flaws_tested": 599
+          }
+        }
+      }
+    },
+    "loco_crack_8.6.pt": {
+      "overall": {
+        "detection": {
+          "n": 3442,
+          "k": 3442,
+          "rate": 1.0,
+          "ci_low": 0.9989288485105008,
+          "ci_high": 1.0,
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "false_calls": {
+          "rate": 1.0,
+          "n_false": 3558,
+          "n_scans": 3558
+        },
+        "ece": 0.5082857142857142,
+        "reliability": {
+          "bin_edges": [
+            0.0,
+            0.1,
+            0.2,
+            0.30000000000000004,
+            0.4,
+            0.5,
+            0.6000000000000001,
+            0.7000000000000001,
+            0.8,
+            0.9,
+            1.0
+          ],
+          "mean_conf": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            1.0
+          ],
+          "frac_pos": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            0.4917142857142857
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            7000
+          ]
+        },
+        "pod": {
+          "n_flawed": 3442,
+          "n_hit": 3442,
+          "min_size": 2.0,
+          "max_size": 26.0,
+          "size_p10": 2.0,
+          "size_p50": 6.0,
+          "pod_lower95": 0.9991300322518013,
+          "method": "binomial Clopper-Pearson one-sided 95",
+          "note": "POD lower bound over the whole tested size range, not a POD curve.",
+          "fittable": false,
+          "reason": "Data is separable: only hits or only misses present.",
+          "a90_95": null
+        },
+        "n_images": 7000,
+        "n_physical_flaws": 6,
+        "counts": {
+          "images": 7000,
+          "distinct_physical_flaws": 6,
+          "hits": 3442,
+          "total_flaws_tested": 3442
+        }
+      },
+      "by_flaw_type": {
+        "P41_01": {
+          "detection": {
+            "n": 547,
+            "k": 547,
+            "rate": 1.0,
+            "ci_low": 0.9932788505203028,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              547
+            ]
+          },
+          "pod": {
+            "n_flawed": 547,
+            "n_hit": 547,
+            "min_size": 2.0,
+            "max_size": 2.0,
+            "size_p10": 2.0,
+            "size_p50": 2.0,
+            "pod_lower95": 0.994538310919341,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 547,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 547,
+            "distinct_physical_flaws": 1,
+            "hits": 547,
+            "total_flaws_tested": 547
+          }
+        },
+        "P41_02": {
+          "detection": {
+            "n": 543,
+            "k": 543,
+            "rate": 1.0,
+            "ci_low": 0.9932295072761215,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              543
+            ]
+          },
+          "pod": {
+            "n_flawed": 543,
+            "n_hit": 543,
+            "min_size": 3.0,
+            "max_size": 3.0,
+            "size_p10": 3.0,
+            "size_p50": 3.0,
+            "pod_lower95": 0.994498188363472,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 543,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 543,
+            "distinct_physical_flaws": 1,
+            "hits": 543,
+            "total_flaws_tested": 543
+          }
+        },
+        "P41_03": {
+          "detection": {
+            "n": 621,
+            "k": 621,
+            "rate": 1.0,
+            "ci_low": 0.9940773836872362,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              621
+            ]
+          },
+          "pod": {
+            "n_flawed": 621,
+            "n_hit": 621,
+            "min_size": 26.0,
+            "max_size": 26.0,
+            "size_p10": 26.0,
+            "size_p50": 26.0,
+            "pod_lower95": 0.9951875714907096,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 621,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 621,
+            "distinct_physical_flaws": 1,
+            "hits": 621,
+            "total_flaws_tested": 621
+          }
+        },
+        "P41_04": {
+          "detection": {
+            "n": 558,
+            "k": 558,
+            "rate": 1.0,
+            "ci_low": 0.9934109088136088,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              558
+            ]
+          },
+          "pod": {
+            "n_flawed": 558,
+            "n_hit": 558,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9946456898610715,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 558,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 558,
+            "distinct_physical_flaws": 1,
+            "hits": 558,
+            "total_flaws_tested": 558
+          }
+        },
+        "P41_05": {
+          "detection": {
+            "n": 574,
+            "k": 574,
+            "rate": 1.0,
+            "ci_low": 0.9935939872923901,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              574
+            ]
+          },
+          "pod": {
+            "n_flawed": 574,
+            "n_hit": 574,
+            "min_size": 17.0,
+            "max_size": 17.0,
+            "size_p10": 17.0,
+            "size_p50": 17.0,
+            "pod_lower95": 0.9947945497844186,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 574,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 574,
+            "distinct_physical_flaws": 1,
+            "hits": 574,
+            "total_flaws_tested": 574
+          }
+        },
+        "P41_06_notch": {
+          "detection": {
+            "n": 599,
+            "k": 599,
+            "rate": 1.0,
+            "ci_low": 0.9938605276384576,
+            "ci_high": 1.0,
+            "method": "Clopper-Pearson two-sided 95"
+          },
+          "false_calls": {
+            "rate": NaN,
+            "n_false": 0,
+            "n_scans": 0
+          },
+          "ece": 0.0,
+          "reliability": {
+            "bin_edges": [
+              0.0,
+              0.1,
+              0.2,
+              0.30000000000000004,
+              0.4,
+              0.5,
+              0.6000000000000001,
+              0.7000000000000001,
+              0.8,
+              0.9,
+              1.0
+            ],
+            "mean_conf": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "frac_pos": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1.0
+            ],
+            "counts": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              599
+            ]
+          },
+          "pod": {
+            "n_flawed": 599,
+            "n_hit": 599,
+            "min_size": 6.0,
+            "max_size": 6.0,
+            "size_p10": 6.0,
+            "size_p50": 6.0,
+            "pod_lower95": 0.9950112627972248,
+            "method": "binomial Clopper-Pearson one-sided 95",
+            "note": "POD lower bound over the whole tested size range, not a POD curve.",
+            "fittable": false,
+            "reason": "Data is separable: only hits or only misses present.",
+            "a90_95": null
+          },
+          "n_images": 599,
+          "n_physical_flaws": 1,
+          "counts": {
+            "images": 599,
+            "distinct_physical_flaws": 1,
+            "hits": 599,
+            "total_flaws_tested": 599
+          }
+        }
+      }
+    }
+  }
+}
