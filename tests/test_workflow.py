@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
@@ -18,6 +19,7 @@ import pytest  # noqa: E402
 from typer.testing import CliRunner  # noqa: E402
 
 from utriage.cli import app  # noqa: E402
+from utriage.io.validate import check_file_size, safe_filename  # noqa: E402
 from utriage.workflow import TriageJob, run_batch, run_triage  # noqa: E402
 
 _SAMPLE_SCAN = Path(__file__).resolve().parents[1] / "data" / "samples" / "ti64" / "bar_0000.npz"
@@ -120,3 +122,94 @@ def test_cli_triage_exit_codes(
     assert "bar_0000" in result.output
     if expect_error:
         assert "ERROR" in result.output
+
+
+@pytest.mark.parametrize(
+    ("raw_name", "expected"),
+    [
+        ("../../evil", "evil"),
+        (r"..\..\evil", "evil"),
+        ("foo/bar/baz.txt", "baz.txt"),
+        ("bad:name*?.txt", "bad_name__.txt"),
+        ("...hidden", "hidden"),
+        ("a" * 150, "a" * 100),
+        ("normal_name-123.npz", "normal_name-123.npz"),
+    ],
+)
+def test_safe_filename_valid(raw_name: str, expected: str) -> None:
+    """Verify safe_filename extracts basename, sanitizes characters and truncates."""
+    assert safe_filename(raw_name) == expected
+
+
+@pytest.mark.parametrize(
+    "invalid_name",
+    [
+        "",
+        "...",
+        "..",
+        "/",
+        "CON",
+        "con.txt",
+        "PRN",
+        "AUX",
+        "NUL",
+        "COM1",
+        "COM9",
+        "LPT1",
+        "LPT9",
+    ],
+)
+def test_safe_filename_rejected(invalid_name: str) -> None:
+    """Verify empty results and Windows reserved names raise ValueError."""
+    with pytest.raises(ValueError):
+        safe_filename(invalid_name)
+
+
+def test_path_traversal_bar_id_contained(
+    sample_scan: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify bar_id with traversal components writes inside out_dir."""
+    import utriage.workflow as wf
+
+    orig_prepare = wf._prepare_session
+    monkeypatch.setattr(
+        wf,
+        "_prepare_session",
+        lambda job: replace(orig_prepare(job), bar_id="../../evil"),
+    )
+    out_dir = tmp_path / "out"
+    summary = run_triage(TriageJob(scan=sample_scan, out_dir=out_dir))
+    assert summary["error"] is None
+    html_p = Path(summary["report_path"]).resolve()
+    json_p = Path(summary["json_path"]).resolve()
+    assert html_p.is_relative_to(out_dir.resolve())
+    assert json_p.is_relative_to(out_dir.resolve())
+    assert html_p.is_file()
+    assert json_p.is_file()
+
+
+def test_oversize_scan_rejected(
+    sample_scan: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify input scan exceeding MAX_SCAN_BYTES raises ValueError."""
+    import utriage.io.validate as vld
+
+    monkeypatch.setattr(vld, "MAX_SCAN_BYTES", 10)
+    out_dir = tmp_path / "out"
+    job = TriageJob(scan=sample_scan, out_dir=out_dir)
+    with pytest.raises(ValueError, match="exceeds limit"):
+        run_triage(job)
+
+
+def test_check_file_size_direct(sample_scan: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify check_file_size passes below limit and raises above limit."""
+    import utriage.io.validate as vld
+
+    check_file_size(sample_scan)
+    monkeypatch.setattr(vld, "MAX_SCAN_BYTES", 10)
+    with pytest.raises(ValueError, match="exceeds limit"):
+        check_file_size(sample_scan)

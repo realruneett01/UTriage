@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -202,3 +203,35 @@ def load_validated(path: Path) -> BarScan:
         raise ScanValidationError(errors)
 
     return scan
+
+
+_RESERVED_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"COM{i}" for i in range(1, 10)}
+    | {f"LPT{i}" for i in range(1, 10)}
+)
+
+MAX_SCAN_BYTES = 512 * 1024 * 1024  # operational limit, adjustable
+
+
+def safe_filename(name: str) -> str:
+    """Sanitize string for use as a safe, cross-platform filename component."""
+    norm = str(name).replace("\\", "/").rstrip("/")
+    base = norm.rsplit("/", 1)[-1]
+    cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", base).lstrip(".")[:100]
+    if not cleaned:
+        raise ValueError("Filename is empty or contains only invalid characters")
+    stem = cleaned.split(".")[0].upper()
+    if stem in _RESERVED_NAMES:
+        raise ValueError(f"Reserved Windows filename: {cleaned}")
+    return cleaned
+
+
+def check_file_size(path: Path) -> None:
+    """Ensure file size does not exceed MAX_SCAN_BYTES operational limit."""
+    p = Path(path)
+    size = p.stat().st_size
+    if size > MAX_SCAN_BYTES:
+        raise ValueError(
+            f"Scan file {p.name} ({size} bytes) exceeds limit of {MAX_SCAN_BYTES} bytes"
+        )

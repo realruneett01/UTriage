@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from utriage.app_logic import Session, load_session
+from utriage.io.validate import check_file_size, safe_filename
 from utriage.report.html import ReportInput, write_report
 from utriage.rules.config import load_acceptance
 from utriage.rules.pipeline import _indication_dict, evaluate_scan, evaluation_to_dict
@@ -136,12 +137,26 @@ def _build_summary(
     return d
 
 
+def _assert_inside_dir(out_dir: Path, target: Path) -> Path:
+    """Assert resolved target path is strictly inside resolved out_dir."""
+    resolved_out = out_dir.resolve()
+    resolved_target = target.resolve()
+    if not (resolved_target.is_relative_to(resolved_out) and resolved_target != resolved_out):
+        raise ValueError(f"Output path {target} resolves outside {out_dir}")
+    return target
+
+
 def run_triage(job: TriageJob) -> dict:
     """Execute end-to-end triage on a single bar scan and write artefacts."""
+    check_file_size(job.scan)
     session = _prepare_session(job)
     bar_id = session.bar_id or Path(job.scan).stem
-    html_path = job.out_dir / f"{bar_id}_report.html"
-    json_path = job.out_dir / f"{bar_id}_triage.json"
+    safe_id = safe_filename(bar_id)
+    html_name = safe_filename(f"{safe_id}_report.html")
+    json_name = safe_filename(f"{safe_id}_triage.json")
+    html_path = _assert_inside_dir(job.out_dir, job.out_dir / html_name)
+    json_path = _assert_inside_dir(job.out_dir, job.out_dir / json_name)
+
     _write_triage_html(session, html_path)
     _write_triage_json(session, session.items, json_path)
     return _build_summary(session, html_path, json_path)
