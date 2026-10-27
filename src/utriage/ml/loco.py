@@ -33,6 +33,7 @@ class LocoFold:
     train: list[tuple[Path, int]]
     val: list[tuple[Path, int]]
     test: list[tuple[Path, int]]
+    val_crack: str | None = None
 
 
 class IndexedMlNdtDataset(Dataset):
@@ -79,6 +80,23 @@ class IndexedMlNdtDataset(Dataset):
         return np.array(flaw_list, dtype=np.float32), np.array(size_list, dtype=np.float32)
 
 
+def _next_crack(crack: str) -> str:
+    """Return next physical crack in wrapping order."""
+    idx = PHYSICAL_CRACKS.index(crack)
+    return PHYSICAL_CRACKS[(idx + 1) % len(PHYSICAL_CRACKS)]
+
+
+def _build_test_split(
+    crack: str,
+    all_tr_idx: list[tuple[Path, int, str | None]],
+    holdout_idx: list[tuple[Path, int, str | None]],
+) -> list[tuple[Path, int]]:
+    """Build held-out test split containing crack flaw and holdout unflawed images."""
+    test_flawed = [(b, idx) for b, idx, c in all_tr_idx if c == crack]
+    test_unflawed = [(b, idx) for b, idx, c in holdout_idx if c is None]
+    return test_flawed + test_unflawed
+
+
 def _build_single_fold(
     crack: str,
     non_holdout_idx: list[tuple[Path, int, str | None]],
@@ -88,17 +106,39 @@ def _build_single_fold(
     """Build a single LocoFold partitioning for the target held-out crack."""
     train = [(b, idx) for b, idx, c in non_holdout_idx if c != crack]
     val = [(b, idx) for b, idx, c in val_idx if c != crack]
-
-    all_tr_idx = non_holdout_idx + holdout_idx
-    test_flawed = [(b, idx) for b, idx, c in all_tr_idx if c == crack]
-    test_unflawed = [(b, idx) for b, idx, c in holdout_idx if c is None]
-    test = test_flawed + test_unflawed
-
+    test = _build_test_split(crack, non_holdout_idx + holdout_idx, holdout_idx)
     return LocoFold(held_out=crack, train=train, val=val, test=test)
 
 
+def _build_crackval_fold(
+    crack: str,
+    non_holdout_idx: list[tuple[Path, int, str | None]],
+    holdout_idx: list[tuple[Path, int, str | None]],
+    val_idx: list[tuple[Path, int, str | None]],
+) -> LocoFold:
+    """Build fold with crack-held-out early-stopping validation split."""
+    val_c = _next_crack(crack)
+    train = [(b, idx) for b, idx, c in non_holdout_idx if c not in (crack, val_c)]
+    all_idx = non_holdout_idx + holdout_idx + val_idx
+    val_flawed = [(b, idx) for b, idx, c in all_idx if c == val_c]
+    val_unflawed = [(b, idx) for b, idx, c in val_idx if c is None]
+    val = val_flawed + val_unflawed
+    test = _build_test_split(crack, non_holdout_idx + holdout_idx, holdout_idx)
+    return LocoFold(held_out=crack, train=train, val=val, test=test, val_crack=val_c)
+
+
+def _validate_val_crack(fold: LocoFold, crack_map: dict[tuple[Path, int], str | None]) -> None:
+    """Assert that validation crack is absent from train and test splits."""
+    if fold.val_crack is None:
+        return
+    if any(crack_map[it] == fold.val_crack for it in fold.train):
+        raise AssertionError(f"Validation crack {fold.val_crack} present in train fold")
+    if any(crack_map[it] == fold.val_crack for it in fold.test):
+        raise AssertionError(f"Validation crack {fold.val_crack} present in test fold")
+
+
 def _validate_fold(fold: LocoFold, crack_map: dict[tuple[Path, int], str | None]) -> None:
-    """Assert mutual disjointness across splits and absence of held-out crack."""
+    """Assert mutual disjointness across splits and absence of held-out cracks."""
     s_tr, s_val, s_te = set(fold.train), set(fold.val), set(fold.test)
     disjoint_checks = [s_tr.isdisjoint(s_val), s_tr.isdisjoint(s_te), s_val.isdisjoint(s_te)]
     if not all(disjoint_checks):
@@ -107,14 +147,18 @@ def _validate_fold(fold: LocoFold, crack_map: dict[tuple[Path, int], str | None]
         raise AssertionError(f"Held-out crack {fold.held_out} present in train fold")
     if any(crack_map[it] == fold.held_out for it in fold.val):
         raise AssertionError(f"Held-out crack {fold.held_out} present in val fold")
+    _validate_val_crack(fold, crack_map)
 
 
 def make_folds(
     training_batches: list[Path],
     validation_batches: list[Path],
     seed: int = 0,
+    val_mode: str = "batch",
 ) -> list[LocoFold]:
     """Generate 3 leave-one-crack-out folds for physical crack evaluation."""
+    if val_mode not in ("batch", "crack"):
+        raise ValueError(f"Unsupported val_mode: {val_mode}. Expected 'batch' or 'crack'.")
     non_ho_batches, ho_batches = split_holdout(training_batches, test_frac=0.1, seed=seed)
     non_ho_idx = image_index(non_ho_batches)
     ho_idx = image_index(ho_batches)
@@ -125,7 +169,10 @@ def make_folds(
 
     folds: list[LocoFold] = []
     for crack in PHYSICAL_CRACKS:
-        fold = _build_single_fold(crack, non_ho_idx, ho_idx, val_idx)
+        if val_mode == "crack":
+            fold = _build_crackval_fold(crack, non_ho_idx, ho_idx, val_idx)
+        else:
+            fold = _build_single_fold(crack, non_ho_idx, ho_idx, val_idx)
         _validate_fold(fold, crack_map)
         folds.append(fold)
     return folds

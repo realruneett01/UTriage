@@ -16,6 +16,7 @@ import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 import torch  # noqa: E402
 from experiments.run_loco import (  # noqa: E402
+    PROTOCOL_DESC_CRACKVAL,
     RUN_NOTE,
     EnsembleFoldContext,
     SingleFoldContext,
@@ -24,6 +25,7 @@ from experiments.run_loco import (  # noqa: E402
     _file_mtime,
     _file_sha256,
     _parse_args,
+    _resolve_single_model_path,
     _run_ensemble_fold_workflow,
     _run_ensemble_workflow,
     _run_eval_single_workflow,
@@ -480,3 +482,147 @@ def test_guard_no_model_loading_under_repo_models(
     with pytest.raises(AssertionError, match="Resolved under repo models"):
         bad_ctx = EnsembleFoldContext(1, [0], "cpu", eval_only=True)
         _run_ensemble_fold_workflow(first_fold, bad_ctx)
+
+
+def test_make_folds_batch_mode_unchanged(fake_mlndt_root: Path) -> None:
+    """Verify batch mode reproduces default make_folds behavior without val_crack."""
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    default_folds = make_folds(tr, val, seed=0)
+    batch_folds = make_folds(tr, val, seed=0, val_mode="batch")
+
+    assert len(batch_folds) == len(default_folds)
+    for b_fold, d_fold in zip(batch_folds, default_folds, strict=True):
+        assert b_fold.held_out == d_fold.held_out
+        assert b_fold.train == d_fold.train
+        assert b_fold.val == d_fold.val
+        assert b_fold.test == d_fold.test
+        assert b_fold.val_crack is None
+
+
+def test_make_folds_invalid_mode_raises(fake_mlndt_root: Path) -> None:
+    """Verify make_folds raises ValueError for unsupported val_mode."""
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    with pytest.raises(ValueError, match="Unsupported val_mode"):
+        make_folds(tr, val, val_mode="invalid")
+
+
+def _assert_crackval_contents(
+    fold: LocoFold,
+    crack_map: dict[tuple[Path, int], str | None],
+    expected: tuple[str, str, str],
+) -> None:
+    """Assert train has one crack, val has one crack, and splits are disjoint."""
+    c, exp_val, exp_tr = expected
+    tr_cracks = {crack_map[it] for it in fold.train if crack_map[it] is not None}
+    val_cracks = {crack_map[it] for it in fold.val if crack_map[it] is not None}
+    te_cracks = {crack_map[it] for it in fold.test if crack_map[it] is not None}
+
+    assert tr_cracks == {exp_tr}
+    assert val_cracks == {exp_val}
+    assert te_cracks == {c}
+    assert fold.val_crack == exp_val
+
+    s_tr, s_val, s_te = set(fold.train), set(fold.val), set(fold.test)
+    assert all([s_tr.isdisjoint(s_val), s_tr.isdisjoint(s_te), s_val.isdisjoint(s_te)])
+
+
+@pytest.mark.parametrize(
+    ("target_crack", "exp_val", "exp_tr"),
+    [
+        ("crack_1.6", "crack_4.0", "crack_8.6"),
+        ("crack_4.0", "crack_8.6", "crack_1.6"),
+        ("crack_8.6", "crack_1.6", "crack_4.0"),
+    ],
+)
+def test_crack_mode_fold_contents(
+    fake_mlndt_root: Path,
+    target_crack: str,
+    exp_val: str,
+    exp_tr: str,
+) -> None:
+    """Verify crack mode assigns exactly one crack to train, val, and test."""
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    folds = make_folds(tr, val, seed=0, val_mode="crack")
+    crack_map = {(b, idx): c for b, idx, c in image_index(tr + val)}
+
+    fold = next(f for f in folds if f.held_out == target_crack)
+    _assert_crackval_contents(fold, crack_map, (target_crack, exp_val, exp_tr))
+
+
+@pytest.mark.parametrize(
+    ("cli_args", "expected_mode"),
+    [
+        ([], "batch"),
+        (["--val-mode", "batch"], "batch"),
+        (["--val-mode", "crack"], "crack"),
+    ],
+)
+def test_val_mode_cli_parsing(
+    monkeypatch: pytest.MonkeyPatch,
+    cli_args: list[str],
+    expected_mode: str,
+) -> None:
+    """Verify CLI argument --val-mode defaults to batch and accepts crack."""
+    args = _parse_cli(monkeypatch, cli_args)
+    assert args.val_mode == expected_mode
+
+
+def test_output_paths_differ_by_val_mode(tmp_path: Path) -> None:
+    """Verify single model and metrics paths differ between batch and crack modes."""
+    batch_p = _resolve_single_model_path("crack_1.6", tmp_path, val_mode="batch")
+    crack_p = _resolve_single_model_path("crack_1.6", tmp_path, val_mode="crack")
+    assert batch_p.name == "loco_crack_1.6.pt"
+    assert crack_p.name == "loco_crackval_crack_1.6.pt"
+
+    ctx_b = SingleFoldContext(val_mode="batch")
+    ctx_c = SingleFoldContext(val_mode="crack")
+    assert ctx_b.out_path == Path("results/loco_metrics.json")
+    assert ctx_c.out_path == Path("results/loco_crackval_metrics.json")
+
+
+def _write_crackval_weights(models_dir: Path, folds: list[LocoFold]) -> None:
+    """Populate stub weights for each crackval fold in models directory."""
+    models_dir.mkdir(parents=True, exist_ok=True)
+    for f in folds:
+        _write_weight(models_dir / f"loco_crackval_{f.held_out}.pt", f"w_{f.held_out}".encode())
+
+
+def _verify_crackval_records(records: list[dict[str, Any]], folds: list[LocoFold]) -> None:
+    """Verify metadata and traceability fields on crackval fold records."""
+    for entry, fold in zip(records, folds, strict=True):
+        assert entry["val_crack"] == fold.val_crack
+        assert entry["val_crack_id"] == fold.val_crack
+        assert entry["protocol_note"] == PROTOCOL_DESC_CRACKVAL
+        assert len(entry["model_sha256"]) == 64
+
+
+def test_eval_single_crackval_workflow(
+    monkeypatch: pytest.MonkeyPatch,
+    fake_mlndt_root: Path,
+    tmp_path: Path,
+) -> None:
+    """Verify --eval-single in crack mode writes crackval metrics and avoids batch files."""
+    tr = list_batches("training", root=fake_mlndt_root)
+    val = list_batches("validation", root=fake_mlndt_root)
+    folds = make_folds(tr, val, seed=0, val_mode="crack")
+
+    models_dir = tmp_path / "models"
+    _write_crackval_weights(models_dir, folds)
+
+    _mock_eval_dependencies(monkeypatch)
+    out_file = tmp_path / "results" / "loco_crackval_metrics.json"
+    ctx = SingleFoldContext(
+        dev_name="cpu",
+        models_dir=models_dir,
+        out_path=out_file,
+        val_mode="crack",
+    )
+    res = _run_eval_single_workflow(folds, val, ctx=ctx)
+
+    assert out_file.exists()
+    assert not (tmp_path / "results" / "loco_metrics.json").exists()
+    assert res["protocol"] == PROTOCOL_DESC_CRACKVAL
+    _verify_crackval_records(res["folds"], folds)

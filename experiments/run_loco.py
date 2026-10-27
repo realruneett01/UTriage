@@ -70,6 +70,13 @@ PROTOCOL_DESC_ENSEMBLE: str = (
     "holdout-batch unflawed only."
 )
 
+PROTOCOL_DESC_CRACKVAL: str = (
+    "Leave-one-crack-out (LOCO) cross-validation with crack-held-out validation. "
+    "Train on 1 remaining crack and non-holdout unflawed, validation on held-out "
+    "validation crack and official validation unflawed, test on held-out test crack "
+    "and holdout-batch unflawed only."
+)
+
 
 @dataclass(frozen=True)
 class EnsembleFoldContext:
@@ -88,7 +95,17 @@ class SingleFoldContext:
 
     dev_name: str = "cpu"
     models_dir: Path = Path("models")
-    out_path: Path = Path("results/loco_metrics.json")
+    out_path: Path | None = None
+    val_mode: str = "batch"
+
+    def __post_init__(self) -> None:
+        if self.out_path is None:
+            default_p = (
+                Path("results/loco_crackval_metrics.json")
+                if self.val_mode == "crack"
+                else Path("results/loco_metrics.json")
+            )
+            object.__setattr__(self, "out_path", default_p)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -112,6 +129,12 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip training and evaluate existing single models on folds",
     )
+    parser.add_argument(
+        "--val-mode",
+        choices=["batch", "crack"],
+        default="batch",
+        help="Validation split mode: batch (default) or crack",
+    )
     return parser.parse_args()
 
 
@@ -134,9 +157,12 @@ def _resolve_seed_model_path(held_out: str, seed: int, models_dir: Path = Path("
     return _resolve_checkpoint_path(f"loco_{held_out}_seed{seed}.pt", models_dir)
 
 
-def _resolve_single_model_path(held_out: str, models_dir: Path = Path("models")) -> Path:
+def _resolve_single_model_path(
+    held_out: str, models_dir: Path = Path("models"), val_mode: str = "batch"
+) -> Path:
     """Locate single model checkpoint in local folder or parent repo."""
-    return _resolve_checkpoint_path(f"loco_{held_out}.pt", models_dir)
+    prefix = "loco_crackval" if val_mode == "crack" else "loco"
+    return _resolve_checkpoint_path(f"{prefix}_{held_out}.pt", models_dir)
 
 
 def _file_sha256(path: Path) -> str:
@@ -395,7 +421,7 @@ def _build_fold_record(
     fold: LocoFold, ev: dict[str, Any], dev_name: str, model_path: Path
 ) -> dict[str, Any]:
     """Construct fold record with evaluation results and model traceability."""
-    return {
+    rec: dict[str, Any] = {
         "held_out": fold.held_out,
         "n_train": len(fold.train),
         "n_val": len(fold.val),
@@ -410,13 +436,21 @@ def _build_fold_record(
         "model_sha256": _file_sha256(model_path),
         "model_mtime": _file_mtime(model_path),
     }
+    if fold.val_crack is not None:
+        rec["val_crack"] = fold.val_crack
+        rec["val_crack_id"] = fold.val_crack
+        rec["protocol_note"] = PROTOCOL_DESC_CRACKVAL
+    return rec
 
 
 def _eval_single_fold(
-    fold: LocoFold, dev_name: str, models_dir: Path = Path("models")
+    fold: LocoFold,
+    dev_name: str,
+    models_dir: Path = Path("models"),
+    val_mode: str = "batch",
 ) -> dict[str, Any] | None:
     """Evaluate saved single model on fold test split without training."""
-    model_path = _resolve_single_model_path(fold.held_out, models_dir)
+    model_path = _resolve_single_model_path(fold.held_out, models_dir, val_mode)
     if not model_path.exists():
         return None
     model, _ = load_model(model_path, device="auto")
@@ -427,16 +461,20 @@ def _eval_single_fold(
 
 
 def _run_fold_workflow(
-    fold: LocoFold, epochs: int, seeds: list[int], dev_name: str
+    fold: LocoFold,
+    epochs: int,
+    seeds: list[int],
+    ctx: SingleFoldContext | str,
 ) -> dict[str, Any]:
     """Train single fold, save checkpoint, and evaluate test performance."""
+    c = ctx if isinstance(ctx, SingleFoldContext) else SingleFoldContext(dev_name=ctx)
     t0 = time.time()
     model, best_res = _train_fold(fold, epochs, seeds)
     sec = time.time() - t0
 
-    models_dir = Path("models")
-    models_dir.mkdir(parents=True, exist_ok=True)
-    out_path = models_dir / f"loco_{fold.held_out}.pt"
+    c.models_dir.mkdir(parents=True, exist_ok=True)
+    prefix = "loco_crackval" if c.val_mode == "crack" else "loco"
+    out_path = c.models_dir / f"{prefix}_{fold.held_out}.pt"
     save_model(
         model,
         out_path,
@@ -444,7 +482,7 @@ def _run_fold_workflow(
     )
 
     ev = _eval_fold_test(model, fold)
-    rec = _build_fold_record(fold, ev, dev_name, out_path)
+    rec = _build_fold_record(fold, ev, c.dev_name, out_path)
     rec["best_val_loss"] = float(best_res.best_val_loss)
     rec["seconds"] = round(sec, 2)
     return rec
@@ -454,16 +492,20 @@ def _save_loco_metrics(
     fold_records: list[dict[str, Any]],
     part_a_rec: dict[str, Any],
     out_path: Path = Path("results/loco_metrics.json"),
+    protocol: str = PROTOCOL_DESC_SINGLE,
 ) -> dict[str, Any]:
     """Construct and export LOCO cross-validation metrics dictionary."""
-    metrics = {
+    metrics: dict[str, Any] = {
         "label": "Real data (ML-NDT)",
-        "protocol": PROTOCOL_DESC_SINGLE,
+        "protocol": protocol,
         "run_note": RUN_NOTE,
         "folds": fold_records,
         "official_validation": part_a_rec,
         "part_a": part_a_rec,
     }
+    if protocol == PROTOCOL_DESC_CRACKVAL:
+        metrics["protocol_note"] = protocol
+        metrics["val_mode"] = "crack"
     _dump_json(out_path, metrics)
     print(f"LOCO metrics saved to {out_path}", flush=True)
     return metrics
@@ -478,12 +520,13 @@ def _run_eval_single_workflow(
     c = ctx or SingleFoldContext(dev_name=_device_name())
     fold_records: list[dict[str, Any]] = []
     for f in folds:
-        rec = _eval_single_fold(f, c.dev_name, c.models_dir)
+        rec = _eval_single_fold(f, c.dev_name, c.models_dir, c.val_mode)
         if rec is None:
             raise FileNotFoundError(f"Missing weights for fold {f.held_out}")
         fold_records.append(rec)
     part_a_rec = _eval_part_a(val_batches, c.models_dir)
-    return _save_loco_metrics(fold_records, part_a_rec, c.out_path)
+    proto = PROTOCOL_DESC_CRACKVAL if c.val_mode == "crack" else PROTOCOL_DESC_SINGLE
+    return _save_loco_metrics(fold_records, part_a_rec, c.out_path, proto)
 
 
 def _prepare_ensemble_models(
@@ -596,7 +639,7 @@ def main() -> None:
     seeds = _resolve_seeds(args)
     dev_name = _device_name()
     tr_batches, val_batches = _resolve_batches(args.quick)
-    folds = make_folds(tr_batches, val_batches, seed=0)
+    folds = make_folds(tr_batches, val_batches, seed=0, val_mode=args.val_mode)
 
     if args.ensemble or args.eval_only:
         ctx = EnsembleFoldContext(
@@ -608,14 +651,15 @@ def main() -> None:
         _run_ensemble_workflow(folds, ctx, val_batches)
         return
 
+    single_ctx = SingleFoldContext(dev_name=dev_name, val_mode=args.val_mode)
     if args.eval_single:
-        single_ctx = SingleFoldContext(dev_name=dev_name)
         _run_eval_single_workflow(folds, val_batches, ctx=single_ctx)
         return
 
-    fold_records = [_run_fold_workflow(f, epochs, seeds, dev_name) for f in folds]
+    fold_records = [_run_fold_workflow(f, epochs, seeds, single_ctx) for f in folds]
     part_a_rec = _eval_part_a(val_batches)
-    _save_loco_metrics(fold_records, part_a_rec)
+    proto = PROTOCOL_DESC_CRACKVAL if args.val_mode == "crack" else PROTOCOL_DESC_SINGLE
+    _save_loco_metrics(fold_records, part_a_rec, single_ctx.out_path, proto)
 
 
 if __name__ == "__main__":
