@@ -141,3 +141,181 @@ def test_unflawed_test_only_from_holdout_batches(fake_mlndt_root: Path, crack: s
     unflawed_test = [it for it in fold.test if crack_map[it] is None]
     assert len(unflawed_test) > 0
     assert all(bins in holdout_set for bins, _ in unflawed_test)
+
+
+class _StubModel(torch.nn.Module):
+    """Stub torch model returning fixed logits for testing."""
+
+    def __init__(self, logit_val: float) -> None:
+        super().__init__()
+        self.logit_val = logit_val
+
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        b = x.shape[0]
+        logits = torch.full((b, 1), self.logit_val, dtype=torch.float32)
+        sizes = torch.zeros((b, 1), dtype=torch.float32)
+        return logits, sizes
+
+
+@pytest.mark.parametrize(
+    ("probs_input", "expected"),
+    [
+        ([[0.8, 0.2], [0.6, 0.4], [0.7, 0.3]], [0.7, 0.3]),
+        ([[1.0, 0.0], [0.5, 0.5]], [0.75, 0.25]),
+    ],
+)
+def test_ensemble_probabilities_averaging(
+    probs_input: list[list[float]], expected: list[float]
+) -> None:
+    """Verify ensemble probability helper computes exact mean across seeds."""
+    from experiments.run_loco import _ensemble_probabilities
+
+    arrs = [np.array(p, dtype=np.float32) for p in probs_input]
+    res = _ensemble_probabilities(arrs)
+    assert np.allclose(res, np.array(expected, dtype=np.float32))
+
+
+def test_ensemble_averaging_on_stub_models(fake_mlndt_root: Path) -> None:
+    """Verify ensemble evaluation averages probabilities across stub models."""
+    from experiments.run_loco import _eval_ensemble_fold
+
+    tr_batches = list_batches("training", root=fake_mlndt_root)
+    val_batches = list_batches("validation", root=fake_mlndt_root)
+    folds = make_folds(tr_batches, val_batches, seed=0)
+    fold = folds[0]
+
+    models = [_StubModel(-2.0), _StubModel(0.0), _StubModel(2.0)]
+    ev = _eval_ensemble_fold(models, fold)
+
+    assert ev["n_test_flawed"] > 0
+    assert ev["n_test_unflawed"] > 0
+    assert "detections" in ev and "false_calls" in ev and "pod" in ev
+
+
+def test_eval_only_loads_seed_weights(
+    monkeypatch: pytest.MonkeyPatch, fake_mlndt_root: Path
+) -> None:
+    """Verify --eval-only skips training and loads existing seed checkpoints."""
+    from experiments.run_loco import (
+        EnsembleFoldContext,
+        _run_ensemble_fold_workflow,
+    )
+
+    tr_batches = list_batches("training", root=fake_mlndt_root)
+    val_batches = list_batches("validation", root=fake_mlndt_root)
+    fold = make_folds(tr_batches, val_batches, seed=0)[0]
+
+    loaded_paths: list[Path] = []
+
+    def mock_load(path: Path, device: str = "auto") -> tuple[torch.nn.Module, dict]:
+        loaded_paths.append(Path(path))
+        return _StubModel(0.0), {}
+
+    def fail_train(*_: Any) -> Any:
+        pytest.fail("Training should not be called in eval-only mode")
+
+    monkeypatch.setattr("experiments.run_loco.load_model", mock_load)
+    monkeypatch.setattr("experiments.run_loco._run_single_seed", fail_train)
+
+    ctx = EnsembleFoldContext(
+        epochs=1,
+        seeds=[0, 1, 2],
+        dev_name="cpu",
+        eval_only=True,
+    )
+    rec = _run_ensemble_fold_workflow(fold, ctx, single_best_data=None)
+
+    assert len(loaded_paths) == 3
+    assert all(p.name.startswith(f"loco_{fold.held_out}_seed") for p in loaded_paths)
+    assert rec["seeds"] == [0, 1, 2]
+    assert rec["single_best"] is None
+
+
+def test_eval_only_with_single_best_comparison(
+    monkeypatch: pytest.MonkeyPatch, fake_mlndt_root: Path
+) -> None:
+    """Verify single-best comparison is attached when loco_metrics.json exists."""
+    from experiments.run_loco import (
+        EnsembleFoldContext,
+        _run_ensemble_fold_workflow,
+    )
+
+    tr_batches = list_batches("training", root=fake_mlndt_root)
+    val_batches = list_batches("validation", root=fake_mlndt_root)
+    fold = make_folds(tr_batches, val_batches, seed=0)[0]
+
+    monkeypatch.setattr(
+        "experiments.run_loco.load_model",
+        lambda p, device="auto": (_StubModel(0.0), {}),
+    )
+    fake_single_best = {
+        "folds": [
+            {
+                "held_out": fold.held_out,
+                "best_val_loss": 0.005,
+                "detections": {"rate": 0.95},
+            }
+        ]
+    }
+    ctx = EnsembleFoldContext(epochs=1, seeds=[0], dev_name="cpu", eval_only=True)
+    rec = _run_ensemble_fold_workflow(fold, ctx, single_best_data=fake_single_best)
+
+    assert rec["single_best"] == fake_single_best["folds"][0]
+    assert rec["best_val_loss"] == 0.005
+
+
+@pytest.mark.parametrize(
+    ("cli_args", "expected_ens", "expected_eval"),
+    [
+        ([], False, False),
+        (["--ensemble"], True, False),
+        (["--eval-only"], False, True),
+        (["--ensemble", "--eval-only"], True, True),
+    ],
+)
+def test_ensemble_cli_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+    cli_args: list[str],
+    expected_ens: bool,
+    expected_eval: bool,
+) -> None:
+    """Verify CLI flags --ensemble and --eval-only parse correctly."""
+    from experiments.run_loco import _parse_args
+
+    monkeypatch.setattr(sys, "argv", ["run_loco.py", *cli_args])
+    args = _parse_args()
+    assert args.ensemble is expected_ens
+    assert args.eval_only is expected_eval
+
+
+def test_ensemble_workflow_writes_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_mlndt_root: Path
+) -> None:
+    """Verify _run_ensemble_workflow writes loco_ensemble_metrics.json structure."""
+    from experiments.run_loco import (
+        EnsembleFoldContext,
+        _run_ensemble_workflow,
+    )
+
+    tr_batches = list_batches("training", root=fake_mlndt_root)
+    val_batches = list_batches("validation", root=fake_mlndt_root)
+    folds = make_folds(tr_batches, val_batches, seed=0)
+
+    monkeypatch.setattr(
+        "experiments.run_loco.load_model",
+        lambda p, device="auto": (_StubModel(0.0), {}),
+    )
+    monkeypatch.setattr(
+        "experiments.run_loco._eval_part_a",
+        lambda _: {"status": "ok", "flag": "test"},
+    )
+
+    out_file = tmp_path / "loco_ensemble_metrics.json"
+    ctx = EnsembleFoldContext(epochs=1, seeds=[0, 1], dev_name="cpu", eval_only=True)
+    metrics = _run_ensemble_workflow(folds, ctx, val_batches, out_path=out_file)
+
+    assert out_file.exists()
+    assert metrics["label"] == "Real data (ML-NDT)"
+    assert metrics["seeds"] == [0, 1]
+    assert len(metrics["folds"]) == len(folds)
+    assert all("seeds" in f for f in metrics["folds"])

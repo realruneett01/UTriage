@@ -11,6 +11,7 @@ import copy
 import json
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -49,12 +50,33 @@ from utriage.pod.hitmiss import (  # noqa: E402
 )
 
 
+@dataclass(frozen=True)
+class EnsembleFoldContext:
+    """Context and execution parameters for ensemble fold workflow."""
+
+    epochs: int
+    seeds: list[int]
+    dev_name: str
+    eval_only: bool = False
+    models_dir: Path = Path("models")
+
+
 def _parse_args() -> argparse.Namespace:
     """Parse CLI options for LOCO training and evaluation experiment."""
     parser = argparse.ArgumentParser(description="Leave-one-crack-out (LOCO) experiment")
     parser.add_argument("--quick", action="store_true", help="Quick run with subset")
     parser.add_argument("--epochs", type=int, default=None, help="Epoch count override")
     parser.add_argument("--seeds", type=int, nargs="+", default=None, help="Restart seeds")
+    parser.add_argument(
+        "--ensemble",
+        action="store_true",
+        help="Train and evaluate deep ensemble across seeds",
+    )
+    parser.add_argument(
+        "--eval-only",
+        action="store_true",
+        help="Skip training and load existing seed weights",
+    )
     return parser.parse_args()
 
 
@@ -113,6 +135,57 @@ def _train_fold(fold: LocoFold, epochs: int, seeds: list[int]) -> tuple[nn.Modul
     if best_res is None:
         raise RuntimeError("Training failed to produce valid TrainResult")
     return model, best_res
+
+
+def _resolve_seed_model_path(held_out: str, seed: int, models_dir: Path = Path("models")) -> Path:
+    """Locate seed model checkpoint in local folder or parent repo."""
+    local_p = models_dir / f"loco_{held_out}_seed{seed}.pt"
+    if local_p.exists():
+        return local_p
+    fallback = MLNDT_ROOT.parents[3] / "models" / f"loco_{held_out}_seed{seed}.pt"
+    return fallback if fallback.exists() else local_p
+
+
+def _load_fold_seed_models(held_out: str, seeds: list[int], models_dir: Path) -> list[nn.Module]:
+    """Load existing seed models for a fold."""
+    models: list[nn.Module] = []
+    for s in seeds:
+        p = _resolve_seed_model_path(held_out, s, models_dir)
+        m, _ = load_model(p, device="auto")
+        models.append(m)
+    return models
+
+
+def _train_and_save_seed_models(
+    fold: LocoFold, epochs: int, seeds: list[int], models_dir: Path
+) -> tuple[list[nn.Module], TrainResult]:
+    """Train restart seeds, save each seed model plus best single model."""
+    train_ds, val_ds = IndexedMlNdtDataset(fold.train), IndexedMlNdtDataset(fold.val)
+    seed_models: list[nn.Module] = []
+    best_weights: dict[str, Any] = {}
+    best_loss, best_res = float("inf"), None
+    meta = {"width": 32, "first_pool": (2, 2), "size": 256}
+    for s in seeds:
+        weights, res = _run_single_seed(s, train_ds, val_ds, epochs)
+        m = MlNdtNet(width=32, first_pool=(2, 2))
+        m.load_state_dict(weights)
+        save_model(m, models_dir / f"loco_{fold.held_out}_seed{s}.pt", meta)
+        seed_models.append(m)
+        if res.best_val_loss < best_loss:
+            best_loss, best_weights, best_res = res.best_val_loss, weights, res
+    if best_res is None:
+        raise RuntimeError("Training failed to produce valid TrainResult")
+    best_m = MlNdtNet(width=32, first_pool=(2, 2))
+    best_m.load_state_dict(best_weights)
+    save_model(best_m, models_dir / f"loco_{fold.held_out}.pt", meta)
+    return seed_models, best_res
+
+
+def _ensemble_probabilities(probs_list: list[np.ndarray]) -> np.ndarray:
+    """Compute mean sigmoid probability across ensemble members."""
+    if not probs_list:
+        return np.empty(0, dtype=np.float32)
+    return np.mean(np.asarray(probs_list, dtype=np.float32), axis=0)
 
 
 def _eval_pod(sizes: np.ndarray, hits: np.ndarray) -> dict[str, Any]:
@@ -188,6 +261,44 @@ def _eval_fold_test(model: nn.Module, fold: LocoFold) -> dict[str, Any]:
     }
 
 
+def _eval_ensemble_fold(models: list[nn.Module], fold: LocoFold) -> dict[str, Any]:
+    """Evaluate ensemble of models on fold test split via average probability."""
+    test_ds = IndexedMlNdtDataset(fold.test)
+    eval_cfg = TrainConfig(batch_size=64, device="auto")
+    probs_list = [predict(m, test_ds, eval_cfg)[0] for m in models]
+    mean_probs = _ensemble_probabilities(probs_list)
+    flaw_labels, eq_sizes = test_ds.get_labels()
+    ev = _evaluate_predictions(mean_probs, flaw_labels, eq_sizes)
+    return {
+        "n_test_flawed": ev["n_flawed"],
+        "n_test_unflawed": ev["n_unflawed"],
+        "detections": ev["detections"],
+        "false_calls": ev["false_calls"],
+        "pod": ev["pod"],
+    }
+
+
+def _load_single_best(path: Path = Path("results/loco_metrics.json")) -> dict[str, Any] | None:
+    """Load existing loco_metrics.json if present."""
+    if not path.exists():
+        return None
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (json.JSONDecodeError, OSError):  # Narrow exception for corrupt/unreadable file
+        return None
+
+
+def _find_fold_record(data: dict[str, Any] | None, held_out: str) -> dict[str, Any] | None:
+    """Find matching fold entry from previous loco_metrics.json."""
+    if not data or "folds" not in data:
+        return None
+    for entry in data["folds"]:
+        if entry.get("held_out") == held_out:
+            return entry
+    return None
+
+
 def _eval_part_a(val_batches: list[Path]) -> dict[str, Any]:
     """Evaluate existing models/mlndt_best.pt on official validation folder only."""
     flag = (
@@ -249,6 +360,75 @@ def _run_fold_workflow(
     }
 
 
+def _run_ensemble_fold_workflow(
+    fold: LocoFold, ctx: EnsembleFoldContext, single_best_data: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Execute training or loading and ensemble evaluation for single fold."""
+    t0, best_loss = time.time(), None
+    if ctx.eval_only:
+        models = _load_fold_seed_models(fold.held_out, ctx.seeds, ctx.models_dir)
+    else:
+        ctx.models_dir.mkdir(parents=True, exist_ok=True)
+        models, b_res = _train_and_save_seed_models(fold, ctx.epochs, ctx.seeds, ctx.models_dir)
+        best_loss = float(b_res.best_val_loss)
+    ev = _eval_ensemble_fold(models, fold)
+    single_best = _find_fold_record(single_best_data, fold.held_out)
+    if best_loss is None and single_best is not None:
+        best_loss = single_best.get("best_val_loss")
+    return {
+        "held_out": fold.held_out,
+        "n_train": len(fold.train),
+        "n_val": len(fold.val),
+        "n_test_flawed": ev["n_test_flawed"],
+        "n_test_unflawed": ev["n_test_unflawed"],
+        "detections": ev["detections"],
+        "false_calls": ev["false_calls"],
+        "pod": ev["pod"],
+        "best_val_loss": best_loss,
+        "seconds": round(time.time() - t0, 2),
+        "device_name": ctx.dev_name,
+        "seeds": ctx.seeds,
+        "seeds_used": ctx.seeds,
+        "single_best": single_best,
+        "single_best_comparison": single_best,
+    }
+
+
+def _run_ensemble_workflow(
+    folds: list[LocoFold],
+    ctx: EnsembleFoldContext,
+    val_batches: list[Path],
+    out_path: Path = Path("results/loco_ensemble_metrics.json"),
+) -> dict[str, Any]:
+    """Execute complete ensemble training/evaluation and write output metrics."""
+    single_best_data = _load_single_best()
+    fold_records = [_run_ensemble_fold_workflow(f, ctx, single_best_data) for f in folds]
+    part_a_rec = _eval_part_a(val_batches)
+    protocol_desc = (
+        "Leave-one-crack-out (LOCO) deep ensemble cross-validation across 3 physical cracks. "
+        "Train on 2 cracks and non-holdout unflawed, validation on official "
+        "validation batches without held-out crack, test on held-out crack and "
+        "holdout-batch unflawed only."
+    )
+    metrics = {
+        "label": "Real data (ML-NDT)",
+        "protocol": protocol_desc,
+        "seeds": ctx.seeds,
+        "seeds_used": ctx.seeds,
+        "folds": fold_records,
+        "official_validation": part_a_rec,
+        "part_a": part_a_rec,
+    }
+    if single_best_data is not None:
+        metrics["single_best"] = single_best_data.get("folds")
+        metrics["single_best_comparison"] = single_best_data.get("folds")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", encoding="utf-8") as fh:
+        json.dump(metrics, fh, indent=2)
+    print(f"LOCO ensemble metrics saved to {out_path}", flush=True)
+    return metrics
+
+
 def _resolve_epochs(args: argparse.Namespace) -> int:
     """Resolve epoch count from CLI options."""
     if args.epochs is not None:
@@ -276,11 +456,20 @@ def main() -> None:
     epochs = _resolve_epochs(args)
     seeds = _resolve_seeds(args)
     dev_name = _device_name()
-
     tr_batches, val_batches = _resolve_batches(args.quick)
     folds = make_folds(tr_batches, val_batches, seed=0)
-    fold_records = [_run_fold_workflow(f, epochs, seeds, dev_name) for f in folds]
 
+    if args.ensemble or args.eval_only:
+        ctx = EnsembleFoldContext(
+            epochs=epochs,
+            seeds=seeds,
+            dev_name=dev_name,
+            eval_only=args.eval_only,
+        )
+        _run_ensemble_workflow(folds, ctx, val_batches)
+        return
+
+    fold_records = [_run_fold_workflow(f, epochs, seeds, dev_name) for f in folds]
     part_a_rec = _eval_part_a(val_batches)
     protocol_desc = (
         "Leave-one-crack-out (LOCO) cross-validation across 3 physical cracks. "
@@ -288,7 +477,6 @@ def main() -> None:
         "validation batches without held-out crack, test on held-out crack and "
         "holdout-batch unflawed only."
     )
-
     metrics = {
         "label": "Real data (ML-NDT)",
         "protocol": protocol_desc,
@@ -296,7 +484,6 @@ def main() -> None:
         "official_validation": part_a_rec,
         "part_a": part_a_rec,
     }
-
     out_path = Path("results/loco_metrics.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as fh:
