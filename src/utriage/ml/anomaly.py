@@ -104,7 +104,7 @@ def gate_walls(
     ascan: np.ndarray,
     front_idx: int,
     back_idx: int,
-    guard: int,
+    guard: int = 0,
 ) -> np.ndarray:
     """Return a mask that zeroes samples within guard distance of wall echoes.
 
@@ -116,8 +116,8 @@ def gate_walls(
         Index of the detected front-wall echo.
     back_idx : int
         Index of the detected back-wall echo.
-    guard : int
-        Sample half-width around echoes to zero out.
+    guard : int, optional
+        Sample half-width around echoes to zero out (default 0).
 
     Returns
     -------
@@ -137,14 +137,19 @@ def gate_walls(
     return mask
 
 
-def _smooth_error(err: torch.Tensor) -> torch.Tensor:
-    """Apply moving-average filter of window size 5 along signal dimensions."""
+def _smooth_error(err: torch.Tensor, smooth_window: int = 5) -> torch.Tensor:
+    """Apply moving-average filter of specified window size along signal dimensions."""
+    pad = smooth_window // 2
     if err.ndim == 3:
-        kernel_1d = torch.full((1, 1, 5), 0.2, device=err.device, dtype=err.dtype)
-        return F.conv1d(err, kernel_1d, padding=2)
+        w_1d = 1.0 / float(smooth_window)
+        k_1d = torch.full((1, 1, smooth_window), w_1d, device=err.device, dtype=err.dtype)
+        return F.conv1d(err, k_1d, padding=pad)
     if err.ndim == 4:
-        kernel_2d = torch.full((1, 1, 5, 5), 1.0 / 25.0, device=err.device, dtype=err.dtype)
-        return F.conv2d(err, kernel_2d, padding=2)
+        w_2d = 1.0 / float(smooth_window * smooth_window)
+        k_2d = torch.full(
+            (1, 1, smooth_window, smooth_window), w_2d, device=err.device, dtype=err.dtype
+        )
+        return F.conv2d(err, k_2d, padding=pad)
     msg = f"Unsupported input tensor rank: {err.ndim}"
     raise ValueError(msg)
 
@@ -153,8 +158,9 @@ def anomaly_score(
     model: nn.Module,
     x: torch.Tensor,
     mask: torch.Tensor | np.ndarray | None = None,
+    smooth_window: int = 5,
 ) -> torch.Tensor:
-    """Compute per-sample max moving-average (window 5) squared reconstruction error.
+    """Compute per-sample max moving-average squared reconstruction error.
 
     Parameters
     ----------
@@ -164,6 +170,8 @@ def anomaly_score(
         Input tensor of shape (B, 1, L) or (B, 1, H, W).
     mask : torch.Tensor | np.ndarray | None, optional
         Mask zeroing wall echoes (1 for bulk material, 0 for wall guards).
+    smooth_window : int, optional
+        Moving-average filter window size (default 5).
 
     Returns
     -------
@@ -178,7 +186,7 @@ def anomaly_score(
         if mask is not None:
             mask_t = torch.as_tensor(mask, device=x.device, dtype=sq_err.dtype)
             sq_err = sq_err * mask_t
-        smoothed = _smooth_error(sq_err)
+        smoothed = _smooth_error(sq_err, smooth_window=smooth_window)
         if mask_t is not None:
             smoothed = smoothed * mask_t
         return smoothed.view(x.shape[0], -1).amax(dim=-1)

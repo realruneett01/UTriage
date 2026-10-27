@@ -9,29 +9,48 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
+_SRC = str(Path(__file__).resolve().parents[1] / "src")
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+if "utriage" in sys.modules:
+    _pkg_dir = str(Path(_SRC) / "utriage")
+    if _pkg_dir not in sys.modules["utriage"].__path__:
+        sys.modules["utriage"].__path__.insert(0, _pkg_dir)
+if "utriage.ml" in sys.modules:
+    _ml_dir = str(Path(_SRC) / "utriage" / "ml")
+    if _ml_dir not in sys.modules["utriage.ml"].__path__:
+        sys.modules["utriage.ml"].__path__.insert(0, _ml_dir)
 
-from utriage.ml.anomaly import (
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
+from torch.utils.data import DataLoader, TensorDataset  # noqa: E402
+
+from utriage.detector_config import (  # noqa: E402
+    DEFAULT_PATH,
+    DetectorConfig,
+    config_fingerprint,
+    load_detector_config,
+)
+from utriage.ml.anomaly import (  # noqa: E402
     ConvAE1D,
     ConvAE2D,
     anomaly_score,
     fit_threshold,
     train_autoencoder,
 )
-from utriage.ml.bar_data import WindowConfig, make_test_set, make_training_set
-from utriage.ml.datasets import MLNDT_ROOT, list_batches, split_holdout
-from utriage.ml.diagnostics import learning_curve
-from utriage.ml.loco import PHYSICAL_CRACKS, IndexedMlNdtDataset
-from utriage.ml.mlndt_meta import image_index
-from utriage.ml.train import pick_device, set_seed
-from utriage.pod.metrics import cell
+from utriage.ml.bar_data import WindowConfig, make_test_set, make_training_set  # noqa: E402
+from utriage.ml.datasets import MLNDT_ROOT, list_batches, split_holdout  # noqa: E402
+from utriage.ml.diagnostics import learning_curve  # noqa: E402
+from utriage.ml.loco import PHYSICAL_CRACKS, IndexedMlNdtDataset  # noqa: E402
+from utriage.ml.mlndt_meta import image_index  # noqa: E402
+from utriage.ml.train import pick_device, set_seed  # noqa: E402
+from utriage.pod.metrics import cell  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +68,21 @@ class AnomalyConfig:
     lr: float = 1e-3
     weight_decay: float = 1e-4
     target_fcr: float = 0.01
+    smooth_window: int = 5
+    wall_guard: int = 0
     device: str = "auto"
     quick: bool = False
     seed: int = 0
+    detector_config: DetectorConfig | None = None
+
+
+@dataclass(frozen=True)
+class ScoreConfig:
+    """Settings for anomaly score evaluation."""
+
+    dev: torch.device
+    batch_size: int = 64
+    smooth_window: int = 5
 
 
 @dataclass(frozen=True)
@@ -220,12 +251,13 @@ def _score_dataloader(
     model: nn.Module,
     loader: DataLoader,
     dev: torch.device,
+    smooth_window: int = 5,
 ) -> np.ndarray:
     """Compute anomaly scores across dataloader batches."""
     scores: list[float] = []
     for batch in loader:
         x = batch[0]
-        s = anomaly_score(model, x.to(dev))
+        s = anomaly_score(model, x.to(dev), smooth_window=smooth_window)
         scores.extend(s.detach().cpu().numpy().tolist())
     return np.array(scores, dtype=np.float32)
 
@@ -233,29 +265,27 @@ def _score_dataloader(
 def _score_indexed_dataset(
     model: nn.Module,
     items: list[tuple[Path, int]],
-    dev: torch.device,
-    batch_size: int = 64,
+    sc: ScoreConfig,
 ) -> np.ndarray:
     """Compute anomaly scores for a list of ML-NDT indexed image items."""
     if not items:
         return np.empty(0, dtype=np.float32)
-    loader = DataLoader(IndexedMlNdtDataset(items), batch_size=batch_size, shuffle=False)
-    return _score_dataloader(model, loader, dev)
+    loader = DataLoader(IndexedMlNdtDataset(items), batch_size=sc.batch_size, shuffle=False)
+    return _score_dataloader(model, loader, sc.dev, sc.smooth_window)
 
 
 def _score_windows(
     model: nn.Module,
     windows: np.ndarray,
-    dev: torch.device,
-    batch_size: int = 64,
+    sc: ScoreConfig,
 ) -> np.ndarray:
     """Compute anomaly scores for synthetic 1D A-scan windows."""
     if len(windows) == 0:
         return np.empty(0, dtype=np.float32)
     loader = DataLoader(
-        TensorDataset(torch.from_numpy(windows)), batch_size=batch_size, shuffle=False
+        TensorDataset(torch.from_numpy(windows)), batch_size=sc.batch_size, shuffle=False
     )
-    return _score_dataloader(model, loader, dev)
+    return _score_dataloader(model, loader, sc.dev, sc.smooth_window)
 
 
 def _build_eval_cell(data: CellInput) -> dict[str, Any]:
@@ -322,7 +352,10 @@ def _train_1d_model(
 
 
 def _eval_crack_cells(
-    model: nn.Module, splits: RealSplits, ctx: EvalContext
+    model: nn.Module,
+    splits: RealSplits,
+    ctx: EvalContext,
+    sc: ScoreConfig,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Evaluate individual physical crack cells and aggregated overall cell."""
     per_crack: dict[str, Any] = {}
@@ -330,7 +363,7 @@ def _eval_crack_cells(
     all_sizes: list[np.ndarray] = []
     for crack in PHYSICAL_CRACKS:
         items = splits.crack_flawed_items[crack]
-        s = _score_indexed_dataset(model, items, ctx.dev)
+        s = _score_indexed_dataset(model, items, sc)
         sizes = IndexedMlNdtDataset(items).get_labels()[1]
         all_scores.append(s)
         all_sizes.append(sizes)
@@ -381,11 +414,12 @@ def _eval_real_splits(
     dev: torch.device,
 ) -> tuple[EvalContext, dict[str, Any], dict[str, Any]]:
     """Compute calibration threshold and score crack test partitions."""
-    cal_scores = _score_indexed_dataset(model, splits.cal_items, dev, cfg.batch_size)
+    sc = ScoreConfig(dev=dev, batch_size=cfg.batch_size, smooth_window=cfg.smooth_window)
+    cal_scores = _score_indexed_dataset(model, splits.cal_items, sc)
     threshold = fit_threshold(cal_scores, false_call_rate=cfg.target_fcr)
-    unflawed_scores = _score_indexed_dataset(model, splits.test_unflawed_items, dev, cfg.batch_size)
+    unflawed_scores = _score_indexed_dataset(model, splits.test_unflawed_items, sc)
     ctx = EvalContext(cal_scores, unflawed_scores, threshold, dev)
-    per_crack, overall = _eval_crack_cells(model, splits, ctx)
+    per_crack, overall = _eval_crack_cells(model, splits, ctx, sc)
     return ctx, per_crack, overall
 
 
@@ -448,10 +482,11 @@ def _eval_synth_windows(
     dev: torch.device,
 ) -> tuple[float, dict[str, Any]]:
     """Evaluate synthetic test windows against calibrated threshold."""
-    cal_scores = _score_windows(model, synth.cal_clean, dev, cfg.batch_size)
+    sc = ScoreConfig(dev=dev, batch_size=cfg.batch_size, smooth_window=cfg.smooth_window)
+    cal_scores = _score_windows(model, synth.cal_clean, sc)
     threshold = fit_threshold(cal_scores, false_call_rate=cfg.target_fcr)
-    flaw_scores = _score_windows(model, synth.test_flaw, dev, cfg.batch_size)
-    clean_scores = _score_windows(model, synth.test_clean, dev, cfg.batch_size)
+    flaw_scores = _score_windows(model, synth.test_flaw, sc)
+    clean_scores = _score_windows(model, synth.test_clean, sc)
     n_phys = len(np.unique(synth.flaw_sizes)) if len(synth.flaw_sizes) > 0 else 0
     inp = CellInput(flaw_scores, clean_scores, cal_scores, synth.flaw_sizes, threshold, n_phys)
     return threshold, _build_eval_cell(inp)
@@ -495,12 +530,21 @@ def _run_synthetic_anomaly(
     return metrics, model
 
 
-def _make_serializable(obj: Any) -> Any:
-    """Convert numpy scalar types and arrays to native Python primitives."""
+def _scalar_serializable(obj: Any) -> Any:
+    """Convert scalar values to native python types."""
+    if isinstance(obj, bool):
+        return obj
     if isinstance(obj, (np.floating, float)):
         return None if np.isnan(obj) else float(obj)
     if isinstance(obj, (np.integer, int)):
         return int(obj)
+    return obj
+
+
+def _make_serializable(obj: Any) -> Any:
+    """Convert numpy scalar types and arrays to native Python primitives."""
+    if isinstance(obj, (bool, np.floating, float, np.integer, int)):
+        return _scalar_serializable(obj)
     if isinstance(obj, np.ndarray):
         return obj.tolist()
     if isinstance(obj, dict):
@@ -516,25 +560,88 @@ def _save_model_weights(model: nn.Module, path: Path) -> None:
     torch.save(model.state_dict(), path)
 
 
-def run_anomaly(cfg: AnomalyConfig) -> dict[str, Any]:
-    """Execute complete unsupervised anomaly detection pipeline and save artifacts."""
-    set_seed(cfg.seed)
-    dev = pick_device(cfg.device)
+def _resolve_detector_config(cfg: AnomalyConfig) -> DetectorConfig:
+    """Resolve detector configuration from cfg or default loader."""
+    if cfg.detector_config is not None:
+        return cfg.detector_config
+    default_cfg = load_detector_config()
+    overrides: list[str] = []
+    if cfg.target_fcr != default_cfg.anomaly.target_fcr:
+        overrides.append(f"anomaly.target_fcr={cfg.target_fcr}")
+    if cfg.smooth_window != default_cfg.anomaly.smooth_window:
+        overrides.append(f"anomaly.smooth_window={cfg.smooth_window}")
+    if cfg.wall_guard != default_cfg.anomaly.wall_guard:
+        overrides.append(f"anomaly.wall_guard={cfg.wall_guard}")
+    return load_detector_config(overrides=overrides) if overrides else default_cfg
 
-    splits = prepare_real_splits(cfg)
-    real_metrics, model_2d = _run_real_anomaly(splits, cfg, dev)
 
-    synth = prepare_synthetic_data(quick=cfg.quick, seed=cfg.seed)
-    synth_metrics, model_1d = _run_synthetic_anomaly(synth, cfg, dev)
+def _sync_config(cfg: AnomalyConfig, det_cfg: DetectorConfig) -> AnomalyConfig:
+    """Synchronize AnomalyConfig fields with resolved DetectorConfig."""
+    return AnomalyConfig(
+        root=cfg.root,
+        out_json=cfg.out_json,
+        model_2d_path=cfg.model_2d_path,
+        model_1d_path=cfg.model_1d_path,
+        epochs=cfg.epochs,
+        batch_size=cfg.batch_size,
+        lr=cfg.lr,
+        weight_decay=cfg.weight_decay,
+        target_fcr=det_cfg.anomaly.target_fcr,
+        smooth_window=det_cfg.anomaly.smooth_window,
+        wall_guard=det_cfg.anomaly.wall_guard,
+        device=cfg.device,
+        quick=cfg.quick,
+        seed=cfg.seed,
+        detector_config=det_cfg,
+    )
 
+
+def _build_payload(
+    det_cfg: DetectorConfig,
+    real_metrics: dict[str, Any],
+    synth_metrics: dict[str, Any],
+) -> dict[str, Any]:
+    """Assemble final experiment payload with fingerprint and run_label."""
+    fp = config_fingerprint(det_cfg)
+    run_label = "pre-registered" if fp["is_default"] else "exploratory"
+    return {
+        "detector_config": fp,
+        "run_label": run_label,
+        "real": real_metrics,
+        "synthetic": synth_metrics,
+    }
+
+
+def _save_artifacts(
+    payload: dict[str, Any],
+    cfg: AnomalyConfig,
+    model_2d: nn.Module,
+    model_1d: nn.Module,
+) -> None:
+    """Save trained model checkpoints and serialized metrics JSON."""
     _save_model_weights(model_2d, cfg.model_2d_path)
     _save_model_weights(model_1d, cfg.model_1d_path)
-
-    payload = {"real": real_metrics, "synthetic": synth_metrics}
     cfg.out_json.parent.mkdir(parents=True, exist_ok=True)
     cfg.out_json.write_text(
         json.dumps(_make_serializable(payload), indent=2) + "\n", encoding="utf-8"
     )
+
+
+def run_anomaly(cfg: AnomalyConfig) -> dict[str, Any]:
+    """Execute complete unsupervised anomaly detection pipeline and save artifacts."""
+    set_seed(cfg.seed)
+    dev = pick_device(cfg.device)
+    det_cfg = _resolve_detector_config(cfg)
+    cfg_eff = _sync_config(cfg, det_cfg)
+
+    splits = prepare_real_splits(cfg_eff)
+    real_metrics, model_2d = _run_real_anomaly(splits, cfg_eff, dev)
+
+    synth = prepare_synthetic_data(quick=cfg_eff.quick, seed=cfg_eff.seed)
+    synth_metrics, model_1d = _run_synthetic_anomaly(synth, cfg_eff, dev)
+
+    payload = _build_payload(det_cfg, real_metrics, synth_metrics)
+    _save_artifacts(payload, cfg_eff, model_2d, model_1d)
     return payload
 
 
@@ -559,20 +666,38 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-1d", type=Path, default=Path("models/anomaly_1d.pt"), help="1D model output path"
     )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_PATH,
+        help="Path to detector config YAML",
+    )
+    parser.add_argument(
+        "--set",
+        dest="overrides",
+        action="append",
+        default=[],
+        help="Override config value with KEY=VALUE (repeatable)",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     """CLI entry point for anomaly detection experiment."""
     args = _parse_args()
+    det_cfg = load_detector_config(path=args.config, overrides=args.overrides)
     cfg = AnomalyConfig(
         root=args.root,
         out_json=args.out_json,
         model_2d_path=args.model_2d,
         model_1d_path=args.model_1d,
         epochs=args.epochs,
+        target_fcr=det_cfg.anomaly.target_fcr,
+        smooth_window=det_cfg.anomaly.smooth_window,
+        wall_guard=det_cfg.anomaly.wall_guard,
         device=args.device,
         quick=args.quick,
+        detector_config=det_cfg,
     )
     run_anomaly(cfg)
 

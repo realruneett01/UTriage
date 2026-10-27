@@ -2,20 +2,39 @@
 
 from __future__ import annotations
 
+import inspect
 import json
+import sys
 import time
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-import pytest
-from experiments.run_anomaly import (
+# Ensure local workspace src is prioritized over external paths
+_SRC = str(Path(__file__).resolve().parents[1] / "src")
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+if "utriage" in sys.modules:
+    _pkg_dir = str(Path(_SRC) / "utriage")
+    if _pkg_dir not in sys.modules["utriage"].__path__:
+        sys.modules["utriage"].__path__.insert(0, _pkg_dir)
+if "utriage.ml" in sys.modules:
+    _ml_dir = str(Path(_SRC) / "utriage" / "ml")
+    if _ml_dir not in sys.modules["utriage.ml"].__path__:
+        sys.modules["utriage.ml"].__path__.insert(0, _ml_dir)
+
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+from experiments.run_anomaly import (  # noqa: E402
     AnomalyConfig,
+    _parse_args,
     map_scores_to_cdf,
     prepare_real_splits,
     prepare_synthetic_data,
     run_anomaly,
 )
+
+from utriage.detector_config import DEFAULT_PATH, load_detector_config  # noqa: E402
+from utriage.ml.anomaly import anomaly_score, gate_walls  # noqa: E402
 
 
 def _create_fake_batch(
@@ -104,6 +123,50 @@ def _assert_cell_keys(cell_data: dict[str, Any]) -> None:
         assert key in cell_data
 
 
+def test_anomaly_functions_default_parameters() -> None:
+    """Verify anomaly.py functions have defaults matching shipped config."""
+    sig_gate = inspect.signature(gate_walls)
+    assert sig_gate.parameters["guard"].default == 0
+
+    sig_score = inspect.signature(anomaly_score)
+    assert sig_score.parameters["smooth_window"].default == 5
+
+
+@pytest.mark.parametrize(
+    ("cli_args", "expected_config", "expected_overrides"),
+    [
+        ([], DEFAULT_PATH, []),
+        (["--config", "my_cfg.yaml"], Path("my_cfg.yaml"), []),
+        (["--set", "anomaly.target_fcr=0.05"], DEFAULT_PATH, ["anomaly.target_fcr=0.05"]),
+    ],
+)
+def test_parse_args_config_and_overrides(
+    cli_args: list[str],
+    expected_config: Path,
+    expected_overrides: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI parser correctly parses --config and repeatable --set overrides."""
+    monkeypatch.setattr("sys.argv", ["run_anomaly.py", *cli_args])
+    args = _parse_args()
+    assert args.config == expected_config
+    assert args.overrides == expected_overrides
+
+
+def _assert_pipeline_metrics(metrics: dict[str, Any], loaded: dict[str, Any]) -> None:
+    """Verify serialized anomaly metrics payload structure."""
+    assert loaded["real"]["label"] == "Real data (ML-NDT)"
+    assert loaded["synthetic"]["label"] == "Synthetic data"
+    assert "probability_mapping" in loaded["real"]
+    assert loaded["run_label"] == "pre-registered"
+    assert loaded["detector_config"]["is_default"] is True
+    assert len(loaded["detector_config"]["sha256"]) == 64
+    _assert_cell_keys(metrics["real"]["overall"])
+    for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
+        _assert_cell_keys(metrics["real"]["per_crack"][crack])
+    _assert_cell_keys(metrics["synthetic"]["cell"])
+
+
 def test_quick_pipeline_execution_and_artifacts(
     fake_mlndt_root: Path,
     tmp_path: Path,
@@ -125,21 +188,40 @@ def test_quick_pipeline_execution_and_artifacts(
 
     t0 = time.perf_counter()
     metrics = run_anomaly(cfg)
-    elapsed = time.perf_counter() - t0
+    assert (time.perf_counter() - t0) < 60.0
+    assert out_json.is_file() and m2d.is_file() and m1d.is_file()
 
-    assert elapsed < 60.0
-    assert out_json.is_file()
-    assert m2d.is_file()
-    assert m1d.is_file()
+    loaded = json.loads(out_json.read_text(encoding="utf-8"))
+    _assert_pipeline_metrics(metrics, loaded)
 
-    # Verify JSON serializability
-    text = out_json.read_text(encoding="utf-8")
-    loaded = json.loads(text)
-    assert loaded["real"]["label"] == "Real data (ML-NDT)"
-    assert loaded["synthetic"]["label"] == "Synthetic data"
-    assert "probability_mapping" in loaded["real"]
 
-    _assert_cell_keys(metrics["real"]["overall"])
-    for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
-        _assert_cell_keys(metrics["real"]["per_crack"][crack])
-    _assert_cell_keys(metrics["synthetic"]["cell"])
+def test_exploratory_config_pipeline_artifacts(
+    fake_mlndt_root: Path,
+    tmp_path: Path,
+) -> None:
+    """Verify exploratory config writes run_label and updated target_fcr."""
+    out_json = tmp_path / "results" / "anomaly_exploratory.json"
+    m2d = tmp_path / "models" / "anomaly_2d.pt"
+    m1d = tmp_path / "models" / "anomaly_1d.pt"
+    det_cfg = load_detector_config(overrides=["anomaly.target_fcr=0.05", "anomaly.smooth_window=3"])
+
+    cfg = AnomalyConfig(
+        root=fake_mlndt_root,
+        out_json=out_json,
+        model_2d_path=m2d,
+        model_1d_path=m1d,
+        epochs=1,
+        quick=True,
+        device="cpu",
+        detector_config=det_cfg,
+    )
+
+    metrics = run_anomaly(cfg)
+    assert metrics["run_label"] == "exploratory"
+    assert metrics["detector_config"]["is_default"] is False
+
+    loaded = json.loads(out_json.read_text(encoding="utf-8"))
+    assert loaded["run_label"] == "exploratory"
+    assert loaded["detector_config"]["is_default"] is False
+    assert loaded["real"]["target_fcr"] == 0.05
+    assert loaded["synthetic"]["target_fcr"] == 0.05
