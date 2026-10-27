@@ -24,6 +24,7 @@ import pytest  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
 
+from utriage.ml.bar_data import WINDOW  # noqa: E402
 from utriage.ml.bar_infer import (  # noqa: E402
     ScanSettings,
     _Candidate,
@@ -35,6 +36,7 @@ from utriage.ml.bar_infer import (  # noqa: E402
     load_window_model,
     save_window_model,
     scan_bar,
+    site_depths,
     site_logits,
 )
 from utriage.ml.bar_models import WindowNet  # noqa: E402
@@ -99,7 +101,7 @@ def _assert_outputs_close(
 
 
 def test_scan_bar_findings_grid_and_gate(tiny_model: WindowNet, tiny_scan: BarScan) -> None:
-    settings = ScanSettings(threshold=0.0, depth_step_mm=1.0, mc_passes=4)
+    settings = ScanSettings(threshold=-1.0, depth_step_mm=1.0, mc_passes=4)
     findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
     _assert_uncertainties_bounded(findings)
     max_d = tiny_scan.spec.diameter_mm - settings.back_margin_mm
@@ -117,10 +119,10 @@ def test_scan_bar_findings_grid_and_gate(tiny_model: WindowNet, tiny_scan: BarSc
 @pytest.mark.parametrize(
     "settings",
     [
-        ScanSettings(threshold=1.1),
+        ScanSettings(threshold=100.0),
         ScanSettings(front_mm=25.0, back_margin_mm=2.0),
     ],
-    ids=["threshold_above_1", "gate_outside_bar"],
+    ids=["threshold_above_all", "gate_outside_bar"],
 )
 def test_scan_bar_empty(tiny_model: WindowNet, tiny_scan: BarScan, settings: ScanSettings) -> None:
     findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
@@ -128,7 +130,7 @@ def test_scan_bar_empty(tiny_model: WindowNet, tiny_scan: BarScan, settings: Sca
 
 
 def test_scan_bar_mc_uncertainty_range(tiny_model: WindowNet, tiny_scan: BarScan) -> None:
-    settings = ScanSettings(threshold=0.0, mc_passes=6)
+    settings = ScanSettings(threshold=-1.0, mc_passes=6)
     findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
     _assert_uncertainties_bounded(findings)
 
@@ -137,7 +139,7 @@ def test_scan_bar_batchnorm_stats_unchanged(tiny_model: WindowNet, tiny_scan: Ba
     bn_modules = [m for m in tiny_model.modules() if isinstance(m, nn.BatchNorm1d)]
     means_before = [m.running_mean.clone() for m in bn_modules]
     vars_before = [m.running_var.clone() for m in bn_modules]
-    scan_bar(tiny_model, tiny_scan, ScanSettings(threshold=0.0), device="cpu")
+    scan_bar(tiny_model, tiny_scan, ScanSettings(threshold=-1.0), device="cpu")
     for m, m_bef, v_bef in zip(bn_modules, means_before, vars_before, strict=True):
         assert torch.equal(m.running_mean, m_bef)
         assert torch.equal(m.running_var, v_bef)
@@ -161,7 +163,7 @@ def test_load_window_model_roundtrip(tmp_path: Path, tiny_model: WindowNet) -> N
 
 
 def test_scan_bar_patch_channels(patch_model: WindowNet, tiny_scan: BarScan) -> None:
-    findings = scan_bar(patch_model, tiny_scan, ScanSettings(threshold=0.0), device="cpu")
+    findings = scan_bar(patch_model, tiny_scan, ScanSettings(threshold=-1.0), device="cpu")
     assert isinstance(findings, list)
 
 
@@ -248,11 +250,7 @@ def test_calibrate_bar_threshold_synthetic_grids(
     budget = 1.0
 
     thresh = calibrate_bar_threshold(model, clean_scans, max_flags_per_bar=budget)
-    assert thresh > 0.0
-
-    prob_3 = 1.0 / (1.0 + np.exp(-3.0))
-    prob_5 = 1.0 / (1.0 + np.exp(-5.0))
-    assert prob_3 <= thresh <= prob_5
+    assert 3.0 <= thresh <= 5.0
 
     call_idx = 0
     f0 = scan_bar(model, clean_scans[0], ScanSettings(threshold=thresh), device="cpu")
@@ -265,7 +263,7 @@ def test_calibrate_bar_threshold_synthetic_grids(
 
 
 def test_site_logits_shape_and_depths(tiny_model: WindowNet, tiny_scan: BarScan) -> None:
-    settings = ScanSettings(threshold=0.0, depth_step_mm=1.0, mc_passes=2)
+    settings = ScanSettings(threshold=-1.0, depth_step_mm=1.0, mc_passes=2)
     logits_grid, depths = site_logits(tiny_model, tiny_scan, settings, device="cpu")
     assert logits_grid.ndim == 3
     assert logits_grid.shape[0] == tiny_scan.ascans.shape[0]
@@ -331,8 +329,8 @@ def test_two_separated_blobs_yield_two_findings() -> None:
 def test_site_logits_and_scan_bar_invariant_to_batch(tiny_scan: BarScan) -> None:
     """Site logits and scan_bar findings are invariant to settings.batch."""
     model = WindowNet(in_channels=1, width=4, dropout=0.0)
-    settings_small = ScanSettings(threshold=0.0, batch=16, mc_passes=1)
-    settings_large = ScanSettings(threshold=0.0, batch=256, mc_passes=1)
+    settings_small = ScanSettings(threshold=-1.0, batch=16, mc_passes=1)
+    settings_large = ScanSettings(threshold=-1.0, batch=256, mc_passes=1)
     grid_small, _ = site_logits(model, tiny_scan, settings_small, device="cpu")
     grid_large, _ = site_logits(model, tiny_scan, settings_large, device="cpu")
     assert grid_small.shape == grid_large.shape
@@ -377,7 +375,7 @@ def test_calibrate_bar_threshold_high_logits_budget(
     clean_scans = [tiny_scan, tiny_scan]
     budget_k = 0.5
     thresh = calibrate_bar_threshold(model, clean_scans, max_flags_per_bar=budget_k)
-    assert 0.99999 <= thresh < 1.0
+    assert 18.0 <= thresh <= 21.1
 
     call_idx = 0
     f0 = scan_bar(model, clean_scans[0], ScanSettings(threshold=thresh), device="cpu")
@@ -385,3 +383,98 @@ def test_calibrate_bar_threshold_high_logits_budget(
     f1 = scan_bar(model, clean_scans[1], ScanSettings(threshold=thresh), device="cpu")
     mean_flags = (len(f0) + len(f1)) / 2.0
     assert mean_flags <= budget_k
+
+
+@pytest.mark.parametrize("material_name", ["ti64", "in718"])
+def test_site_depths_stays_inside_flaw_gate(material_name: str) -> None:
+    """site_depths stays inside [front + half_window, D - back - half_window] for Ti64 and IN718."""
+    mat = load_material(material_name)
+    probe = load_probe("p5")
+    water = load_material("water")
+    spec = BarSpec(
+        material=mat,
+        probe=probe,
+        water=water,
+        diameter_mm=40.0,
+        length_mm=4.0,
+    )
+    scan = simulate_bar(spec)
+    settings = ScanSettings(front_mm=2.0, back_margin_mm=2.0, depth_step_mm=0.5)
+
+    c_metal = mat.velocity_m_s * 1e-3
+    half_window = (WINDOW / 2) / probe.sampling_mhz * c_metal / 2.0
+    d_min = settings.front_mm + half_window
+    d_max = spec.diameter_mm - settings.back_margin_mm - half_window
+
+    depths = site_depths(scan, settings)
+    assert len(depths) > 0
+    assert np.all(depths >= d_min - 1e-9)
+    assert np.all(depths <= d_max + 1e-9)
+
+
+@pytest.mark.parametrize("material_name", ["ti64", "in718"])
+def test_cut_windows_exclude_back_wall_echo(material_name: str) -> None:
+    """No window cut at returned sites includes the back-wall echo time."""
+    mat = load_material(material_name)
+    probe = load_probe("p5")
+    water = load_material("water")
+    spec = BarSpec(
+        material=mat,
+        probe=probe,
+        water=water,
+        diameter_mm=40.0,
+        length_mm=4.0,
+    )
+    scan = simulate_bar(spec)
+    settings = ScanSettings(front_mm=2.0, back_margin_mm=2.0, depth_step_mm=0.5)
+    depths = site_depths(scan, settings)
+    assert len(depths) > 0
+
+    c_m = mat.velocity_m_s * 1e-3
+    t_if = float(scan.t_if_us[0, 0]) if scan.t_if_us.ndim == 2 else float(scan.t_if_us)
+    t_bw = t_if + 2.0 * spec.diameter_mm / c_m
+    half_window_time = (WINDOW / 2) / probe.sampling_mhz
+
+    for d in depths:
+        t_center = t_if + 2.0 * d / c_m
+        t_win_end = t_center + half_window_time
+        assert t_win_end < t_bw
+        t_win_start = t_center - half_window_time
+        assert t_win_start > t_if
+
+
+def test_raw_logit_thresholds_distinguish_float32_saturated_sites(
+    monkeypatch: pytest.MonkeyPatch,
+    tiny_scan: BarScan,
+) -> None:
+    """Raw-logit thresholds distinguish sites whose probabilities are both 1.0 in float32."""
+    g = np.full((1, 1, 3), -10.0, dtype=np.float64)
+    g[0, 0, 0] = 20.0
+    g[0, 0, 2] = 25.0
+
+    p0 = np.float32(1.0 / (1.0 + np.exp(-20.0)))
+    p1 = np.float32(1.0 / (1.0 + np.exp(-25.0)))
+    assert p0 == 1.0
+    assert p1 == 1.0
+
+    assert count_findings(g, logit_threshold=22.0) == 1
+    assert count_findings(g, logit_threshold=15.0) == 2
+    assert count_findings(g, logit_threshold=30.0) == 0
+
+    depths = np.array([5.0, 8.0, 11.0], dtype=np.float64)
+
+    def mock_site_logits(
+        model: Any,
+        scan: BarScan,
+        settings: Any = None,
+        device: str = "auto",
+    ) -> tuple[np.ndarray, np.ndarray]:
+        return g, depths
+
+    monkeypatch.setattr("utriage.ml.bar_infer.site_logits", mock_site_logits)
+    model = WindowNet(in_channels=1, width=4)
+
+    findings = scan_bar(model, tiny_scan, ScanSettings(threshold=22.0), device="cpu")
+    assert len(findings) == 1
+    assert findings[0].depth_mm == 11.0
+    assert findings[0].score == pytest.approx(1.0)

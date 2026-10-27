@@ -11,7 +11,7 @@ import scipy.ndimage as ndi
 import torch
 import torch.nn as nn
 
-from utriage.ml.bar_data import cut_windows
+from utriage.ml.bar_data import WINDOW, cut_windows
 from utriage.ml.bar_models import WindowNet, flaw_logit
 from utriage.ml.infer import save_model
 from utriage.ml.train import pick_device
@@ -40,7 +40,7 @@ class ScanSettings:
     depth_step_mm: float = 0.5
     front_mm: float = 2.0
     back_margin_mm: float = 2.0
-    threshold: float = 0.5
+    threshold: float = 0.0
     batch: int = 2048
     mc_passes: int = 8
 
@@ -75,22 +75,6 @@ class _GraphContext:
     adj: list[list[int]]
 
 
-def _prob_to_logit(p: float) -> float:
-    """Convert probability in [0, 1] to log-odds logit, clipped to [-30, 30]."""
-    if p <= 0.0:
-        return -30.0
-    if p >= 1.0:
-        return 30.0
-    val = float(np.log(p / (1.0 - p)))
-    return float(np.clip(val, -30.0, 30.0))
-
-
-def _logit_to_prob(logit: float) -> float:
-    """Convert log-odds logit to probability via float64 sigmoid."""
-    clamped = float(np.clip(logit, -30.0, 30.0))
-    return float(1.0 / (1.0 + np.exp(-clamped)))
-
-
 def save_window_model(model: WindowNet, path: Path | str, meta: dict) -> Path:
     """Save WindowNet state dict and metadata to disk."""
     return save_model(model, Path(path), meta)
@@ -118,9 +102,17 @@ def load_window_model(path: Path | str, device: str = "auto") -> tuple[WindowNet
     return model, meta
 
 
-def _grid_depths(scan: BarScan, settings: ScanSettings) -> np.ndarray:
-    d_min = settings.front_mm
-    d_max = scan.spec.diameter_mm - settings.back_margin_mm
+def site_depths(scan: BarScan, settings: ScanSettings = _DEFAULT_SETTINGS) -> np.ndarray:
+    """Return gated depth evaluation points centered inside the bar flaw gate.
+
+    Near-surface and near-back-wall zones are covered by the rules engine only
+    (the ML adds nothing there) - a stated limitation.
+    """
+    probe = scan.spec.probe
+    c_metal_mm_per_us = scan.spec.material.velocity_m_s * 1e-3
+    half_window_mm = (WINDOW / 2) / probe.sampling_mhz * c_metal_mm_per_us / 2
+    d_min = settings.front_mm + half_window_mm
+    d_max = scan.spec.diameter_mm - settings.back_margin_mm - half_window_mm
     if d_max < d_min:
         return np.zeros(0, dtype=np.float64)
     depths = np.arange(d_min, d_max + 0.5 * settings.depth_step_mm, settings.depth_step_mm)
@@ -132,8 +124,8 @@ def _make_grid_sites(
     settings: ScanSettings,
 ) -> tuple[np.ndarray, np.ndarray]:
     n_ax, n_an = scan.ascans.shape[0], scan.ascans.shape[1]
-    depths = _grid_depths(scan, settings)
-    if len(depths) == 0 or n_ax == 0 or n_an == 0:
+    depths = site_depths(scan, settings)
+    if any((len(depths) == 0, n_ax == 0, n_an == 0)):
         return np.zeros((0, 3), dtype=np.float64), depths
     ax_grid, an_grid, d_grid = np.meshgrid(
         np.arange(n_ax, dtype=np.float64),
@@ -172,7 +164,7 @@ def _eval_batches(
             lg = flaw_logit(logits)
             all_logits[p_idx, start:end] = lg.detach().cpu().to(torch.float64).numpy()
     model.eval()
-    all_probs = 1.0 / (1.0 + np.exp(-np.clip(all_logits, -30.0, 30.0)))
+    all_probs = 1.0 / (1.0 + np.exp(-np.clip(all_logits, -500.0, 500.0)))
     mean_prob, std = ensemble_stats(all_probs)
     mean_logit = np.mean(all_logits, axis=0)
     unc = np.minimum(1.0, 2.0 * std)
@@ -352,7 +344,7 @@ def _peaks_to_findings(
 ) -> list[MlFinding]:
     findings: list[MlFinding] = []
     for lg, (ax, an, d_idx) in peaks:
-        score = _logit_to_prob(lg)
+        score = float(1.0 / (1.0 + np.exp(-np.clip(lg, -500.0, 500.0))))
         depth_val = float(depths[d_idx]) if d_idx < len(depths) else 0.0
         findings.append(
             MlFinding(
@@ -398,13 +390,13 @@ def scan_bar(
     device: str = "auto",
 ) -> list[MlFinding]:
     """Scan a bar with WindowNet, returning non-maximum suppressed findings."""
-    if settings.threshold > 1.0:
+    depths_check = site_depths(scan, settings)
+    if len(depths_check) == 0:
         return []
     logits_grid, depths = site_logits(model, scan, settings, device)
     if logits_grid.size == 0:
         return []
-    thresh_logit = _prob_to_logit(settings.threshold)
-    mask = logits_grid >= thresh_logit
+    mask = logits_grid >= settings.threshold
     n_comp, comp_grid = _label_connected(mask)
     if n_comp == 0:
         return []
@@ -435,7 +427,9 @@ def calibrate_bar_threshold(
 ) -> float:
     """Calibrate the smallest threshold giving <= max_flags_per_bar on clean bars."""
     if not clean_scans:
-        return 1.0
+        return 0.0
+    if any(len(site_depths(s, settings)) == 0 for s in clean_scans):
+        return 0.0
     grids = [site_logits(model, scan, settings)[0] for scan in clean_scans]
     cands = _pool_candidate_logits(grids)
     if len(cands) == 0:
@@ -447,7 +441,7 @@ def calibrate_bar_threshold(
             best_val = float(val)
         else:
             break
-    return _logit_to_prob(best_val)
+    return float(best_val)
 
 
 def finding_to_dict(finding: MlFinding) -> dict:
@@ -478,5 +472,6 @@ __all__ = [
     "load_window_model",
     "save_window_model",
     "scan_bar",
+    "site_depths",
     "site_logits",
 ]
