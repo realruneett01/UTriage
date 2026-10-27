@@ -41,3 +41,32 @@ To evaluate hybrid detection without data leakage, exactly two candidate archite
 - **Evidence base remains small**: The hybrid detector still rests on 3 physical cracks from a single weld dataset; performance metrics do not imply generalisation beyond this domain.
 - **Safety and false calls**: The OR-union satisfies the safety property (ADR 0001) that advisory models can only add candidate flags, but combining two detectors inherently raises false calls.
 - **Output artifacts**: Evaluation results will be recorded in `results/hybrid_metrics.json` and fed into the claims table (`results/claims.json`).
+
+## Addendum 1 (2026-10-27, before any H1/H2/H3 result exists)
+
+### Candidate H3 (Interpretable Physics-Feature Detector)
+
+Pre-registers candidate H3 prior to running evaluations or computing results:
+
+- **Features**: 8 hand-crafted features computed from the raw ML-NDT image:
+  1. Peak amplitude
+  2. Robust noise level (MAD)
+  3. SNR
+  4. Peak depth index
+  5. Echo duration
+  6. Lateral extent
+  7. Above-noise area (pixels above 6 x noise)
+  8. Energy ratio within +-8 samples of the peak row
+- **Model**:
+  - `StandardScaler` fitted on the fold train set only.
+  - `LogisticRegression` (`class_weight="balanced"`, `C=1.0`, `max_iter=1000`).
+  - Decision threshold: flag at probability >= 0.5.
+- **Evaluation**: Evaluated on exactly the same LOCO batch-mode folds as H1/H2.
+- **Implementation**:
+  - Code: `src/utriage/ml/physics_features.py`
+  - Runner: `experiments/run_physics_model.py`
+  - Results destination: `results/physics_model_metrics.json`
+
+### Configuration and Pre-registered Parameters
+
+All decision thresholds and hyper-parameters of H1-H3 will be read from `configs/detectors.yaml`. The pre-registered values are the defaults in that file; any run with changed values is labelled exploratory in the claims and is not the pre-registered result.
