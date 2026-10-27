@@ -1,11 +1,14 @@
-"""Generate resume bullets strictly from results/*.json (project plan section Resume entry)."""
+"""Generate resume bullets strictly from results/claims.json (project plan section Resume entry)."""
 
 from __future__ import annotations
 
+import argparse
 import json
-import sys
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from pathlib import Path
+from typing import Any
+
+from utriage.report.claims import check_forbidden
 
 
 def round_ceil(val: float | int | str, decimals: int = 2) -> str:
@@ -22,164 +25,164 @@ def round_floor(val: float | int | str, decimals: int = 2) -> str:
     return str(d.quantize(step, rounding=ROUND_FLOOR))
 
 
-def _build_baseline_bullet(results_dir: Path) -> str | None:
-    """Build simulator and rules baseline bullet."""
-    path = results_dir / "rules_baseline.json"
-    if not path.exists():
-        print(f"{path.name} not found; omitting baseline bullet.", file=sys.stderr)
+def _ensure_scope(text: str, scope: str) -> str:
+    """Ensure bullet text ends with a scope tag in parentheses."""
+    stripped = text.strip().rstrip(".")
+    scope_tag = scope.strip("()")
+    if stripped.endswith(f"({scope_tag})"):
+        return f"{stripped}."
+    return f"{stripped} ({scope_tag})."
+
+
+def _build_framing_bullet() -> str:
+    """Build independent prototype framing bullet."""
+    text = (
+        "Independent prototype: advisory, offline triage of ultrasonic indications "
+        "for aerospace bar inspection; ML can only add flags to the rules engine"
+    )
+    return _ensure_scope(text, "independent prototype, advisory")
+
+
+def _build_loco_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
+    """Build real-data leave-one-crack-out bullet from loco claims."""
+    loco = [claims[k] for k in sorted(claims) if k.startswith("loco_crack_")]
+    if not loco:
         return None
-    with path.open("r", encoding="utf-8") as fh:
-        _ = json.load(fh)
-    return (
-        "Built a physics-based immersion-UT simulator for rotating Ti-6Al-4V / "
-        "IN718 bars (interface and back-wall echoes, attenuation, grain-noise "
-        "backscatter, FBH and inclusion reflectors, coupling artefacts) and a "
-        "rules engine (DAC, SNR, acceptance categories) plus a data-quality "
-        "watchdog as the safety baseline."
-    )
-
-
-def _format_pod_real_bullet(a90_val: float | str, fc: dict) -> str:
-    """Format real data bullet when POD a90/95 is available."""
-    a90_str = round_ceil(a90_val, 2)
-    n_false = fc.get("n_false", 0)
-    n_scans = fc.get("n", 0)
-    return (
-        "Trained a CPU-sized CNN on real phased-array ultrasonic data "
-        "(ML-NDT, Virkkunen et al.) and evaluated it with hit/miss POD: "
-        f"a90/95 = {a90_str} mm with {n_false} false calls on {n_scans} "
-        "unflawed scans (real data)."
-    )
-
-
-def _format_binomial_real_bullet(det: dict, fc: dict) -> str:
-    """Format real data bullet using binomial detection lower bound."""
-    n_hit = det.get("n_hit", 0)
-    n_flawed = det.get("n_flawed", 0)
-    pod_lb = round_floor(det.get("pod_lower95", 0.0), 2)
-    n_false = fc.get("n_false", 0)
-    n_scans = fc.get("n", 0)
-    return (
-        "Trained a CPU-sized CNN on real phased-array ultrasonic data "
-        f"(ML-NDT, Virkkunen et al.): {n_hit} of {n_flawed} flaws detected "
-        f"(POD lower bound >= {pod_lb}) with {n_false} false calls on "
-        f"{n_scans} unflawed scans (real data)."
-    )
-
-
-def _build_real_data_bullet(results_dir: Path) -> str | None:
-    """Build real-data bullet from mlndt_metrics.json test split."""
-    path = results_dir / "mlndt_metrics.json"
-    if not path.exists():
-        print(f"{path.name} not found; omitting real-data bullet.", file=sys.stderr)
+    frags = [c["text"].strip().rstrip(".") for c in loco if c.get("text")]
+    if not frags:
         return None
-    with path.open("r", encoding="utf-8") as fh:
-        data = json.load(fh)
-    test_sp = data.get("per_split", {}).get("test", {})
-    fc = test_sp.get("false_calls", {})
-    pod = test_sp.get("pod")
-    if pod is not None and "a90_95" in pod:
-        return _format_pod_real_bullet(pod["a90_95"], fc)
-    det = test_sp.get("detection", {})
-    return _format_binomial_real_bullet(det, fc)
+    body = "Real-data leave-one-crack-out results across physical cracks: " + "; ".join(frags)
+    scope = loco[0].get("scope_limit") or "public dataset, leave-one-crack-out"
+    return _ensure_scope(body, scope)
 
 
-def _find_det_at_size(table: list[dict], target_size: float = 0.6) -> float | None:
-    """Find detection rate for specific flaw size in table."""
-    for row in table:
-        size = float(row.get("size_mm", row.get("size", 0.0)))
-        if abs(size - target_size) < 1e-3:
-            return float(row.get("detection_rate", row.get("rate", 0.0)))
-    return None
-
-
-def _format_synthetic_bullet(fcr_str: str, comparison: str) -> str:
-    """Assemble final synthetic validation bullet."""
-    return (
-        f"On simulated titanium bars at matched false-call rate ({fcr_str}), "
-        f"the ML layer {comparison} under high grain noise; a union-with-rules "
-        "design with conformal uncertainty means the AI can only add flags, "
-        "never clear them (synthetic validation). Delivered as an offline, "
-        "advisory-only inspector review app."
-    )
-
-
-def _extract_a90(entry: dict) -> float | None:
-    """Safely extract a90_95 from method entry pod summary."""
-    pod = entry.get("pod_summary", {}).get("pod")
-    if isinstance(pod, dict) and "a90_95" in pod:
-        return pod["a90_95"]
-    return None
-
-
-def _build_synthetic_bullet(results_dir: Path) -> str | None:
-    """Build synthetic validation bullet from bar_domain_metrics.json at noise 2.0."""
-    path = results_dir / "bar_domain_metrics.json"
-    if not path.exists():
-        print(f"{path.name} not found; omitting synthetic validation bullet.", file=sys.stderr)
+def _build_anomaly_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
+    """Build anomaly detection bullet from anomaly claims."""
+    anomaly = [claims[k] for k in sorted(claims) if k.startswith("anomaly_crack_")]
+    if not anomaly and "anomaly" in claims:
+        anomaly = [claims["anomaly"]]
+    if not anomaly:
         return None
-    with path.open("r", encoding="utf-8") as fh:
-        data = json.load(fh)
-    model = data.get("kept_model", {}).get("choice", "ml_2d")
-    pmn = data.get("per_method_per_noise", {})
-    rules_sp = pmn.get("rules", {}).get("2.0", {})
-    ml_sp = pmn.get(model, {}).get("2.0", {})
-    fcr_val = rules_sp.get("false_call_rate", {}).get("rate", 0.0)
-    fcr_str = round_ceil(fcr_val, 3)
-    r_a90, m_a90 = _extract_a90(rules_sp), _extract_a90(ml_sp)
-    if r_a90 is not None and m_a90 is not None:
-        comp = f"improved a90/95 from {round_ceil(r_a90, 2)} mm to {round_ceil(m_a90, 2)} mm"
-        return _format_synthetic_bullet(fcr_str, comp)
-    r_det = _find_det_at_size(rules_sp.get("detection_table", []), 0.6) or 0.0
-    m_det = _find_det_at_size(ml_sp.get("detection_table", []), 0.6) or 0.0
-    comp = (
-        f"improved detection rate at 0.6 mm from {round_floor(r_det, 2)} to {round_floor(m_det, 2)}"
-    )
-    return _format_synthetic_bullet(fcr_str, comp)
-
-
-def _build_triage_bullet(results_dir: Path) -> str | None:
-    """Build triage decision support bullet if triage_metrics.json exists."""
-    path = results_dir / "triage_metrics.json"
-    if not path.exists():
-        print(f"{path.name} not found; omitting triage bullet.", file=sys.stderr)
+    frags = [c["text"].strip().rstrip(".") for c in anomaly if c.get("text")]
+    if not frags:
         return None
+    body = "Anomaly detection trained only on flaw-free scans: " + "; ".join(frags)
+    scope = anomaly[0].get("scope_limit") or "public dataset, leave-one-crack-out"
+    return _ensure_scope(body, scope)
+
+
+def _build_cross_dataset_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
+    """Build cross-dataset bullet if cross_dataset claim exists."""
+    c = claims.get("cross_dataset")
+    if c is None or not c.get("text"):
+        return None
+    frag = c["text"].strip().rstrip(".")
+    body = frag if "cross-dataset" in frag.lower() else f"Cross-dataset evaluation: {frag}"
+    scope = c.get("scope_limit") or "cross-dataset"
+    return _ensure_scope(body, scope)
+
+
+def _build_sim_regions_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
+    """Build simulator held-out regions bullet from sim_regions claim."""
+    c = claims.get("sim_regions")
+    if c is None or not c.get("text"):
+        return None
+    frag = c["text"].strip().rstrip(".")
+    has_sim_word = any(w in frag.lower() for w in ("simulator", "simulated"))
+    body = (
+        frag
+        if has_sim_word
+        else f"Simulator held-out parameter regions and false-call trade-off: {frag}"
+    )
+    scope = c.get("scope_limit") or "simulated"
+    return _ensure_scope(body, scope)
+
+
+def _resolve_engineering_scope(
+    union_c: dict[str, Any] | None,
+    latency_c: dict[str, Any] | None,
+) -> str:
+    """Resolve scope tag for engineering bullet from component claims."""
+    if union_c and union_c.get("scope_limit"):
+        return str(union_c["scope_limit"])
+    if latency_c and latency_c.get("scope_limit"):
+        return str(latency_c["scope_limit"])
+    return "independent prototype, advisory"
+
+
+def _build_engineering_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
+    """Build engineering bullet combining union property and latency claims."""
+    union_c = claims.get("union_property")
+    latency_c = claims.get("latency")
+    if union_c is None and latency_c is None:
+        return None
+    frags = [
+        c["text"].strip().rstrip(".")
+        for c in (union_c, latency_c)
+        if c is not None and c.get("text")
+    ]
+    if not frags:
+        return None
+    body = "; ".join(frags)
+    scope = _resolve_engineering_scope(union_c, latency_c)
+    return _ensure_scope(body, scope)
+
+
+def _load_claims(results_dir: Path) -> dict[str, dict[str, Any]]:
+    """Load results/claims.json and index by claim id."""
+    path = results_dir / "claims.json"
+    if not path.exists():
+        raise FileNotFoundError(f"Claims file not found: {path}")
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
-    if "bullet" in data:
-        bullet_str = str(data["bullet"])
-        if "(synthetic validation)" not in bullet_str and "(real data)" not in bullet_str:
-            return f"{bullet_str.rstrip('.')} (synthetic validation)."
-        return bullet_str
-    cov = round_floor(data.get("conformal_coverage", 0.9), 2)
-    return (
-        f"Triage decision support with conformal uncertainty (coverage >= {cov}) "
-        "prioritizes critical indications for Level II review (advisory) (synthetic validation)."
-    )
+    if not isinstance(data, list):
+        raise ValueError(f"Expected list of claims in {path}, got {type(data).__name__}")
+    return {c["id"]: c for c in data if isinstance(c, dict) and "id" in c}
 
 
 def build_bullets(results_dir: Path) -> list[str]:
-    """Build resume bullet points strictly from metrics JSON files."""
+    """Build resume bullet points strictly from results/claims.json."""
+    claims = _load_claims(results_dir)
     builders = [
-        _build_baseline_bullet,
-        _build_real_data_bullet,
-        _build_synthetic_bullet,
-        _build_triage_bullet,
+        _build_loco_bullet,
+        _build_anomaly_bullet,
+        _build_cross_dataset_bullet,
+        _build_sim_regions_bullet,
+        _build_engineering_bullet,
     ]
-    bullets: list[str] = []
-    for b_func in builders:
-        b = b_func(results_dir)
+    bullets = [_build_framing_bullet()]
+    for builder in builders:
+        b = builder(claims)
         if b is not None:
             bullets.append(b)
+    for bullet in bullets:
+        if found := check_forbidden(bullet):
+            raise ValueError(f"Forbidden phrase(s) {found} found in bullet: {bullet!r}")
     return bullets
 
 
-def main() -> None:
-    """Entry point: generate and print resume bullets."""
-    results_dir = Path("results")
-    bullets = build_bullets(results_dir)
+def main(argv: list[str] | None = None) -> None:
+    """CLI entry point: generate resume bullets strictly from claims.json."""
+    parser = argparse.ArgumentParser(description="Generate resume bullets from claims.json.")
+    parser.add_argument(
+        "--results",
+        type=Path,
+        default=Path("results"),
+        help="Path to results directory containing claims.json",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Optional output file to write bullets",
+    )
+    args = parser.parse_args(argv)
+    bullets = build_bullets(args.results)
     for bullet in bullets:
         print(f"- {bullet}")
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text("\n".join(f"- {b}" for b in bullets) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

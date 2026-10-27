@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
+
+from utriage.report.claims import FORBIDDEN
 
 _SCRIPTS = str(Path(__file__).resolve().parents[1] / "scripts")
 if _SCRIPTS not in sys.path:
     sys.path.insert(0, _SCRIPTS)
 
 from make_resume_bullets import (  # noqa: E402
-    _extract_a90,
-    _find_det_at_size,
     build_bullets,
     main,
     round_ceil,
@@ -52,231 +54,251 @@ def test_rounding_floor(val: float, decimals: int, expected: str) -> None:
     assert round_floor(val, decimals) == expected
 
 
-def _write_json(path: Path, data: dict) -> None:
-    """Helper to write dictionary data to JSON file."""
+def _write_claims(path: Path, data: list[dict[str, Any]]) -> None:
+    """Helper to write claims list to JSON file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
         json.dump(data, fh)
 
 
-def _make_dummy_baseline() -> dict:
-    """Return minimal rules_baseline.json structure."""
-    return {"label": "Synthetic data", "gate": {"passed": True}}
-
-
-def _make_dummy_synthetic(
-    *, a90_rules: float | None = 0.8301, a90_ml: float | None = 0.7182
-) -> dict:
-    """Return minimal bar_domain_metrics.json structure."""
-    rules_pod = {"a90_95": a90_rules} if a90_rules is not None else None
-    ml_pod = {"a90_95": a90_ml} if a90_ml is not None else None
-    return {
-        "label": "Synthetic data",
-        "kept_model": {"choice": "ml_2d"},
-        "per_method_per_noise": {
-            "rules": {
-                "2.0": {
-                    "pod_summary": {"pod": rules_pod},
-                    "false_call_rate": {"rate": 0.01785},
-                    "detection_table": [
-                        {"size_mm": 0.6, "detection_rate": 0.75},
-                    ],
-                }
-            },
-            "ml_2d": {
-                "2.0": {
-                    "pod_summary": {"pod": ml_pod},
-                    "false_call_rate": {"rate": 0.01785},
-                    "detection_table": [
-                        {"size_mm": 0.6, "detection_rate": 0.9999},
-                    ],
-                }
-            },
-        },
-    }
-
-
-@pytest.fixture
-def dummy_results_dir(tmp_path: Path) -> Path:
-    """Prepare a temporary directory with default baseline, synthetic, and mlndt JSON files."""
-    _write_json(tmp_path / "rules_baseline.json", _make_dummy_baseline())
-    _write_json(tmp_path / "bar_domain_metrics.json", _make_dummy_synthetic())
-    _write_json(
-        tmp_path / "mlndt_metrics.json",
+def _make_fake_claims(*, include_cross: bool = True) -> list[dict[str, Any]]:
+    """Build representative fake claims.json data for unit testing."""
+    claims: list[dict[str, Any]] = [
         {
-            "per_split": {
-                "test": {
-                    "pod": {"a90_95": 0.7231},
-                    "false_calls": {"n_false": 0, "n": 778},
-                }
-            }
+            "id": "leakage",
+            "text": (
+                "Physical crack separation verified across batches; "
+                "train and test share 0 physical cracks."
+            ),
+            "evidence_file": "results/leakage_audit.json",
+            "evidence_path": "splits.test",
+            "scope_limit": "public dataset",
+            "numbers": {"shared_cracks": 0.0},
         },
-    )
-    return tmp_path
-
-
-def _assert_contains_all(text: str, substrings: tuple[str, ...]) -> None:
-    """Assert all substrings are contained within text."""
-    for s in substrings:
-        assert s in text
-
-
-def _assert_valid_bullet_labels(items: list[str]) -> None:
-    """Assert all items except safety baseline contain a valid label."""
-    valid_labels = ("(real data)", "(synthetic validation)", "(synthetic triage)")
-    for item in items:
-        if "safety baseline" not in item:
-            assert any(label in item for label in valid_labels)
-
-
-def test_pod_present_path(dummy_results_dir: Path) -> None:
-    """Test real data bullet when pod logistic fit is present."""
-    bullets = build_bullets(dummy_results_dir)
-    _assert_contains_all(
-        bullets[1],
-        ("(real data)", "0.73 mm", "0 false calls on 778 unflawed scans"),
-    )
-
-
-def test_pod_null_path(dummy_results_dir: Path) -> None:
-    """Test real data bullet when pod is null and binomial block is used."""
-    mlndt_data = {
-        "per_split": {
-            "test": {
-                "pod": None,
-                "detection": {"n_hit": 1222, "n_flawed": 1222, "pod_lower95": 0.9999},
-                "false_calls": {"n_false": 0, "n": 778},
+        {
+            "id": "loco_crack_1.6",
+            "text": (
+                "crack 1.6 mm: 19 of 4014 detected "
+                "(rate 0.005, 95% CI [0.003, 0.007]), a90/95 = 2.47 mm"
+            ),
+            "evidence_file": "results/loco_metrics.json",
+            "evidence_path": "folds[0]",
+            "scope_limit": "public dataset, leave-one-crack-out",
+            "numbers": {"rate": 0.005, "ci_low": 0.003, "ci_high": 0.007, "a90_95": 2.47},
+        },
+        {
+            "id": "loco_crack_4.0",
+            "text": (
+                "crack 4.0 mm: 4078 of 4078 detected "
+                "(rate 1.000, 95% CI [0.999, 1.000]), a90/95 = 0.72 mm"
+            ),
+            "evidence_file": "results/loco_metrics.json",
+            "evidence_path": "folds[1]",
+            "scope_limit": "public dataset, leave-one-crack-out",
+            "numbers": {"rate": 1.000, "ci_low": 0.999, "ci_high": 1.000, "a90_95": 0.72},
+        },
+        {
+            "id": "loco_crack_8.6",
+            "text": (
+                "crack 8.6 mm: 3925 of 3925 detected "
+                "(rate 1.000, 95% CI [0.999, 1.000]), a90/95 = 0.72 mm"
+            ),
+            "evidence_file": "results/loco_metrics.json",
+            "evidence_path": "folds[2]",
+            "scope_limit": "public dataset, leave-one-crack-out",
+            "numbers": {"rate": 1.000, "ci_low": 0.999, "ci_high": 1.000, "a90_95": 0.72},
+        },
+        {
+            "id": "anomaly_crack_1.6",
+            "text": (
+                "crack 1.6 mm: 3649 of 4014 detected "
+                "(rate 0.909, 95% CI [0.900, 0.918]) with false-call rate 0.018"
+            ),
+            "evidence_file": "results/anomaly_metrics.json",
+            "evidence_path": "real.per_crack.crack_1.6",
+            "scope_limit": "public dataset, leave-one-crack-out",
+            "numbers": {"rate": 0.909, "ci_low": 0.900, "ci_high": 0.918, "fcr": 0.018},
+        },
+        {
+            "id": "anomaly_crack_4.0",
+            "text": "crack 4.0 mm: 4078 of 4078 detected (rate 1.000, 95% CI [0.999, 1.000])",
+            "evidence_file": "results/anomaly_metrics.json",
+            "evidence_path": "real.per_crack.crack_4.0",
+            "scope_limit": "public dataset, leave-one-crack-out",
+            "numbers": {"rate": 1.000, "ci_low": 0.999, "ci_high": 1.000},
+        },
+        {
+            "id": "anomaly_crack_8.6",
+            "text": "crack 8.6 mm: 3925 of 3925 detected (rate 1.000, 95% CI [0.999, 1.000])",
+            "evidence_file": "results/anomaly_metrics.json",
+            "evidence_path": "real.per_crack.crack_8.6",
+            "scope_limit": "public dataset, leave-one-crack-out",
+            "numbers": {"rate": 1.000, "ci_low": 0.999, "ci_high": 1.000},
+        },
+        {
+            "id": "sim_regions",
+            "text": (
+                "Simulator held-out parameter regions: detection rate 0.772 "
+                "(95% CI [0.728, 0.813]) at matched false-call rate 0.029"
+            ),
+            "evidence_file": "results/sim_generalization.json",
+            "evidence_path": "test_sets.in_distribution",
+            "scope_limit": "simulated",
+            "numbers": {"rate": 0.772, "ci_low": 0.728, "ci_high": 0.813, "fcr": 0.029},
+        },
+        {
+            "id": "union_property",
+            "text": (
+                "Rules union property holds across all indications: "
+                "ML layer can only add flags, never remove them"
+            ),
+            "evidence_file": "results/generalization_matrix.json",
+            "evidence_path": "union_property",
+            "scope_limit": "independent prototype, advisory",
+            "numbers": {},
+        },
+        {
+            "id": "latency",
+            "text": "CPU inference latency: median 14.2 ms, p95 21.0 ms across 500 scans",
+            "evidence_file": "results/hardware.json",
+            "evidence_path": "cpu_latency_ms.mlndt",
+            "scope_limit": "independent prototype, advisory",
+            "numbers": {"median_ms": 14.2, "p95_ms": 21.0, "n": 500.0},
+        },
+        {
+            "id": "evidence_limit",
+            "text": "Evidence base bounded by 3 distinct physical cracks in public research data",
+            "evidence_file": "results/data_inventory.md",
+            "evidence_path": "summary",
+            "scope_limit": "public dataset",
+            "numbers": {"distinct_cracks": 3.0},
+        },
+    ]
+    if include_cross:
+        claims.append(
+            {
+                "id": "cross_dataset",
+                "text": (
+                    "Cross-dataset test on external austenitic weld: "
+                    "0 false calls across unflawed specimens"
+                ),
+                "evidence_file": "results/cross_dataset_metrics.json",
+                "evidence_path": "summary",
+                "scope_limit": "cross-dataset",
+                "numbers": {"n_false": 0.0},
             }
-        }
-    }
-    _write_json(dummy_results_dir / "mlndt_metrics.json", mlndt_data)
-
-    bullets = build_bullets(dummy_results_dir)
-    _assert_contains_all(
-        bullets[1],
-        (
-            "(real data)",
-            "1222 of 1222 flaws detected",
-            "0.99",
-            "0 false calls on 778 unflawed scans",
-        ),
-    )
+        )
+    return claims
 
 
-def test_missing_triage_file(dummy_results_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Test omission notice when triage_metrics.json is missing."""
-    bullets = build_bullets(dummy_results_dir)
-    captured = capsys.readouterr()
-
-    assert len(bullets) == 3
-    _assert_contains_all(captured.err, ("triage_metrics.json", "omitting triage bullet"))
-
-
-def test_synthetic_validation_detection_fallback(dummy_results_dir: Path) -> None:
-    """Test synthetic bullet falls back to 0.6 mm detection rate when a90 is missing."""
-    _write_json(
-        dummy_results_dir / "bar_domain_metrics.json",
-        _make_dummy_synthetic(a90_rules=None, a90_ml=None),
-    )
-    bullets = build_bullets(dummy_results_dir)
-    _assert_contains_all(
-        bullets[2],
-        (
-            "(synthetic validation)",
-            "detection rate at 0.6 mm",
-            "0.75",
-            "0.99",
-            "0.018",
-        ),
-    )
+def _number_in_claims(num_str: str, claims: list[dict[str, Any]]) -> bool:
+    """Check if number string appears in some claim's text or numbers."""
+    for c in claims:
+        if num_str in c.get("text", ""):
+            return True
+        for val in c.get("numbers", {}).values():
+            if str(val) == num_str or f"{float(val):.3f}" == num_str:
+                return True
+    return False
 
 
-def test_labels_present(dummy_results_dir: Path) -> None:
-    """Verify labels (real data) and (synthetic validation) are both present."""
-    bullets = build_bullets(dummy_results_dir)
-    _assert_contains_all(
-        " ".join(bullets),
-        ("(real data)", "(synthetic validation)"),
-    )
+def test_bullet_count_and_framing(tmp_path: Path) -> None:
+    """Verify build_bullets returns 4-6 bullets with framing bullet first."""
+    claims = _make_fake_claims(include_cross=True)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert 4 <= len(bullets) <= 6
+    assert bullets[0].startswith("Independent prototype: advisory, offline triage")
+    assert "ML can only add flags to the rules engine" in bullets[0]
+    assert bullets[0].endswith("(independent prototype, advisory).")
+
+
+def test_every_number_in_claims(tmp_path: Path) -> None:
+    """Verify every number in the bullets appears in some claim text or numbers."""
+    claims = _make_fake_claims(include_cross=True)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    for bullet in bullets:
+        numbers = re.findall(r"\b\d+(?:\.\d+)?\b", bullet)
+        for num in numbers:
+            assert _number_in_claims(num, claims), f"Number {num} in {bullet!r} not in claims"
+
+
+def test_no_forbidden_phrases(tmp_path: Path) -> None:
+    """Verify no forbidden phrase appears in any generated bullet."""
+    claims = _make_fake_claims(include_cross=True)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    combined = " ".join(bullets).lower()
+    for phrase in FORBIDDEN:
+        assert phrase.lower() not in combined, f"Forbidden phrase {phrase!r} found in bullets"
 
 
 @pytest.mark.parametrize(
-    ("payload", "expected_snippets"),
+    "phrase",
     [
-        ({"conformal_coverage": 0.85}, ("(synthetic validation)", "0.85")),
-        ({"bullet": "Custom triage summary."}, ("(synthetic validation)",)),
+        "perfect",
+        "100%",
+        "for MIDHANI",
+        "validated on plant data",
+        "qualified",
+        "deployed",
+        "generalizes to all",
     ],
-    ids=["coverage_field", "custom_bullet_field"],
 )
-def test_triage_bullet_label(
-    dummy_results_dir: Path,
-    payload: dict,
-    expected_snippets: tuple[str, ...],
-) -> None:
-    """Verify triage bullet contains expected label and content."""
-    _write_json(dummy_results_dir / "triage_metrics.json", payload)
-    bullets = build_bullets(dummy_results_dir)
-    assert len(bullets) == 4
-    _assert_contains_all(bullets[3], expected_snippets)
+def test_forbidden_phrase_raises(tmp_path: Path, phrase: str) -> None:
+    """Verify build_bullets raises ValueError if any bullet contains a forbidden phrase."""
+    claims = _make_fake_claims()
+    claims[1]["text"] = f"Evaluation was {phrase} on real data"
+    _write_claims(tmp_path / "claims.json", claims)
+    with pytest.raises(ValueError, match="[Ff]orbidden"):
+        build_bullets(tmp_path)
 
 
-def _expected_real_snippets(results_dir: Path) -> tuple[str, ...]:
-    """Derive expected metric substrings for real-data bullet."""
-    with (results_dir / "mlndt_metrics.json").open("r", encoding="utf-8") as fh:
-        data = json.load(fh)
-    test_sp = data.get("per_split", {}).get("test", {})
-    pod = test_sp.get("pod")
-    if pod is not None and "a90_95" in pod:
-        return (f"{round_ceil(pod['a90_95'], 2)} mm",)
-    det = test_sp.get("detection", {})
-    n_hit = det.get("n_hit", 0)
-    n_flawed = det.get("n_flawed", 0)
-    lb = round_floor(det.get("pod_lower95", 0.0), 2)
-    return (f"{n_hit} of {n_flawed} flaws detected", lb)
+def test_missing_claims_json(tmp_path: Path) -> None:
+    """Verify missing claims.json raises FileNotFoundError with clear message."""
+    with pytest.raises(FileNotFoundError, match="Claims file not found"):
+        build_bullets(tmp_path)
 
 
-def _expected_synthetic_snippets(results_dir: Path) -> tuple[str, ...]:
-    """Derive expected metric substrings for synthetic validation bullet."""
-    with (results_dir / "bar_domain_metrics.json").open("r", encoding="utf-8") as fh:
-        data = json.load(fh)
-    model = data.get("kept_model", {}).get("choice", "ml_2d")
-    pmn = data.get("per_method_per_noise", {})
-    rules_sp = pmn.get("rules", {}).get("2.0", {})
-    ml_sp = pmn.get(model, {}).get("2.0", {})
-    fcr_str = round_ceil(rules_sp.get("false_call_rate", {}).get("rate", 0.0), 3)
-    r_a90, m_a90 = _extract_a90(rules_sp), _extract_a90(ml_sp)
-    if r_a90 is not None and m_a90 is not None:
-        comp = f"{round_ceil(r_a90, 2)} mm to {round_ceil(m_a90, 2)} mm"
-        return (fcr_str, comp)
-    r_det = _find_det_at_size(rules_sp.get("detection_table", []), 0.6) or 0.0
-    m_det = _find_det_at_size(ml_sp.get("detection_table", []), 0.6) or 0.0
-    comp = f"{round_floor(r_det, 2)} to {round_floor(m_det, 2)}"
-    return (fcr_str, comp)
+def test_missing_cross_dataset_claim(tmp_path: Path) -> None:
+    """Verify omission of cross-dataset claim results in no cross-dataset bullet."""
+    claims = _make_fake_claims(include_cross=False)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert len(bullets) == 5
+    assert not any("cross-dataset" in b.lower() for b in bullets)
+
+
+def test_all_bullets_have_scope_tags(tmp_path: Path) -> None:
+    """Verify every bullet ends with a short scope tag in parentheses."""
+    claims = _make_fake_claims(include_cross=True)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    for b in bullets:
+        assert re.search(r"\([^)]+\)\.$", b) is not None, f"Bullet lacks scope tag: {b}"
 
 
 def test_real_results() -> None:
-    """Verify build_bullets succeeds on real repository results directory."""
+    """Verify build_bullets succeeds on real repository results directory if present."""
     results_dir = Path(__file__).resolve().parents[1] / "results"
+    claims_path = results_dir / "claims.json"
+    if not claims_path.exists():
+        pytest.skip(f"{claims_path} does not exist yet")
     bullets = build_bullets(results_dir)
-
-    assert len(bullets) >= 3
-    expected = (
-        "(real data)",
-        "(synthetic validation)",
-        *_expected_real_snippets(results_dir),
-        *_expected_synthetic_snippets(results_dir),
-    )
-    _assert_contains_all(" ".join(bullets), expected)
-    assert any("(real data)" in b for b in bullets)
-    _assert_valid_bullet_labels(bullets)
+    assert 4 <= len(bullets) <= 6
+    for bullet in bullets:
+        assert bullet.endswith(").")
 
 
-def test_main(capsys: pytest.CaptureFixture[str]) -> None:
-    """Verify main function executes and prints bullets."""
-    main()
+def test_main(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Verify main function executes and prints bullets from CLI."""
+    claims = _make_fake_claims(include_cross=True)
+    _write_claims(tmp_path / "claims.json", claims)
+    out_file = tmp_path / "bullets.txt"
+    main(["--results", str(tmp_path), "--output", str(out_file)])
     captured = capsys.readouterr()
     lines = [line for line in captured.out.splitlines() if line.startswith("- ")]
-    assert len(lines) >= 3
-    assert any("(real data)" in line for line in lines)
-    assert any("(synthetic validation)" in line for line in lines)
-    _assert_valid_bullet_labels(lines)
+    assert 4 <= len(lines) <= 6
+    assert out_file.exists()
+    assert len(out_file.read_text(encoding="utf-8").splitlines()) == len(lines)
