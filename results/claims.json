@@ -1,0 +1,202 @@
+[
+  {
+    "id": "leakage",
+    "text": "The old random batch split shares all 3 physical cracks between train and test, so earlier test scores are superseded.",
+    "evidence_file": "results/leakage_audit.json",
+    "evidence_path": "shared_cracks_train_test",
+    "scope_limit": "one austenitic weld PAUT public dataset (ML-NDT), historical benchmark superseded",
+    "numbers": {
+      "shared_cracks": 3.0
+    }
+  },
+  {
+    "id": "loco_crack_1.6",
+    "text": "Leave-one-crack-out crack_1.6: detection 19/4014 (rate 0.005, 95% CI [0.003, 0.007]), false calls 0.000 per scan.",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "rows.supervised.mlndt_loco_crack_1.6",
+    "scope_limit": "one austenitic weld PAUT public dataset, 3 physical cracks, not validated on bars",
+    "numbers": {
+      "k": 19.0,
+      "n": 4014.0,
+      "rate": 0.004733432984554061,
+      "ci_low": 0.002852169005287773,
+      "ci_high": 0.007382014469807262,
+      "false_call_rate": 0.0
+    }
+  },
+  {
+    "id": "loco_crack_4.0",
+    "text": "Leave-one-crack-out crack_4.0: detection 19/4078 (rate 0.005, 95% CI [0.003, 0.007]), false calls 0.000 per scan.",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "rows.supervised.mlndt_loco_crack_4.0",
+    "scope_limit": "one austenitic weld PAUT public dataset, 3 physical cracks, not validated on bars",
+    "numbers": {
+      "k": 19.0,
+      "n": 4078.0,
+      "rate": 0.004659146640510054,
+      "ci_low": 0.002807371052335836,
+      "ci_high": 0.007266313218996091,
+      "false_call_rate": 0.0
+    }
+  },
+  {
+    "id": "loco_crack_8.6",
+    "text": "Leave-one-crack-out crack_8.6: detection 3925/3925 (rate 1.00, 95% CI [1.00, 1.00]), false calls 0.000 per scan.",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "rows.supervised.mlndt_loco_crack_8.6",
+    "scope_limit": "one austenitic weld PAUT public dataset, 3 physical cracks, not validated on bars",
+    "numbers": {
+      "k": 3925.0,
+      "n": 3925.0,
+      "rate": 1.0,
+      "ci_low": 0.999060599613932,
+      "ci_high": 1.0,
+      "false_call_rate": 0.0
+    }
+  },
+  {
+    "id": "anomaly_crack_1.6",
+    "text": "Anomaly model crack_1.6: detection 3649/4014 (rate 0.91, 95% CI [0.90, 0.92]), false calls 0.018 per scan.",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "rows.anomaly.mlndt_loco_crack_1.6",
+    "scope_limit": "trained on flaw-free images only",
+    "numbers": {
+      "k": 3649.0,
+      "n": 4014.0,
+      "rate": 0.9090682610861983,
+      "ci_low": 0.8997488946519808,
+      "ci_high": 0.9177870464143119,
+      "false_call_rate": 0.017994858611825194
+    }
+  },
+  {
+    "id": "anomaly_crack_4.0",
+    "text": "Anomaly model crack_4.0: detection 1306/4078 (rate 0.32, 95% CI [0.31, 0.33]), false calls 0.018 per scan.",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "rows.anomaly.mlndt_loco_crack_4.0",
+    "scope_limit": "trained on flaw-free images only",
+    "numbers": {
+      "k": 1306.0,
+      "n": 4078.0,
+      "rate": 0.3202550269740069,
+      "ci_low": 0.3059453046639004,
+      "ci_high": 0.3348226872076538,
+      "false_call_rate": 0.017994858611825194
+    }
+  },
+  {
+    "id": "anomaly_crack_8.6",
+    "text": "Anomaly model crack_8.6: detection 3925/3925 (rate 1.00, 95% CI [1.00, 1.00]), false calls 0.018 per scan.",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "rows.anomaly.mlndt_loco_crack_8.6",
+    "scope_limit": "trained on flaw-free images only",
+    "numbers": {
+      "k": 3925.0,
+      "n": 3925.0,
+      "rate": 1.0,
+      "ci_low": 0.999060599613932,
+      "ci_high": 1.0,
+      "false_call_rate": 0.017994858611825194
+    }
+  },
+  {
+    "id": "cross_dataset",
+    "text": "Cross-dataset NDT_ML_Flaw: the model flagged (nearly) every image, giving detections 3442/3442 and false calls 3558/3558; no cross-dataset transfer under the documented domain mapping.",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "rows.supervised.cross_ndt_ml_flaw",
+    "scope_limit": "test only, different weld, domain-mapping assumptions",
+    "numbers": {
+      "k": 3442.0,
+      "n": 3442.0,
+      "n_false": 3558.0,
+      "n_scans": 3558.0
+    }
+  },
+  {
+    "id": "sim_in_distribution",
+    "text": "Simulator in-distribution: ML det 0.89 vs rules 0.77, false calls 0.13 vs 0.029.",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "rows",
+    "scope_limit": "Synthetic data, UNVERIFIED constants",
+    "numbers": {
+      "ml_det": 0.8875,
+      "rules_det": 0.7725,
+      "ml_fc": 0.13414634146341464,
+      "rules_fc": 0.02926829268292683
+    }
+  },
+  {
+    "id": "sim_regions",
+    "text": "Simulator held-out regions (ML vs rules): sim_freq_10mhz: ML det 0.90 vs rules 0.93, false calls 0.47 vs 0.64; sim_material_third: ML det 0.90 vs rules 0.83, false calls 0.07 vs 0.020; sim_noise_above_range: ML det 0.90 vs rules 0.92, false calls 0.47 vs 0.53; sim_artefact_bubble: ML det 0.91 vs rules 0.87, false calls 0.18 vs 0.20; sim_artefact_lost_backwall: ML det 0.89 vs rules 0.82, false calls 0.18 vs 0.17; sim_artefact_waterpath_drift: ML det 0.89 vs rules 0.82, false calls 0.20 vs 0.10; sim_artefact_roughness: ML det 0.91 vs rules 0.81, false calls 0.15 vs 0.11; sim_artefact_missing_coverage: ML det 0.90 vs rules 0.86, false calls 0.19 vs 0.15; exceeds 0.3 in: sim_freq_10mhz, sim_noise_above_range.",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "rows",
+    "scope_limit": "Synthetic data, UNVERIFIED constants",
+    "numbers": {
+      "ml_det_sim_freq_10mhz": 0.8975,
+      "rules_det_sim_freq_10mhz": 0.925,
+      "ml_fc_sim_freq_10mhz": 0.46904761904761905,
+      "rules_fc_sim_freq_10mhz": 0.6357142857142857,
+      "ml_det_sim_material_third": 0.9025,
+      "rules_det_sim_material_third": 0.8275,
+      "ml_fc_sim_material_third": 0.06585365853658537,
+      "rules_fc_sim_material_third": 0.01951219512195122,
+      "ml_det_sim_noise_above_range": 0.9025,
+      "rules_det_sim_noise_above_range": 0.9175,
+      "ml_fc_sim_noise_above_range": 0.4688888888888889,
+      "rules_fc_sim_noise_above_range": 0.5333333333333333,
+      "ml_det_sim_artefact_bubble": 0.9075,
+      "rules_det_sim_artefact_bubble": 0.8675,
+      "ml_fc_sim_artefact_bubble": 0.178,
+      "rules_fc_sim_artefact_bubble": 0.196,
+      "ml_det_sim_artefact_lost_backwall": 0.89,
+      "rules_det_sim_artefact_lost_backwall": 0.82,
+      "ml_fc_sim_artefact_lost_backwall": 0.184,
+      "rules_fc_sim_artefact_lost_backwall": 0.168,
+      "ml_det_sim_artefact_waterpath_drift": 0.8925,
+      "rules_det_sim_artefact_waterpath_drift": 0.8175,
+      "ml_fc_sim_artefact_waterpath_drift": 0.204,
+      "rules_fc_sim_artefact_waterpath_drift": 0.104,
+      "ml_det_sim_artefact_roughness": 0.9125,
+      "rules_det_sim_artefact_roughness": 0.815,
+      "ml_fc_sim_artefact_roughness": 0.148,
+      "rules_fc_sim_artefact_roughness": 0.114,
+      "ml_det_sim_artefact_missing_coverage": 0.8975,
+      "rules_det_sim_artefact_missing_coverage": 0.865,
+      "ml_fc_sim_artefact_missing_coverage": 0.188,
+      "rules_fc_sim_artefact_missing_coverage": 0.152
+    }
+  },
+  {
+    "id": "union_property",
+    "text": "The union property holds in all 9 synthetic simulator columns with 0 violations (ML adds flags, never removes a rules flag).",
+    "evidence_file": "results/generalization_matrix.json",
+    "evidence_path": "union_property",
+    "scope_limit": "synthetic simulator columns only (the real-image columns have no rules baseline)",
+    "numbers": {
+      "n_violations": 0.0,
+      "n_columns": 9.0
+    }
+  },
+  {
+    "id": "latency",
+    "text": "CPU latency on Intel(R) Core(TM) Ultra 9 275HX: median 14.2 ms, p95 21.0 ms.",
+    "evidence_file": "results/hardware.json",
+    "evidence_path": "cpu_latency_ms.mlndt",
+    "scope_limit": "this development machine, not the target i5 laptop",
+    "numbers": {
+      "median_ms": 14.203400001861155,
+      "p95_ms": 20.95477498805848
+    }
+  },
+  {
+    "id": "evidence_limit",
+    "text": "Total distinct real physical flaws across accepted public datasets: 10 listed vs 9 used in evaluation.",
+    "evidence_file": "results/data_inventory.md",
+    "evidence_path": "distinct_physical_flaws",
+    "scope_limit": "evidence limit",
+    "numbers": {
+      "distinct_physical_flaws": 10.0,
+      "distinct_physical_flaws_used": 9.0
+    }
+  }
+]

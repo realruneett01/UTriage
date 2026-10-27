@@ -1,6 +1,7 @@
 {
   "inference_machine": {
     "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "cpu_name": "Intel(R) Core(TM) Ultra 9 275HX",
     "platform": "Windows-11-10.0.26300-SP0",
     "cpu_count": 24,
     "torch_version": "2.14.1+cu130",

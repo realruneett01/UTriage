@@ -9,4 +9,6 @@
 | TUBERS-Ultrasonic-Crack-Dataset | MIT | steel (plates and step wedge) | contact | unknown | downloaded |
 | SAW-Open-Repository-PENELOPE | CC BY 4.0 | steel (welded coupons) | PAUT | unknown | not_downloaded |
 
-Across the 6 accepted datasets, 3 datasets have verified counts totaling 10 distinct physical flaws. The remaining 3 accepted datasets have an unknown physical flaw count (unverified in public metadata; unknown values remain unknown and are never guessed).
+Used in evaluation: 9 distinct physical flaws (ML-NDT: 3, NDT_ML_Flaw: 6)
+
+Listed (accepted, known counts): across the 6 accepted datasets, 3 datasets have verified counts totaling 10 distinct physical flaws. The remaining 3 accepted datasets have an unknown physical flaw count (unverified in public metadata; unknown values remain unknown and are never guessed).
