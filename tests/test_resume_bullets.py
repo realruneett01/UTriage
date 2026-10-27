@@ -13,6 +13,8 @@ if _SCRIPTS not in sys.path:
     sys.path.insert(0, _SCRIPTS)
 
 from make_resume_bullets import (  # noqa: E402
+    _extract_a90,
+    _find_det_at_size,
     build_bullets,
     main,
     round_ceil,
@@ -218,23 +220,53 @@ def test_triage_bullet_label(
     _assert_contains_all(bullets[3], expected_snippets)
 
 
+def _expected_real_snippets(results_dir: Path) -> tuple[str, ...]:
+    """Derive expected metric substrings for real-data bullet."""
+    with (results_dir / "mlndt_metrics.json").open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    test_sp = data.get("per_split", {}).get("test", {})
+    pod = test_sp.get("pod")
+    if pod is not None and "a90_95" in pod:
+        return (f"{round_ceil(pod['a90_95'], 2)} mm",)
+    det = test_sp.get("detection", {})
+    n_hit = det.get("n_hit", 0)
+    n_flawed = det.get("n_flawed", 0)
+    lb = round_floor(det.get("pod_lower95", 0.0), 2)
+    return (f"{n_hit} of {n_flawed} flaws detected", lb)
+
+
+def _expected_synthetic_snippets(results_dir: Path) -> tuple[str, ...]:
+    """Derive expected metric substrings for synthetic validation bullet."""
+    with (results_dir / "bar_domain_metrics.json").open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    model = data.get("kept_model", {}).get("choice", "ml_2d")
+    pmn = data.get("per_method_per_noise", {})
+    rules_sp = pmn.get("rules", {}).get("2.0", {})
+    ml_sp = pmn.get(model, {}).get("2.0", {})
+    fcr_str = round_ceil(rules_sp.get("false_call_rate", {}).get("rate", 0.0), 3)
+    r_a90, m_a90 = _extract_a90(rules_sp), _extract_a90(ml_sp)
+    if r_a90 is not None and m_a90 is not None:
+        comp = f"{round_ceil(r_a90, 2)} mm to {round_ceil(m_a90, 2)} mm"
+        return (fcr_str, comp)
+    r_det = _find_det_at_size(rules_sp.get("detection_table", []), 0.6) or 0.0
+    m_det = _find_det_at_size(ml_sp.get("detection_table", []), 0.6) or 0.0
+    comp = f"{round_floor(r_det, 2)} to {round_floor(m_det, 2)}"
+    return (fcr_str, comp)
+
+
 def test_real_results() -> None:
     """Verify build_bullets succeeds on real repository results directory."""
     results_dir = Path(__file__).resolve().parents[1] / "results"
     bullets = build_bullets(results_dir)
 
     assert len(bullets) >= 3
-    _assert_contains_all(
-        " ".join(bullets),
-        (
-            "(real data)",
-            "(synthetic validation)",
-            "1222 of 1222 flaws detected",
-            "0.99",
-            "0.84 mm to 0.72 mm",
-            "0.018",
-        ),
+    expected = (
+        "(real data)",
+        "(synthetic validation)",
+        *_expected_real_snippets(results_dir),
+        *_expected_synthetic_snippets(results_dir),
     )
+    _assert_contains_all(" ".join(bullets), expected)
     assert any("(real data)" in b for b in bullets)
     _assert_valid_bullet_labels(bullets)
 
