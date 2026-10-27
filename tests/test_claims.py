@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import sys
 from pathlib import Path
@@ -315,6 +316,27 @@ def test_make_claims_script(fake_results_dir: Path) -> None:
     md_path = fake_results_dir / "claims.md"
     assert json_path.exists()
     assert md_path.exists()
+
+
+def test_make_claims_main(fake_results_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Verify make_claims main writes claims matching build_claims output."""
+    scripts_dir = str(Path(__file__).resolve().parents[1] / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    from make_claims import main
+
+    from utriage.report.claims import build_claims
+
+    main([str(fake_results_dir)])
+    captured = capsys.readouterr().out
+    assert "Generated 13 claims" in captured
+    claims = build_claims(fake_results_dir)
+    expected_json = [dataclasses.asdict(c) for c in claims]
+    expected_md = render_markdown(claims)
+    written_json = json.loads((fake_results_dir / "claims.json").read_text(encoding="utf-8"))
+    written_md = (fake_results_dir / "claims.md").read_text(encoding="utf-8")
+    assert written_json == expected_json
+    assert written_md == expected_md
 
 
 def test_cross_dataset_high_false_calls(
