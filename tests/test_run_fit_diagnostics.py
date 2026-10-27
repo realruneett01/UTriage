@@ -10,6 +10,8 @@ from unittest.mock import MagicMock
 import pytest
 from experiments.run_fit_diagnostics import (
     FitDiagnosticsConfig,
+    FitPayloadComponents,
+    _assemble_payload,
     diagnose_loco_folds,
     diagnose_mlndt,
     extract_anomaly_learning_curves,
@@ -126,20 +128,20 @@ def _make_loco_fold_dict(has_train_det: bool, has_history: bool) -> dict[str, An
 
 
 @pytest.mark.parametrize(
-    ("has_train_det", "has_history", "expected_curve_avail", "expected_gap_avail"),
+    ("flags", "expected"),
     [
-        (False, False, False, False),
-        (True, True, True, True),
+        ((False, False), (False, False)),
+        ((True, True), (True, True)),
     ],
 )
 def test_loco_metrics_handling(
     tmp_path: Path,
-    has_train_det: bool,
-    has_history: bool,
-    expected_curve_avail: bool,
-    expected_gap_avail: bool,
+    flags: tuple[bool, bool],
+    expected: tuple[bool, bool],
 ) -> None:
     """Verify LOCO fold history and detection gap handling."""
+    has_train_det, has_history = flags
+    expected_curve_avail, expected_gap_avail = expected
     rule = FitRule(target_train_metric=0.9, max_gap=0.1)
     fold_entry = _make_loco_fold_dict(has_train_det, has_history)
     loco_file = tmp_path / "loco_test.json"
@@ -255,3 +257,62 @@ def test_full_pipeline_mocked(
     assert loaded["diagnostics"]["synthetic_supervised"]["available"] is True
     assert loaded["diagnostics"]["synthetic_supervised"]["verdict"] == "ok"
     assert result == loaded
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_available", "expect_reason_substring"),
+    [
+        (
+            {"real": {"learning_curve": {"val_loss": [0.1, 0.05]}}, "synthetic": {}},
+            True,
+            None,
+        ),
+        (
+            {
+                "real": {"history": [{"epoch": 1, "train_loss": 0.2, "val_loss": 0.1}]},
+                "synthetic": {},
+            },
+            True,
+            None,
+        ),
+        (
+            {"real": {"learning_curve": None}, "synthetic": {"learning_curve": None}},
+            False,
+            "learning_curve is null",
+        ),
+    ],
+)
+def test_extract_anomaly_learning_curves_formats(
+    tmp_path: Path,
+    payload: dict[str, Any],
+    expected_available: bool,
+    expect_reason_substring: str | None,
+) -> None:
+    """Verify anomaly learning curve parsing across dict, list, and null cases."""
+    p = tmp_path / "anomaly_test.json"
+    p.write_text(json.dumps(payload), encoding="utf-8")
+    res = extract_anomaly_learning_curves(p)
+    assert res["available"] is expected_available
+    if expect_reason_substring:
+        assert expect_reason_substring in res["reason"]
+    else:
+        assert res["reason"] is None
+
+
+def test_assemble_payload() -> None:
+    """Verify _assemble_payload builds structured payload from FitPayloadComponents."""
+    rule = FitRule(target_train_metric=0.9, max_gap=0.1)
+    comp = FitPayloadComponents(
+        lc_data={"mlndt": {"available": False}},
+        ds_records=[{"fraction": 1.0}],
+        synth_diag={"verdict": "ok"},
+        rule=rule,
+        fig_paths=["fig.png"],
+        loco_diag={"available": False},
+        mlndt_diag={"available": False},
+    )
+    payload = _assemble_payload(comp)
+    assert payload["rule"] == rule.rule_text
+    assert payload["data_size_curve"] == [{"fraction": 1.0}]
+    assert payload["diagnostics"]["synthetic_supervised"]["verdict"] == "ok"
+    assert payload["figures"] == ["fig.png"]

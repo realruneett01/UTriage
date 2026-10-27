@@ -7,6 +7,7 @@ and train-vs-test gaps with FitRule(target_train_metric=0.9, max_gap=0.1).
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import subprocess
 import sys
@@ -93,6 +94,29 @@ class WindowEvalBundle:
     regions: dict[str, WindowSet]
 
 
+@dataclass(frozen=True)
+class FractionEvalContext:
+    """Context holding datasets and hardware settings for data-size evaluation."""
+
+    full_ws: WindowSet
+    bundles: WindowEvalBundle
+    cfg: FitDiagnosticsConfig
+    dev: torch.device
+
+
+@dataclass(frozen=True)
+class FitPayloadComponents:
+    """Diagnostic outputs and curve artifacts to serialize into payload."""
+
+    lc_data: dict[str, Any]
+    ds_records: list[dict[str, Any]]
+    synth_diag: dict[str, Any]
+    rule: FitRule
+    fig_paths: list[str]
+    loco_diag: dict[str, Any]
+    mlndt_diag: dict[str, Any]
+
+
 def _load_json_if_exists(path: Path) -> dict[str, Any] | None:
     """Safely load JSON dictionary from path if file exists."""
     if not path.exists():
@@ -105,6 +129,14 @@ def _load_json_if_exists(path: Path) -> dict[str, Any] | None:
         return None
 
 
+def _select_mlndt_restart(restarts: list[dict[str, Any]], kept_seed: Any) -> dict[str, Any]:
+    """Select kept restart matching kept_seed or lowest best_val_loss."""
+    matches = [r for r in restarts if r.get("seed") == kept_seed]
+    if matches:
+        return matches[0]
+    return min(restarts, key=lambda r: float(r.get("best_val_loss", float("inf"))))
+
+
 def extract_mlndt_learning_curve(path: Path) -> dict[str, Any]:
     """Extract learning curve from kept restart of ML-NDT results."""
     data = _load_json_if_exists(path)
@@ -113,13 +145,7 @@ def extract_mlndt_learning_curve(path: Path) -> dict[str, Any]:
     restarts = data.get("restarts", [])
     if not restarts:
         return {"available": False, "reason": "No restarts recorded in mlndt_metrics"}
-    kept_seed = data.get("kept_seed")
-    matches = [r for r in restarts if r.get("seed") == kept_seed]
-    restart = (
-        matches[0]
-        if matches
-        else min(restarts, key=lambda r: float(r.get("best_val_loss", float("inf"))))
-    )
+    restart = _select_mlndt_restart(restarts, data.get("kept_seed"))
     hist = restart.get("history", [])
     if not hist:
         return {"available": False, "reason": "No training history recorded in kept restart"}
@@ -130,6 +156,22 @@ def extract_mlndt_learning_curve(path: Path) -> dict[str, Any]:
         "leaky": True,
         "kept_seed": restart.get("seed"),
     }
+
+
+def _extract_fold_entry(f: dict[str, Any]) -> tuple[str, dict[str, Any], bool]:
+    """Extract curve or reason for a single LOCO fold."""
+    name = str(f.get("held_out", "unknown"))
+    hist = f.get("history")
+    if isinstance(hist, list) and hist:
+        return name, {"available": True, "curve": learning_curve(hist)}, True
+    return (
+        name,
+        {
+            "available": False,
+            "reason": "No epoch history recorded for fold (only best_val_loss recorded)",
+        },
+        False,
+    )
 
 
 def extract_loco_learning_curves(path: Path) -> dict[str, Any]:
@@ -143,16 +185,10 @@ def extract_loco_learning_curves(path: Path) -> dict[str, Any]:
     fold_curves: dict[str, Any] = {}
     any_history = False
     for f in folds:
-        name = str(f.get("held_out", "unknown"))
-        hist = f.get("history")
-        if hist and isinstance(hist, list):
+        name, entry, has_hist = _extract_fold_entry(f)
+        fold_curves[name] = entry
+        if has_hist:
             any_history = True
-            fold_curves[name] = {"available": True, "curve": learning_curve(hist)}
-        else:
-            fold_curves[name] = {
-                "available": False,
-                "reason": "No epoch history recorded for fold (only best_val_loss recorded)",
-            }
     if not any_history:
         return {
             "available": False,
@@ -162,22 +198,49 @@ def extract_loco_learning_curves(path: Path) -> dict[str, Any]:
     return {"available": True, "folds": fold_curves}
 
 
+def _extract_raw_curve(sub: dict[str, Any]) -> Any:
+    """Extract raw curve payload from learning_curve or history key."""
+    return sub.get("learning_curve") or sub.get("history")
+
+
+def _curve_from_dict(raw: dict[str, Any]) -> dict[str, Any] | None:
+    """Validate and return curve dictionary if val_loss is present."""
+    return raw if raw.get("val_loss") else None
+
+
+def _curve_from_list(raw: list[Any]) -> dict[str, Any] | None:
+    """Validate and return curve from history list if val_loss is present."""
+    if not raw:
+        return None
+    first = raw[0]
+    if isinstance(first, dict) and "val_loss" in first:
+        return learning_curve(raw)
+    return None
+
+
+def _curve_from_raw(raw: Any) -> dict[str, Any] | None:
+    """Convert dict or list history into a validated curve dict."""
+    if isinstance(raw, dict):
+        return _curve_from_dict(raw)
+    if isinstance(raw, list):
+        return _curve_from_list(raw)
+    return None
+
+
+def _anomaly_missing_reason(sub: dict[str, Any], key: str) -> str:
+    """Describe why anomaly model validation history is missing."""
+    if sub.get("learning_curve") is None:
+        return f"Anomaly {key} model has key 'learning_curve' is null"
+    return f"Anomaly {key} model has no validation loss history"
+
+
 def _extract_anomaly_model_curve(sub: dict[str, Any], key: str) -> dict[str, Any]:
     """Extract single model curve or reason for missing validation history."""
-    lc = sub.get("learning_curve") or sub.get("history")
-    if isinstance(lc, dict) and lc.get("val_loss"):
-        return {"available": True, "curve": lc}
-    if isinstance(lc, list) and lc and isinstance(lc[0], dict) and "val_loss" in lc[0]:
-        return {"available": True, "curve": learning_curve(lc)}
-    null_desc = (
-        "key 'learning_curve' is null"
-        if sub.get("learning_curve") is None
-        else "no validation loss history"
-    )
-    return {
-        "available": False,
-        "reason": f"Anomaly {key} model has {null_desc}",
-    }
+    raw = _extract_raw_curve(sub)
+    curve = _curve_from_raw(raw)
+    if curve is not None:
+        return {"available": True, "curve": curve}
+    return {"available": False, "reason": _anomaly_missing_reason(sub, key)}
 
 
 def extract_anomaly_learning_curves(path: Path) -> dict[str, Any]:
@@ -197,6 +260,7 @@ def extract_anomaly_learning_curves(path: Path) -> dict[str, Any]:
     return {"available": available, "models": models, "reason": reason}
 
 
+@functools.lru_cache(maxsize=1)
 def _repo_parent_root() -> Path | None:
     """Locate root directory of parent repository across worktrees."""
     try:
@@ -303,6 +367,21 @@ def _extract_train_detection_rate(fold_dict: dict[str, Any]) -> float | None:
     return float(tr_rate) if isinstance(tr_rate, (int, float)) else None
 
 
+def _resolve_fold_train_metric(
+    f: dict[str, Any],
+    name: str,
+    fold: LocoFold | None,
+    ctx: LocoEvalContext,
+) -> tuple[float | None, int, str | None]:
+    """Retrieve recorded train detection rate or compute from fold items."""
+    tr_det = _extract_train_detection_rate(f)
+    if tr_det is not None:
+        tr_info = f.get("train_detection")
+        n_samples = int(tr_info.get("n_flawed", 0)) if isinstance(tr_info, dict) else 0
+        return tr_det, n_samples, None
+    return _compute_fold_train_metric(name, fold, ctx)
+
+
 def _diagnose_single_loco_fold(
     f: dict[str, Any],
     rule: FitRule,
@@ -310,22 +389,16 @@ def _diagnose_single_loco_fold(
     ctx: LocoEvalContext | None = None,
 ) -> tuple[str, dict[str, Any], bool]:
     """Diagnose single fold using recorded or computed train detection rate."""
-    eval_ctx = ctx or LocoEvalContext()
+    eval_ctx = ctx if ctx is not None else LocoEvalContext()
     name = str(f.get("held_out", "unknown"))
     det_info = f.get("detections")
     test_det = det_info.get("rate") if isinstance(det_info, dict) else None
     if test_det is None:
         return name, {"available": False, "reason": "Test detection rate not recorded"}, False
 
-    tr_det = _extract_train_detection_rate(f)
-    n_sampled = 0
-    seed = eval_ctx.seed
+    tr_det, n_sampled, err = _resolve_fold_train_metric(f, name, fold, eval_ctx)
     if tr_det is None:
-        tr_det, n_sampled, err = _compute_fold_train_metric(name, fold, eval_ctx)
-        if tr_det is None:
-            return name, {"available": False, "reason": err or "Train metric unavailable"}, False
-    elif isinstance(f.get("train_detection"), dict):
-        n_sampled = int(f["train_detection"].get("n_flawed", 0))
+        return name, {"available": False, "reason": err or "Train metric unavailable"}, False
 
     diag = diagnose(float(tr_det), {name: float(test_det)}, rule)
     res = {
@@ -333,7 +406,7 @@ def _diagnose_single_loco_fold(
         "train_detection_rate": float(tr_det),
         "heldout_detection_rate": float(test_det),
         "n_sampled": n_sampled,
-        "seed": seed,
+        "seed": eval_ctx.seed,
         "diagnosis": diag,
     }
     return name, res, True
@@ -519,24 +592,21 @@ def _train_window_subset(
 
 def _eval_one_fraction(
     fraction: float,
-    full_ws: WindowSet,
-    bundles: WindowEvalBundle,
-    cfg: FitDiagnosticsConfig,
-    dev: torch.device,
+    ctx: FractionEvalContext,
 ) -> dict[str, Any]:
     """Train on fraction and evaluate on in-dist and held-out regions."""
-    adapter = _train_window_subset(full_ws, fraction, cfg, dev)
-    tr_eval = evaluate_window_predictions(adapter, full_ws, dev)
-    in_dist_eval = evaluate_window_predictions(adapter, bundles.in_dist, dev)
+    adapter = _train_window_subset(ctx.full_ws, fraction, ctx.cfg, ctx.dev)
+    tr_eval = evaluate_window_predictions(adapter, ctx.full_ws, ctx.dev)
+    in_dist_eval = evaluate_window_predictions(adapter, ctx.bundles.in_dist, ctx.dev)
 
     reg_evals = {
-        name: evaluate_window_predictions(adapter, wset, dev)
-        for name, wset in bundles.regions.items()
+        name: evaluate_window_predictions(adapter, wset, ctx.dev)
+        for name, wset in ctx.bundles.regions.items()
     }
     test_sets: dict[str, Any] = {"in_distribution": in_dist_eval}
     test_sets.update(reg_evals)
 
-    n_samples = max(8, int(round(len(full_ws.x) * fraction)))
+    n_samples = max(8, int(round(len(ctx.full_ws.x) * fraction)))
     return {"n_train_samples": n_samples, "train": tr_eval, "test_sets": test_sets}
 
 
@@ -555,9 +625,10 @@ def _run_synthetic_data_size_curve(
     in_dist_ws = build_in_distribution_test(sim_settings)
     reg_sets = {r.name: build_region_test(sim_settings, r) for r in DEFAULT_HOLDOUT_REGIONS}
     bundle = WindowEvalBundle(in_dist=in_dist_ws, regions=reg_sets)
+    eval_ctx = FractionEvalContext(full_ws=full_train_ws, bundles=bundle, cfg=cfg, dev=dev)
 
     def _runner(f: float) -> dict[str, Any]:
-        return _eval_one_fraction(f, full_train_ws, bundle, cfg, dev)
+        return _eval_one_fraction(f, eval_ctx)
 
     curve_records = data_size_curve(cfg.fractions, _runner)
     full_rec = curve_records[-1]
@@ -638,30 +709,41 @@ def _save_learning_figures(learning_curves: dict[str, Any], figures_dir: Path) -
     return fig_paths
 
 
-def _assemble_payload(
-    lc_data: dict[str, Any],
-    ds_records: list[dict[str, Any]],
-    synth_diag: dict[str, Any],
-    rule: FitRule,
-    diagnostics_bundle: tuple[list[str], dict[str, Any], dict[str, Any]],
-) -> dict[str, Any]:
+def _collect_learning_curves(
+    cfg: FitDiagnosticsConfig,
+) -> tuple[dict[str, Any], list[str]]:
+    """Extract learning curves and render corresponding figures."""
+    lc_data = {
+        "mlndt": extract_mlndt_learning_curve(cfg.mlndt_metrics_path),
+        "loco": extract_loco_learning_curves(cfg.loco_metrics_path),
+        "anomaly": extract_anomaly_learning_curves(cfg.anomaly_metrics_path),
+    }
+    return lc_data, _save_learning_figures(lc_data, cfg.figures_dir)
+
+
+def _write_json_payload(out_json: Path, payload: dict[str, Any]) -> None:
+    """Save formatted JSON payload to disk."""
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _assemble_payload(comp: FitPayloadComponents) -> dict[str, Any]:
     """Assemble final JSON payload dictionary."""
-    fig_paths, loco_diag, mlndt_diag = diagnostics_bundle
     return {
-        "rule": rule.rule_text,
+        "rule": comp.rule.rule_text,
         "fit_rule": {
-            "target_train_metric": rule.target_train_metric,
-            "max_gap": rule.max_gap,
-            "text": rule.rule_text,
+            "target_train_metric": comp.rule.target_train_metric,
+            "max_gap": comp.rule.max_gap,
+            "text": comp.rule.rule_text,
         },
-        "learning_curves": lc_data,
-        "data_size_curve": ds_records,
+        "learning_curves": comp.lc_data,
+        "data_size_curve": comp.ds_records,
         "diagnostics": {
-            "synthetic_supervised": synth_diag,
-            "loco": loco_diag,
-            "mlndt": mlndt_diag,
+            "synthetic_supervised": comp.synth_diag,
+            "loco": comp.loco_diag,
+            "mlndt": comp.mlndt_diag,
         },
-        "figures": fig_paths,
+        "figures": comp.fig_paths,
     }
 
 
@@ -671,32 +753,29 @@ def run_fit_diagnostics(cfg: FitDiagnosticsConfig) -> dict[str, Any]:
     dev = pick_device(cfg.device)
     cfg.figures_dir.mkdir(parents=True, exist_ok=True)
 
-    lc_data = {
-        "mlndt": extract_mlndt_learning_curve(cfg.mlndt_metrics_path),
-        "loco": extract_loco_learning_curves(cfg.loco_metrics_path),
-        "anomaly": extract_anomaly_learning_curves(cfg.anomaly_metrics_path),
-    }
-    fig_paths = _save_learning_figures(lc_data, cfg.figures_dir)
-
+    lc_data, fig_paths = _collect_learning_curves(cfg)
     ds_records, synth_diag = _run_synthetic_data_size_curve(cfg, dev)
     ds_fig = cfg.figures_dir / "fit_data_size_curve.png"
     plot_data_size_curve(ds_records, ds_fig)
     fig_paths.append(str(ds_fig))
 
     rule = FitRule(target_train_metric=0.9, max_gap=0.1)
-    loco_ctx = LocoEvalContext(
-        models_dir=cfg.models_dir,
-        device=cfg.device,
-        seed=cfg.seed,
-    )
+    loco_ctx = LocoEvalContext(models_dir=cfg.models_dir, device=cfg.device, seed=cfg.seed)
     loco_diag = diagnose_loco_folds(_load_json_if_exists(cfg.loco_metrics_path), rule, loco_ctx)
     mlndt_diag = diagnose_mlndt(_load_json_if_exists(cfg.mlndt_metrics_path), rule)
 
     payload = _assemble_payload(
-        lc_data, ds_records, synth_diag, rule, (fig_paths, loco_diag, mlndt_diag)
+        FitPayloadComponents(
+            lc_data=lc_data,
+            ds_records=ds_records,
+            synth_diag=synth_diag,
+            rule=rule,
+            fig_paths=fig_paths,
+            loco_diag=loco_diag,
+            mlndt_diag=mlndt_diag,
+        )
     )
-    cfg.out_json.parent.mkdir(parents=True, exist_ok=True)
-    cfg.out_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    _write_json_payload(cfg.out_json, payload)
     return payload
 
 
