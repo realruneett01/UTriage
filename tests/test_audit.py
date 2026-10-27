@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -25,6 +26,7 @@ from utriage.app_logic import (  # noqa: E402
 )
 from utriage.audit import (  # noqa: E402
     GENESIS,
+    AuditIntegrityError,
     ChainCheck,
     append_entry,
     export_csv,
@@ -200,3 +202,78 @@ def test_record_decision_jsonl_content(sample_session: Session, tmp_path: Path) 
     assert entries[0]["inspector"] == "Insp-0"
     assert entries[1]["decision"] == "rejected"
     assert entries[1]["inspector"] == "Insp-1"
+
+
+@pytest.mark.parametrize(
+    "corrupt_tail",
+    [
+        "not-valid-json\n",
+        "42\n",
+        '{"seq": 0}\n',
+        '{"seq": 0, "ts": "2026-01-01", "prev": "0000", "hash": "wrong"}\n',
+    ],
+    ids=["malformed_json", "non_dict", "missing_fields", "hash_mismatch"],
+)
+def test_malformed_tail_raises_and_never_appends(
+    tmp_path: Path,
+    corrupt_tail: str,
+) -> None:
+    """Verify append_entry raises AuditIntegrityError on malformed tail without appending."""
+    log_path = tmp_path / "corrupt.jsonl"
+    log_path.write_text(corrupt_tail, encoding="utf-8")
+    initial_content = log_path.read_text(encoding="utf-8")
+
+    with pytest.raises(AuditIntegrityError):
+        append_entry(log_path, {"action": "should_fail"})
+
+    assert log_path.read_text(encoding="utf-8") == initial_content
+
+
+def test_truncating_last_line_detected(nominal_chain_log: Path) -> None:
+    """Verify deleting the last entry is caught as truncation by verify_chain."""
+    lines = nominal_chain_log.read_text(encoding="utf-8").splitlines()
+    truncated = lines[:-1]
+    nominal_chain_log.write_text("\n".join(truncated) + "\n", encoding="utf-8")
+
+    check = verify_chain(nominal_chain_log)
+    assert check.ok is False
+    assert check.n == 4
+    assert check.first_bad_line is None
+    assert "truncation" in check.reason.lower()
+    assert "count mismatch" in check.reason.lower()
+
+
+def test_missing_anchor_fails_non_empty_log(nominal_chain_log: Path) -> None:
+    """Verify a non-empty log without an anchor fails verification."""
+    anchor_path = nominal_chain_log.with_name(f"{nominal_chain_log.name}.head.json")
+    if anchor_path.is_file():
+        anchor_path.unlink()
+
+    check = verify_chain(nominal_chain_log)
+    assert check.ok is False
+    assert "missing anchor" in check.reason.lower()
+
+
+def test_anchor_written_atomically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify anchor is written atomically via os.replace after append."""
+    log_path = tmp_path / "audit.jsonl"
+    calls: list[tuple[str, str]] = []
+    real_replace = os.replace
+
+    def spy_replace(src: str | Path, dst: str | Path) -> None:
+        calls.append((str(src), str(dst)))
+        real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", spy_replace)
+    append_entry(log_path, {"event": "init"})
+
+    anchor_path = log_path.with_name(f"{log_path.name}.head.json")
+    assert anchor_path.is_file()
+    assert len(calls) == 1
+    src_call, dst_call = calls[0]
+    assert dst_call == str(anchor_path)
+    assert src_call.endswith(".tmp")
+
+    anchor_data = json.loads(anchor_path.read_text(encoding="utf-8"))
+    assert anchor_data["count"] == 1
+    assert "last_hash" in anchor_data

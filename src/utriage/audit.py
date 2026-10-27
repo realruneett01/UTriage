@@ -5,12 +5,17 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 GENESIS: str = "0" * 64
+
+
+class AuditIntegrityError(Exception):
+    """Raised when audit log integrity is compromised."""
 
 
 @dataclass(frozen=True)
@@ -30,20 +35,62 @@ def _compute_hash(entry: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _anchor_path(log_path: Path) -> Path:
+    """Return path to anchor sidecar file (<log>.head.json)."""
+    p = Path(log_path)
+    return p.with_name(f"{p.name}.head.json")
+
+
+def _write_anchor(anchor_path: Path, count: int, last_hash: str) -> None:
+    """Atomically write anchor sidecar with count and last hash."""
+    payload = {"count": count, "last_hash": last_hash}
+    tmp_path = anchor_path.with_name(f"{anchor_path.name}.tmp")
+    tmp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    os.replace(tmp_path, anchor_path)
+
+
+def _read_anchor(anchor_path: Path) -> tuple[int, str] | str:
+    """Read anchor sidecar; returns (count, last_hash) or error reason string."""
+    if not anchor_path.is_file():
+        return "missing anchor file for non-empty log"
+    try:
+        data = json.loads(anchor_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as err:
+        return f"malformed anchor JSON: {err}"
+    if not isinstance(data, dict):
+        return "anchor content is not a JSON object"
+    count = data.get("count")
+    last_hash = data.get("last_hash")
+    if count is None or last_hash is None:
+        return "anchor missing required count or last_hash"
+    return (int(count), str(last_hash))
+
+
+def _validate_tail_entry(data: Any) -> dict[str, Any]:
+    """Validate tail entry structure and hash; raise AuditIntegrityError on corruption."""
+    if not isinstance(data, dict):
+        raise AuditIntegrityError("trailing entry is not a JSON object")
+    required = ("seq", "ts", "prev", "hash")
+    if not all(k in data for k in required):
+        raise AuditIntegrityError("trailing entry missing required hash chain fields")
+    if data["hash"] != _compute_hash(data):
+        raise AuditIntegrityError("trailing entry hash mismatch")
+    return data
+
+
 def _read_last_entry(log_path: Path) -> dict[str, Any] | None:
-    """Return the last parsed JSON line if file exists, else None."""
+    """Return last verified entry if log exists, None if empty; raise on corruption."""
     if not log_path.is_file() or log_path.stat().st_size == 0:
         return None
     with log_path.open("r", encoding="utf-8") as fh:
         lines = [line.strip() for line in fh if line.strip()]
     if not lines:
-        return None
+        raise AuditIntegrityError("log file is non-empty but contains no valid records")
     try:
         data = json.loads(lines[-1])
-        return data if isinstance(data, dict) else None
-    except json.JSONDecodeError:
-        # File has corrupt or incomplete JSON on last line
-        return None
+    except json.JSONDecodeError as err:
+        raise AuditIntegrityError(f"malformed trailing JSONL entry: {err}") from err
+    return _validate_tail_entry(data)
 
 
 def append_entry(log_path: Path, record: dict[str, Any]) -> dict[str, Any]:
@@ -52,8 +99,8 @@ def append_entry(log_path: Path, record: dict[str, Any]) -> dict[str, Any]:
     target.parent.mkdir(parents=True, exist_ok=True)
 
     last = _read_last_entry(target)
-    prev = last["hash"] if (last and "hash" in last) else GENESIS
-    seq = (int(last["seq"]) + 1) if (last and "seq" in last) else 0
+    prev = last["hash"] if last else GENESIS
+    seq = (int(last["seq"]) + 1) if last else 0
 
     entry = dict(record)
     entry["seq"] = seq
@@ -63,6 +110,8 @@ def append_entry(log_path: Path, record: dict[str, Any]) -> dict[str, Any]:
 
     with target.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(entry) + "\n")
+
+    _write_anchor(_anchor_path(target), count=seq + 1, last_hash=entry["hash"])
     return entry
 
 
@@ -86,12 +135,8 @@ def _verify_entry(
     return None
 
 
-def verify_chain(log_path: Path) -> ChainCheck:
-    """Verify integrity of the append-only JSONL hash chain."""
-    target = Path(log_path)
-    if not target.is_file() or target.stat().st_size == 0:
-        return ChainCheck(ok=True, n=0, first_bad_line=None, reason="empty log")
-
+def _scan_chain(target: Path) -> ChainCheck:
+    """Scan and verify all JSONL records in file; reason holds last hash on success."""
     with target.open("r", encoding="utf-8") as fh:
         raw_lines = [line.strip() for line in fh]
 
@@ -109,15 +154,69 @@ def verify_chain(log_path: Path) -> ChainCheck:
             return ChainCheck(
                 ok=False, n=verified_n, first_bad_line=line_no, reason=f"malformed JSON: {err}"
             )
-
-        err_reason = _verify_entry(entry, expected_seq=idx, expected_prev=expected_prev)
-        if err_reason:
-            return ChainCheck(ok=False, n=verified_n, first_bad_line=line_no, reason=err_reason)
-
+        err = _verify_entry(entry, expected_seq=idx, expected_prev=expected_prev)
+        if err:
+            return ChainCheck(ok=False, n=verified_n, first_bad_line=line_no, reason=err)
         expected_prev = str(entry["hash"])
         verified_n += 1
 
+    return ChainCheck(ok=True, n=verified_n, first_bad_line=None, reason=expected_prev)
+
+
+def _verify_against_anchor(
+    verified_n: int,
+    last_hash: str,
+    anchor_count: int,
+    anchor_last_hash: str,
+) -> ChainCheck:
+    """Compare verified chain length and tail hash against anchor sidecar."""
+    if verified_n != anchor_count:
+        return ChainCheck(
+            ok=False,
+            n=verified_n,
+            first_bad_line=None,
+            reason=(
+                f"truncation detected: log has {verified_n} entries, "
+                f"anchor expects {anchor_count} (count mismatch)"
+            ),
+        )
+    if last_hash != anchor_last_hash:
+        return ChainCheck(
+            ok=False,
+            n=verified_n,
+            first_bad_line=None,
+            reason=(
+                f"truncation detected: tail hash {last_hash} != "
+                f"anchor hash {anchor_last_hash} (last hash mismatch)"
+            ),
+        )
     return ChainCheck(ok=True, n=verified_n, first_bad_line=None, reason="")
+
+
+def verify_chain(log_path: Path) -> ChainCheck:
+    """Verify integrity of the append-only JSONL hash chain and sidecar anchor.
+
+    Note: The sidecar anchor (<log>.head.json) detects log truncation only
+    if the anchor itself is not altered. A full defense against truncation
+    requires an external, append-only, or cryptographically signed anchor.
+    """
+    target = Path(log_path)
+    if not target.is_file() or target.stat().st_size == 0:
+        return ChainCheck(ok=True, n=0, first_bad_line=None, reason="empty log")
+
+    anchor_res = _read_anchor(_anchor_path(target))
+    if isinstance(anchor_res, str):
+        return ChainCheck(ok=False, n=0, first_bad_line=None, reason=anchor_res)
+
+    anchor_count, anchor_last_hash = anchor_res
+    check = _scan_chain(target)
+    if not check.ok:
+        return check
+
+    return _verify_against_anchor(check.n, check.reason, anchor_count, anchor_last_hash)
+
+
+verify = verify_chain
 
 
 def export_csv(log_path: Path, csv_path: Path) -> Path:
