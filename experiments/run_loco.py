@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import copy
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -30,12 +29,11 @@ from torch.utils.data import Dataset  # noqa: E402
 
 from utriage.ml.datasets import (  # noqa: E402
     MLNDT_ROOT,
-    MlNdtDataset,
     list_batches,
-    read_labels,
 )
 from utriage.ml.infer import load_model, save_model  # noqa: E402
 from utriage.ml.loco import IndexedMlNdtDataset, LocoFold, make_folds  # noqa: E402
+from utriage.ml.mlndt_meta import image_index  # noqa: E402
 from utriage.ml.models import MlNdtNet  # noqa: E402
 from utriage.ml.train import (  # noqa: E402
     TrainConfig,
@@ -60,48 +58,19 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _find_data_root() -> Path:
-    """Locate ML-NDT dataset root across standalone clone or git worktree."""
-    if MLNDT_ROOT.exists():
-        return MLNDT_ROOT
-    try:
-        cmd = ["git", "rev-parse", "--git-common-dir"]
-        common = subprocess.check_output(  # noqa: S603
-            cmd, text=True, stderr=subprocess.DEVNULL
-        ).strip()
-        fallback = Path(common).resolve().parent / "data" / "external" / "ML-NDT" / "data"
-        if fallback.exists():
-            return fallback
-    except (subprocess.SubprocessError, OSError):
-        # Fallback to MLNDT_ROOT default if git inspection fails
-        pass
-    return MLNDT_ROOT
-
-
 def _find_best_model_path() -> Path:
-    """Locate models/mlndt_best.pt in local folder or parent git tree."""
+    """Locate models/mlndt_best.pt in local folder or parent repo."""
     local_p = Path("models/mlndt_best.pt")
     if local_p.exists():
         return local_p
-    try:
-        cmd = ["git", "rev-parse", "--git-common-dir"]
-        common = subprocess.check_output(  # noqa: S603
-            cmd, text=True, stderr=subprocess.DEVNULL
-        ).strip()
-        fallback = Path(common).resolve().parent / "models" / "mlndt_best.pt"
-        if fallback.exists():
-            return fallback
-    except (subprocess.SubprocessError, OSError):
-        # Return local path if git lookup fails
-        pass
-    return local_p
+    fallback = MLNDT_ROOT.parents[3] / "models" / "mlndt_best.pt"
+    return fallback if fallback.exists() else local_p
 
 
 def _resolve_batches(quick: bool) -> tuple[list[Path], list[Path]]:
     """Partition dataset into training and validation batch lists."""
-    root = _find_data_root()
-    tr_all = list_batches("training", root=root)
-    val_all = list_batches("validation", root=root)
+    tr_all = list_batches("training")
+    val_all = list_batches("validation")
     if quick:
         return tr_all[:6], val_all[:1]
     return tr_all, val_all
@@ -187,37 +156,36 @@ def _calc_false_calls(hits: np.ndarray, unflawed: np.ndarray) -> dict[str, Any]:
     }
 
 
-def _eval_fold_test(model: nn.Module, fold: LocoFold) -> dict[str, Any]:
-    """Evaluate trained model on fold test split: detections, false calls, and POD."""
-    test_ds = IndexedMlNdtDataset(fold.test)
-    eval_cfg = TrainConfig(batch_size=64, device="auto")
-    probs, _ = predict(model, test_ds, eval_cfg)
-    flaw_labels, eq_sizes = test_ds.get_labels()
+def _evaluate_predictions(
+    probs: np.ndarray, flaw_labels: np.ndarray, eq_sizes: np.ndarray
+) -> dict[str, Any]:
+    """Calculate detection, false call, and POD metrics from predictions."""
     hits = (probs >= 0.5).astype(float)
-
     flawed = (flaw_labels == 1.0) & (eq_sizes > 0.0)
     unflawed = flaw_labels == 0.0
-
     return {
-        "n_test_flawed": int(np.sum(flawed)),
-        "n_test_unflawed": int(np.sum(unflawed)),
+        "n_flawed": int(np.sum(flawed)),
+        "n_unflawed": int(np.sum(unflawed)),
         "detections": _calc_detection(hits, flawed),
         "false_calls": _calc_false_calls(hits, unflawed),
         "pod": _eval_pod(eq_sizes[flawed], hits[flawed]),
     }
 
 
-def _collect_labels(batches: list[Path]) -> tuple[np.ndarray, np.ndarray]:
-    """Concatenate flaw labels and equivalent sizes across batch files."""
-    flaw_list: list[np.ndarray] = []
-    size_list: list[np.ndarray] = []
-    for b in batches:
-        lbl = read_labels(b)
-        flaw_list.append(lbl[:, 0])
-        size_list.append(lbl[:, 1])
-    if not flaw_list:
-        return np.empty(0, dtype=np.float32), np.empty(0, dtype=np.float32)
-    return np.concatenate(flaw_list, axis=0), np.concatenate(size_list, axis=0)
+def _eval_fold_test(model: nn.Module, fold: LocoFold) -> dict[str, Any]:
+    """Evaluate trained model on fold test split: detections, false calls, and POD."""
+    test_ds = IndexedMlNdtDataset(fold.test)
+    eval_cfg = TrainConfig(batch_size=64, device="auto")
+    probs, _ = predict(model, test_ds, eval_cfg)
+    flaw_labels, eq_sizes = test_ds.get_labels()
+    ev = _evaluate_predictions(probs, flaw_labels, eq_sizes)
+    return {
+        "n_test_flawed": ev["n_flawed"],
+        "n_test_unflawed": ev["n_unflawed"],
+        "detections": ev["detections"],
+        "false_calls": ev["false_calls"],
+        "pod": ev["pod"],
+    }
 
 
 def _eval_part_a(val_batches: list[Path]) -> dict[str, Any]:
@@ -231,23 +199,21 @@ def _eval_part_a(val_batches: list[Path]) -> dict[str, Any]:
         return {"flag": flag, "status": "skipped", "reason": "mlndt_best.pt not found"}
 
     model, _ = load_model(model_path, device="auto")
-    val_ds = MlNdtDataset(val_batches)
+    val_items = [(b, i) for b, i, _ in image_index(val_batches)]
+    val_ds = IndexedMlNdtDataset(val_items)
     eval_cfg = TrainConfig(batch_size=64, device="auto")
     probs, _ = predict(model, val_ds, eval_cfg)
 
-    flaw_labels, eq_sizes = _collect_labels(val_batches)
-    hits = (probs >= 0.5).astype(float)
-    flawed = (flaw_labels == 1.0) & (eq_sizes > 0.0)
-    unflawed = flaw_labels == 0.0
-
+    flaw_labels, eq_sizes = val_ds.get_labels()
+    ev = _evaluate_predictions(probs, flaw_labels, eq_sizes)
     return {
         "flag": flag,
         "model_path": str(model_path),
-        "n_flawed": int(np.sum(flawed)),
-        "n_unflawed": int(np.sum(unflawed)),
-        "detections": _calc_detection(hits, flawed),
-        "false_calls": _calc_false_calls(hits, unflawed),
-        "pod": _eval_pod(eq_sizes[flawed], hits[flawed]),
+        "n_flawed": ev["n_flawed"],
+        "n_unflawed": ev["n_unflawed"],
+        "detections": ev["detections"],
+        "false_calls": ev["false_calls"],
+        "pod": ev["pod"],
     }
 
 
@@ -283,20 +249,37 @@ def _run_fold_workflow(
     }
 
 
+def _resolve_epochs(args: argparse.Namespace) -> int:
+    """Resolve epoch count from CLI options."""
+    if args.epochs is not None:
+        return args.epochs
+    return 1 if args.quick else 20
+
+
+def _resolve_seeds(args: argparse.Namespace) -> list[int]:
+    """Resolve restart seeds from CLI options."""
+    if args.seeds is not None:
+        return args.seeds
+    return [0] if args.quick else [0, 1, 2]
+
+
+def _device_name() -> str:
+    """Return active GPU device name or cpu."""
+    if torch.cuda.is_available():
+        return str(torch.cuda.get_device_name(0))
+    return "cpu"
+
+
 def main() -> None:
     """Execute complete leave-one-crack-out training, evaluation, and export."""
     args = _parse_args()
-    epochs = args.epochs if args.epochs is not None else (1 if args.quick else 20)
-    seeds = args.seeds if args.seeds is not None else ([0] if args.quick else [0, 1, 2])
-    dev_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu"
+    epochs = _resolve_epochs(args)
+    seeds = _resolve_seeds(args)
+    dev_name = _device_name()
 
     tr_batches, val_batches = _resolve_batches(args.quick)
     folds = make_folds(tr_batches, val_batches, seed=0)
-    fold_records: list[dict[str, Any]] = []
-
-    for fold in folds:
-        rec = _run_fold_workflow(fold, epochs, seeds, dev_name)
-        fold_records.append(rec)
+    fold_records = [_run_fold_workflow(f, epochs, seeds, dev_name) for f in folds]
 
     part_a_rec = _eval_part_a(val_batches)
     protocol_desc = (

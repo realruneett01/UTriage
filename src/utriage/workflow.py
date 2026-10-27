@@ -10,8 +10,7 @@ from pathlib import Path
 from utriage.app_logic import Session, load_session
 from utriage.report.html import ReportInput, write_report
 from utriage.rules.config import load_acceptance
-from utriage.rules.pipeline import evaluate_scan, evaluation_to_dict
-from utriage.rules.types import Indication
+from utriage.rules.pipeline import _indication_dict, evaluate_scan, evaluation_to_dict
 from utriage.triage.fusion import MlFinding, TriageItem, fuse, rank
 
 ADVISORY_BANNER = "Advisory tool - decisions by certified inspector"
@@ -25,25 +24,6 @@ class TriageJob:
     out_dir: Path
     model: Path | None = None
     acceptance: Path | None = None
-
-
-def _indication_dict(ind: Indication) -> dict:
-    """Format rule indication as a JSON-safe dictionary."""
-    return {
-        "id": int(ind.id),
-        "axial_mm": float(ind.axial_mm),
-        "angle_deg": float(ind.angle_deg),
-        "depth_mm": float(ind.depth_mm),
-        "amplitude_pct": float(ind.amplitude_pct),
-        "snr_db": float(ind.snr_db),
-        "axial_length_mm": float(ind.axial_length_mm),
-        "circ_length_mm": float(ind.circ_length_mm),
-        "n_ascans": int(ind.n_ascans),
-        "axial_idx": int(ind.axial_idx),
-        "angle_idx": int(ind.angle_idx),
-        "category": str(ind.category),
-        "reasons": list(ind.reasons),
-    }
 
 
 def _ml_finding_dict(ml: MlFinding) -> dict:
@@ -114,6 +94,22 @@ def _write_triage_json(session: Session, items: list[TriageItem], path: Path) ->
     return path
 
 
+def _base_summary(bar_id: str, scan: str) -> dict:
+    """Initialize common fields for triage summary dictionary."""
+    return {
+        "bar_id": bar_id,
+        "scan": scan,
+        "counts_per_category": {},
+        "category_counts": {},
+        "counts": {},
+        "n_ml_flag": 0,
+        "rescan_recommended": False,
+        "report_path": None,
+        "json_path": None,
+        "error": None,
+    }
+
+
 def _build_summary(
     session: Session,
     report_path: Path,
@@ -125,18 +121,19 @@ def _build_summary(
         counts[item.category] = counts.get(item.category, 0) + 1
     n_ml_flag = sum(1 for it in session.items if it.category == "ml_flag")
     rescan = bool(session.evaluation.quality.rescan_recommended)
-    return {
-        "bar_id": session.bar_id,
-        "scan": str(session.bar_id),
-        "counts_per_category": counts,
-        "category_counts": counts,
-        "counts": counts,
-        "n_ml_flag": n_ml_flag,
-        "rescan_recommended": rescan,
-        "report_path": str(report_path),
-        "json_path": str(json_path),
-        "error": None,
-    }
+    d = _base_summary(session.bar_id, str(session.bar_id))
+    d.update(
+        {
+            "counts_per_category": counts,
+            "category_counts": counts,
+            "counts": counts,
+            "n_ml_flag": n_ml_flag,
+            "rescan_recommended": rescan,
+            "report_path": str(report_path),
+            "json_path": str(json_path),
+        }
+    )
+    return d
 
 
 def run_triage(job: TriageJob) -> dict:
@@ -152,18 +149,9 @@ def run_triage(job: TriageJob) -> dict:
 
 def _failing_summary(scan: Path, error_msg: str) -> dict:
     """Build summary dictionary for a failed scan."""
-    return {
-        "bar_id": scan.stem,
-        "scan": str(scan),
-        "counts_per_category": {},
-        "category_counts": {},
-        "counts": {},
-        "n_ml_flag": 0,
-        "rescan_recommended": False,
-        "report_path": None,
-        "json_path": None,
-        "error": error_msg,
-    }
+    d = _base_summary(scan.stem, str(scan))
+    d["error"] = error_msg
+    return d
 
 
 def run_batch(
@@ -178,6 +166,6 @@ def run_batch(
         job = TriageJob(scan=scan, out_dir=out_dir, model=model, acceptance=acceptance)
         try:
             results.append(run_triage(job))
-        except Exception as exc:  # record error in batch summary without stopping
+        except (OSError, ValueError, RuntimeError, KeyError) as exc:  # scan load or eval failure
             results.append(_failing_summary(scan, str(exc)))
     return results

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -35,25 +34,6 @@ _LEAKAGE_NOTE = (
     "not detection of unseen cracks."
 )
 _NEUTRAL_NOTE = "No shared physical cracks between train and test splits."
-
-
-def _find_data_root(root: Path | None = None) -> Path:
-    """Locate ML-NDT dataset root across standalone clone or git worktree."""
-    target = root if root is not None else MLNDT_ROOT
-    if target.exists():
-        return target
-    try:
-        cmd = ["git", "rev-parse", "--git-common-dir"]
-        common = subprocess.check_output(  # noqa: S603
-            cmd, text=True, stderr=subprocess.DEVNULL
-        ).strip()
-        fallback = Path(common).resolve().parent / "data" / "external" / "ML-NDT" / "data"
-        if fallback.exists():
-            return fallback
-    except (subprocess.SubprocessError, OSError):
-        # Fall back to target if git common dir lookup fails
-        pass
-    return target
 
 
 def _audit_batch(batch: Path) -> tuple[Counter, int, int]:
@@ -102,7 +82,7 @@ def audit_split(batches: list[Path]) -> dict[str, Any]:
 
 def build_leakage_audit(root: Path = MLNDT_ROOT) -> dict[str, Any]:
     """Run leakage audit across train, test, and validation splits."""
-    data_root = _find_data_root(root)
+    data_root = root if root is not None else MLNDT_ROOT
     training_all = list_batches("training", root=data_root)
     val_all = list_batches("validation", root=data_root)
     train_batches, test_batches = split_holdout(training_all, test_frac=0.1, seed=0)
