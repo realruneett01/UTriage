@@ -49,12 +49,15 @@ from utriage.ml.physics_features import (  # noqa: E402
 )
 from utriage.pod.metrics import cell, clopper_pearson  # noqa: E402
 
-PROTOCOL_TEXT: str = (
-    "Leave-one-crack-out (LOCO) cross-validation evaluating interpretable "
-    "hand-crafted physics features with logistic regression (ADR 0010 H3). "
-    "Features standardized with StandardScaler fitted on fold train set only; "
-    "decision threshold at probability >= 0.5."
-)
+
+def _format_protocol(threshold: float) -> str:
+    """Build protocol description from configured decision threshold."""
+    return (
+        "Leave-one-crack-out (LOCO) cross-validation evaluating interpretable "
+        "hand-crafted physics features with logistic regression (ADR 0010 H3). "
+        "Features standardized with StandardScaler fitted on fold train set only; "
+        f"decision threshold at probability >= {threshold}."
+    )
 
 
 @dataclass(frozen=True)
@@ -206,7 +209,7 @@ def fit_fold_classifier(
 def _evaluate_fold(
     fit_res: FitResult,
     test_split: FoldData,
-    threshold: float = 0.5,
+    threshold: float,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Evaluate trained fold classifier on test split."""
     x_te, y_te, s_te = test_split.features, test_split.labels, test_split.sizes
@@ -275,7 +278,7 @@ def run_physics_experiment(cfg: PhysicsModelConfig) -> dict[str, Any]:
         "label": "Real data (ML-NDT)",
         "run_label": run_label,
         "detector_config": fp,
-        "protocol": PROTOCOL_TEXT,
+        "protocol": _format_protocol(cfg.detector_cfg.physics.threshold),
         "feature_names": list(FEATURE_NAMES),
         "folds": fold_results,
     }

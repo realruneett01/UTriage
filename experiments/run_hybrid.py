@@ -61,7 +61,6 @@ class HybridConfig:
     models_dir: Path = Path("models")
     anomaly_metrics_path: Path = Path("results/anomaly_metrics.json")
     out_json: Path = Path("results/hybrid_metrics.json")
-    target_fcr: float = 0.01
     device: str = "auto"
     quick: bool = False
     seed: int = 0
@@ -74,9 +73,9 @@ class HybridConfig:
 class EvalSettings:
     """Evaluation settings for thresholding, fusion, and model discovery."""
 
-    sup_threshold: float = 0.5
-    anom_target_fcr: float = 0.01
-    fused_target_fcr: float = 0.01
+    sup_threshold: float
+    anom_target_fcr: float
+    fused_target_fcr: float
     mode: str = "or_union"
     dev: torch.device = torch.device("cpu")
     seeds: tuple[int, ...] = (0, 1, 2)
@@ -389,6 +388,20 @@ def _build_calib_context(
     return ctx, t_anom
 
 
+def _format_protocol(det_cfg: DetectorConfig) -> str:
+    """Build ADR 0010 protocol description citing configured thresholds."""
+    sup_th = det_cfg.supervised.threshold
+    fused_fcr = det_cfg.hybrid.fused_target_fcr
+    return (
+        f"Pre-registered design per docs/decisions/0010: H1 OR-union (flag = (p_sup >= {sup_th}) "
+        "OR (anomaly_score >= T_anom)) and H2 score fusion (p_anom = empirical CDF of "
+        "anomaly score on clean calibration images, s = (p_sup + p_anom) / 2, "
+        f"T_s = (1 - {fused_fcr}) quantile of s on clean calibration images). "
+        "Evaluated on leave-one-crack-out (LOCO) folds across 3 physical cracks "
+        "without test-set tuning."
+    )
+
+
 def _build_payload(
     fold_results: dict[str, Any],
     anom_info: AnomalyModelInfo,
@@ -405,13 +418,7 @@ def _build_payload(
         "run_label": run_label,
         "detector_config": fp,
         "primary": primary_map.get(det_cfg.hybrid.mode, "h1"),
-        "protocol": (
-            "Pre-registered design per docs/decisions/0010: H1 OR-union (flag = (p_sup >= 0.5) "
-            "OR (anomaly_score >= T_anom)) and H2 score fusion (p_anom = empirical CDF of "
-            "anomaly score on clean calibration images, s = (p_sup + p_anom) / 2, T_s = (1 - 0.01) "
-            "quantile of s on clean calibration images). Evaluated on leave-one-crack-out (LOCO) "
-            "folds across 3 physical cracks without test-set tuning."
-        ),
+        "protocol": _format_protocol(det_cfg),
         "target_fcr": det_cfg.anomaly.target_fcr,
         "t_anom": float(anom_info.t_anom),
         "anomaly_model_sha256": anom_info.sha256,
@@ -432,8 +439,6 @@ def _resolve_detector_config(cfg: HybridConfig) -> DetectorConfig:
     if cfg.detector_config is not None:
         return cfg.detector_config
     overrides_list = list(cfg.overrides) if cfg.overrides is not None else []
-    if cfg.target_fcr != 0.01 and not any("target_fcr" in o for o in overrides_list):
-        overrides_list.append(f"anomaly.target_fcr={cfg.target_fcr}")
     return load_detector_config(
         path=cfg.config_path, overrides=overrides_list if overrides_list else None
     )
@@ -488,7 +493,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--anomaly-metrics", type=Path, default=Path("results/anomaly_metrics.json")
     )
     parser.add_argument("--out-json", type=Path, default=Path("results/hybrid_metrics.json"))
-    parser.add_argument("--target-fcr", type=float, default=None)
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
@@ -509,9 +513,7 @@ def main() -> None:
     """Parse CLI arguments and run hybrid detection evaluation."""
     parser = _build_arg_parser()
     args = parser.parse_args()
-    overrides = list(args.overrides) if args.overrides else []
-    if args.target_fcr is not None:
-        overrides.append(f"anomaly.target_fcr={args.target_fcr}")
+    overrides = list(args.overrides) if args.overrides else None
     cfg = HybridConfig(
         root=args.root,
         models_dir=args.models_dir,
@@ -521,7 +523,7 @@ def main() -> None:
         quick=args.quick,
         seed=args.seed,
         config_path=args.config,
-        overrides=overrides if overrides else None,
+        overrides=overrides,
     )
     run_hybrid(cfg)
 

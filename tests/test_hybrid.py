@@ -322,6 +322,8 @@ def test_run_hybrid_custom_config(tmp_path: Path) -> None:
     assert result["run_label"] == "exploratory"
     assert result["detector_config"]["is_default"] is False
     assert result["primary"] == "h2"
+    assert "p_sup >= 0.7" in result["protocol"]
+    assert "T_s = (1 - 0.02)" in result["protocol"]
     fold_agg = result["folds"]["crack_1.6"]["aggregate"]
     assert fold_agg["h1"]["primary"] is False
     assert fold_agg["h2"]["primary"] is True
@@ -382,3 +384,23 @@ def test_cli_parser_config_and_overrides(tmp_path: Path) -> None:
     )
     assert args.config == cfg_file
     assert args.overrides == ["hybrid.mode=both", "supervised.threshold=0.7"]
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ["target_fcr", "anom_target_fcr", "fused_target_fcr"],
+)
+def test_hybrid_config_no_legacy_fields(field_name: str) -> None:
+    """Verify legacy target_fcr fields are absent from HybridConfig."""
+    from experiments.run_hybrid import HybridConfig
+
+    assert not hasattr(HybridConfig(), field_name)
+
+
+def test_physics_protocol_custom_threshold() -> None:
+    """Verify physics model protocol string reflects configured threshold."""
+    from experiments.run_physics_model import _format_protocol
+
+    protocol = _format_protocol(0.8)
+    assert "probability >= 0.8" in protocol
+    assert "probability >= 0.5" not in protocol
