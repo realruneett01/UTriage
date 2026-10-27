@@ -1,0 +1,445 @@
+{
+  "rule": "underfitting if train metric < 0.9; overfitting if (train metric - group-held-out metric) > 0.1; else ok.",
+  "fit_rule": {
+    "target_train_metric": 0.9,
+    "max_gap": 0.1,
+    "text": "underfitting if train metric < 0.9; overfitting if (train metric - group-held-out metric) > 0.1; else ok."
+  },
+  "learning_curves": {
+    "mlndt": {
+      "available": true,
+      "curve": {
+        "epoch": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20
+        ],
+        "train_loss": [
+          0.11475989802341525,
+          0.01583597780587565,
+          0.006470032523823865,
+          0.00548547519274696,
+          0.004908860529940795,
+          0.003455296678103586,
+          0.004068240976684812,
+          0.003766639179046538,
+          0.0023313769113857056,
+          0.002243514482341372,
+          0.0018116051302401789,
+          0.001481192759805553,
+          0.001447369607038909,
+          0.0013257033541847745,
+          0.0012254027998810117,
+          0.0011137274892949476,
+          0.0009433316904580841,
+          0.0008457593964755322,
+          0.000851936440677986,
+          0.0007963823647160399
+        ],
+        "val_loss": [
+          0.037480806782841686,
+          0.004101011054590344,
+          0.017496501058340073,
+          0.007586138509213925,
+          0.009612490236759186,
+          0.0008978401869535447,
+          0.0027937678107991817,
+          0.0005170940386597067,
+          0.0030330555327236653,
+          0.0017451585223898292,
+          0.0005581088678445667,
+          0.0003646400151774287,
+          0.0010264274617657065,
+          0.00026521999563556165,
+          0.0005571624491130933,
+          0.00024306572275236248,
+          0.00030366991995833814,
+          9.334306407254189e-05,
+          9.925993654178456e-05,
+          7.47409529867582e-05
+        ],
+        "best_epoch": 20,
+        "final_gap": -0.0007216414117292817
+      },
+      "note": "leaky: validation shares all 3 physical cracks with training",
+      "leaky": true,
+      "kept_seed": 2,
+      "figure": "results\\figures\\fit_learning_curve_mlndt.png"
+    },
+    "loco": {
+      "available": false,
+      "reason": "LOCO folds do not record epoch history (only best_val_loss recorded)",
+      "folds": {
+        "crack_1.6": {
+          "available": false,
+          "reason": "No epoch history recorded for fold (only best_val_loss recorded)"
+        },
+        "crack_4.0": {
+          "available": false,
+          "reason": "No epoch history recorded for fold (only best_val_loss recorded)"
+        },
+        "crack_8.6": {
+          "available": false,
+          "reason": "No epoch history recorded for fold (only best_val_loss recorded)"
+        }
+      }
+    },
+    "anomaly": {
+      "available": false,
+      "models": {
+        "real": {
+          "available": false,
+          "reason": "Anomaly real model has key 'learning_curve' is null"
+        },
+        "synthetic": {
+          "available": false,
+          "reason": "Anomaly synthetic model has key 'learning_curve' is null"
+        }
+      },
+      "reason": "Anomaly models do not record validation loss history (learning_curve is null)"
+    }
+  },
+  "data_size_curve": [
+    {
+      "fraction": 0.1,
+      "n_train_samples": 333,
+      "train": {
+        "detection_rate": 0.77125,
+        "false_call_rate": 0.035,
+        "n_flawed": 1600,
+        "n_hit": 1234,
+        "n_clean": 1600,
+        "n_false": 56
+      },
+      "test_sets": {
+        "in_distribution": {
+          "detection_rate": 0.755,
+          "false_call_rate": 0.0025,
+          "n_flawed": 400,
+          "n_hit": 302,
+          "n_clean": 400,
+          "n_false": 1
+        },
+        "freq_10mhz": {
+          "detection_rate": 0.7625,
+          "false_call_rate": 0.2825,
+          "n_flawed": 400,
+          "n_hit": 305,
+          "n_clean": 400,
+          "n_false": 113
+        },
+        "material_third": {
+          "detection_rate": 0.6975,
+          "false_call_rate": 0.0,
+          "n_flawed": 400,
+          "n_hit": 279,
+          "n_clean": 400,
+          "n_false": 0
+        },
+        "noise_above_range": {
+          "detection_rate": 0.765,
+          "false_call_rate": 0.2725,
+          "n_flawed": 400,
+          "n_hit": 306,
+          "n_clean": 400,
+          "n_false": 109
+        }
+      }
+    },
+    {
+      "fraction": 0.25,
+      "n_train_samples": 832,
+      "train": {
+        "detection_rate": 0.81,
+        "false_call_rate": 0.029375,
+        "n_flawed": 1600,
+        "n_hit": 1296,
+        "n_clean": 1600,
+        "n_false": 47
+      },
+      "test_sets": {
+        "in_distribution": {
+          "detection_rate": 0.7875,
+          "false_call_rate": 0.0125,
+          "n_flawed": 400,
+          "n_hit": 315,
+          "n_clean": 400,
+          "n_false": 5
+        },
+        "freq_10mhz": {
+          "detection_rate": 0.735,
+          "false_call_rate": 0.215,
+          "n_flawed": 400,
+          "n_hit": 294,
+          "n_clean": 400,
+          "n_false": 86
+        },
+        "material_third": {
+          "detection_rate": 0.7675,
+          "false_call_rate": 0.0,
+          "n_flawed": 400,
+          "n_hit": 307,
+          "n_clean": 400,
+          "n_false": 0
+        },
+        "noise_above_range": {
+          "detection_rate": 0.7675,
+          "false_call_rate": 0.2575,
+          "n_flawed": 400,
+          "n_hit": 307,
+          "n_clean": 400,
+          "n_false": 103
+        }
+      }
+    },
+    {
+      "fraction": 0.5,
+      "n_train_samples": 1665,
+      "train": {
+        "detection_rate": 0.838125,
+        "false_call_rate": 0.024375,
+        "n_flawed": 1600,
+        "n_hit": 1341,
+        "n_clean": 1600,
+        "n_false": 39
+      },
+      "test_sets": {
+        "in_distribution": {
+          "detection_rate": 0.805,
+          "false_call_rate": 0.02,
+          "n_flawed": 400,
+          "n_hit": 322,
+          "n_clean": 400,
+          "n_false": 8
+        },
+        "freq_10mhz": {
+          "detection_rate": 0.635,
+          "false_call_rate": 0.105,
+          "n_flawed": 400,
+          "n_hit": 254,
+          "n_clean": 400,
+          "n_false": 42
+        },
+        "material_third": {
+          "detection_rate": 0.8,
+          "false_call_rate": 0.0,
+          "n_flawed": 400,
+          "n_hit": 320,
+          "n_clean": 400,
+          "n_false": 0
+        },
+        "noise_above_range": {
+          "detection_rate": 0.7725,
+          "false_call_rate": 0.185,
+          "n_flawed": 400,
+          "n_hit": 309,
+          "n_clean": 400,
+          "n_false": 74
+        }
+      }
+    },
+    {
+      "fraction": 1.0,
+      "n_train_samples": 3330,
+      "train": {
+        "detection_rate": 0.845,
+        "false_call_rate": 0.025,
+        "n_flawed": 1600,
+        "n_hit": 1352,
+        "n_clean": 1600,
+        "n_false": 40
+      },
+      "test_sets": {
+        "in_distribution": {
+          "detection_rate": 0.8125,
+          "false_call_rate": 0.0175,
+          "n_flawed": 400,
+          "n_hit": 325,
+          "n_clean": 400,
+          "n_false": 7
+        },
+        "freq_10mhz": {
+          "detection_rate": 0.57,
+          "false_call_rate": 0.055,
+          "n_flawed": 400,
+          "n_hit": 228,
+          "n_clean": 400,
+          "n_false": 22
+        },
+        "material_third": {
+          "detection_rate": 0.835,
+          "false_call_rate": 0.0025,
+          "n_flawed": 400,
+          "n_hit": 334,
+          "n_clean": 400,
+          "n_false": 1
+        },
+        "noise_above_range": {
+          "detection_rate": 0.715,
+          "false_call_rate": 0.14,
+          "n_flawed": 400,
+          "n_hit": 286,
+          "n_clean": 400,
+          "n_false": 56
+        }
+      }
+    }
+  ],
+  "diagnostics": {
+    "synthetic_supervised": {
+      "train_metric": 0.845,
+      "sets": {
+        "in_distribution": {
+          "heldout_metric": 0.8125,
+          "gap": 0.03249999999999997,
+          "verdict": "underfitting",
+          "verdicts": [
+            "underfitting"
+          ]
+        },
+        "freq_10mhz": {
+          "heldout_metric": 0.57,
+          "gap": 0.275,
+          "verdict": "underfitting+overfitting",
+          "verdicts": [
+            "underfitting",
+            "overfitting"
+          ]
+        },
+        "material_third": {
+          "heldout_metric": 0.835,
+          "gap": 0.010000000000000009,
+          "verdict": "underfitting",
+          "verdicts": [
+            "underfitting"
+          ]
+        },
+        "noise_above_range": {
+          "heldout_metric": 0.715,
+          "gap": 0.13,
+          "verdict": "underfitting+overfitting",
+          "verdicts": [
+            "underfitting",
+            "overfitting"
+          ]
+        }
+      },
+      "verdict": "underfitting+overfitting",
+      "verdicts": [
+        "underfitting",
+        "overfitting"
+      ],
+      "rule": "underfitting if train metric < 0.9; overfitting if (train metric - group-held-out metric) > 0.1; else ok.",
+      "available": true
+    },
+    "loco": {
+      "available": true,
+      "reason": null,
+      "folds": {
+        "crack_1.6": {
+          "available": true,
+          "train_detection_rate": 1.0,
+          "heldout_detection_rate": 0.004733432984554061,
+          "n_sampled": 2000,
+          "seed": 42,
+          "diagnosis": {
+            "train_metric": 1.0,
+            "sets": {
+              "crack_1.6": {
+                "heldout_metric": 0.004733432984554061,
+                "gap": 0.9952665670154459,
+                "verdict": "overfitting",
+                "verdicts": [
+                  "overfitting"
+                ]
+              }
+            },
+            "verdict": "overfitting",
+            "verdicts": [
+              "overfitting"
+            ],
+            "rule": "underfitting if train metric < 0.9; overfitting if (train metric - group-held-out metric) > 0.1; else ok."
+          }
+        },
+        "crack_4.0": {
+          "available": true,
+          "train_detection_rate": 1.0,
+          "heldout_detection_rate": 0.004659146640510054,
+          "n_sampled": 2000,
+          "seed": 42,
+          "diagnosis": {
+            "train_metric": 1.0,
+            "sets": {
+              "crack_4.0": {
+                "heldout_metric": 0.004659146640510054,
+                "gap": 0.99534085335949,
+                "verdict": "overfitting",
+                "verdicts": [
+                  "overfitting"
+                ]
+              }
+            },
+            "verdict": "overfitting",
+            "verdicts": [
+              "overfitting"
+            ],
+            "rule": "underfitting if train metric < 0.9; overfitting if (train metric - group-held-out metric) > 0.1; else ok."
+          }
+        },
+        "crack_8.6": {
+          "available": true,
+          "train_detection_rate": 1.0,
+          "heldout_detection_rate": 1.0,
+          "n_sampled": 2000,
+          "seed": 42,
+          "diagnosis": {
+            "train_metric": 1.0,
+            "sets": {
+              "crack_8.6": {
+                "heldout_metric": 1.0,
+                "gap": 0.0,
+                "verdict": "ok",
+                "verdicts": [
+                  "ok"
+                ]
+              }
+            },
+            "verdict": "ok",
+            "verdicts": [
+              "ok"
+            ],
+            "rule": "underfitting if train metric < 0.9; overfitting if (train metric - group-held-out metric) > 0.1; else ok."
+          }
+        }
+      },
+      "rule": "underfitting if train metric < 0.9; overfitting if (train metric - group-held-out metric) > 0.1; else ok.",
+      "note": "early stopping used the official validation images without the held-out crack, i.e. batch-held-out, not crack-held-out."
+    },
+    "mlndt": {
+      "available": false,
+      "reason": "Training detection rate not recorded in mlndt_metrics.json (only test and validation splits evaluated)",
+      "rule": "underfitting if train metric < 0.9; overfitting if (train metric - group-held-out metric) > 0.1; else ok."
+    }
+  },
+  "figures": [
+    "results\\figures\\fit_learning_curve_mlndt.png",
+    "results\\figures\\fit_data_size_curve.png"
+  ]
+}
