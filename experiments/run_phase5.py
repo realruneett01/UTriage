@@ -79,12 +79,23 @@ class _WindowData:
 
 
 @dataclass(frozen=True)
-class _RankingContext:
-    model: WindowNet
-    threshold: float
+class _RankingThreshold:
+    prob: float
+    logit: float
+
+
+@dataclass(frozen=True)
+class _RankingEnv:
     rng: np.random.Generator
     bar_idx: int
     device: str
+
+
+@dataclass(frozen=True)
+class _RankingContext:
+    model: WindowNet
+    threshold: _RankingThreshold
+    env: _RankingEnv
 
 
 @dataclass(frozen=True)
@@ -92,6 +103,21 @@ class _RunConfig:
     quick: bool
     seed: int
     device: str
+
+
+def _prob_to_logit(p: float) -> float:
+    """Convert probability in (0, 1) to logit."""
+    p_clamped = min(max(float(p), 1e-12), 1.0 - 1e-12)
+    return float(np.log(p_clamped / (1.0 - p_clamped)))
+
+
+def _logit_to_prob(x: float) -> float:
+    """Convert logit to probability with overflow protection."""
+    val = float(x)
+    if val >= 0.0:
+        return float(1.0 / (1.0 + np.exp(-val)))
+    exp_val = float(np.exp(val))
+    return float(exp_val / (1.0 + exp_val))
 
 
 def _select_device(device_arg: str) -> str:
@@ -237,12 +263,10 @@ def _simulate_ranking_bar(rng: np.random.Generator, refs: tuple[Reflector, ...])
         attenuation_db_mm_mhz=base_mat.attenuation_db_mm_mhz,
         grain_noise=base_mat.grain_noise * scale,
     )
-    probe = load_probe("p5")
-    water = load_material("water")
     spec = BarSpec(
         material=mat,
-        probe=probe,
-        water=water,
+        probe=load_probe("p5"),
+        water=load_material("water"),
         diameter_mm=40.0,
         length_mm=32.0,
         axial_step_mm=1.0,
@@ -309,6 +333,16 @@ def _evaluate_bar_flaws(
     return int(rules_found), int(union_found)
 
 
+def _count_ml_false_calls(
+    items: list[TriageItem],
+    is_real: list[bool],
+) -> int:
+    """Count false-call ML flags among ranked items."""
+    return sum(
+        1 for it, r in zip(items, is_real, strict=True) if it.category == "ml_flag" and not r
+    )
+
+
 def _evaluate_single_bar(
     ctx: _RankingContext,
     scan: BarScan,
@@ -319,17 +353,13 @@ def _evaluate_single_bar(
     ranked_real = [item_is_real(it, scan.spec, scan) for it in ranked_items]
     n_real = len(scan.spec.reflectors)
     effort_r = review_effort(ranked_real, n_real)
-    bar_seed = int(ctx.rng.integers(0, 2**31 - 1))
+    bar_seed = int(ctx.env.rng.integers(0, 2**31 - 1))
     effort_rand = random_order_effort(ranked_real, n_real, n_perm=200, seed=bar_seed)
 
     rules_found, union_found = _evaluate_bar_flaws(ranked_items, rule_inds, scan.spec, scan)
-    ml_fc = sum(
-        1
-        for it, is_real in zip(ranked_items, ranked_real, strict=True)
-        if it.category == "ml_flag" and not is_real
-    )
+    ml_fc = _count_ml_false_calls(ranked_items, ranked_real)
     return {
-        "bar_idx": ctx.bar_idx,
+        "bar_idx": ctx.env.bar_idx,
         "n_planted": n_real,
         "rules_found": rules_found,
         "union_found": union_found,
@@ -344,21 +374,21 @@ def _evaluate_single_bar(
 
 def _run_single_bar_ranking(ctx: _RankingContext) -> dict[str, Any]:
     """Run simulation, rules detection, ML scan, fusion, and ranking for one bar."""
-    refs = _generate_planted_reflectors(ctx.rng)
-    scan = _simulate_ranking_bar(ctx.rng, refs)
+    refs = _generate_planted_reflectors(ctx.env.rng)
+    scan = _simulate_ranking_bar(ctx.env.rng, refs)
 
     acceptance_cfg = load_acceptance()
     eval_res = evaluate_scan(scan, acceptance_cfg)
     rule_inds = eval_res.indications
 
-    settings = ScanSettings(threshold=ctx.threshold)
-    findings = scan_bar(ctx.model, scan, settings=settings, device=ctx.device)
+    settings = ScanSettings(threshold=ctx.threshold.logit)
+    findings = scan_bar(ctx.model, scan, settings=settings, device=ctx.env.device)
 
-    fused_items = fuse(rule_inds, findings, FusionConfig(ml_threshold=ctx.threshold))
+    fused_items = fuse(rule_inds, findings, FusionConfig(ml_threshold=ctx.threshold.prob))
     ranked_items = rank(fused_items)
 
     preserved = rules_flags_preserved(rule_inds, ranked_items)
-    assert preserved, f"Bar {ctx.bar_idx}: rules indications were not preserved!"  # noqa: S101
+    assert preserved, f"Bar {ctx.env.bar_idx}: rules indications were not preserved!"  # noqa: S101
 
     res = _evaluate_single_bar(ctx, scan, rule_inds, ranked_items)
     res["preserved"] = preserved
@@ -367,7 +397,7 @@ def _run_single_bar_ranking(ctx: _RankingContext) -> dict[str, Any]:
 
 def _summarize_ranking(
     per_bar: list[dict[str, Any]],
-    threshold: float,
+    threshold: _RankingThreshold,
     union_violations: int,
 ) -> dict[str, Any]:
     """Aggregate per-bar ranking metrics into summary dict."""
@@ -386,7 +416,8 @@ def _summarize_ranking(
         "flaws_found_union": float(total_union / total_planted) if total_planted > 0 else 0.0,
         "ml_false_calls_per_bar": float(total_ml_fc / n) if n > 0 else 0.0,
         "ml_flag_false_calls_per_bar": float(total_ml_fc / n) if n > 0 else 0.0,
-        "threshold": float(threshold),
+        "threshold": float(threshold.prob),
+        "threshold_logit": float(threshold.logit),
         "n_bars": n,
         "per_bar": per_bar,
         "union_violations": union_violations,
@@ -395,7 +426,7 @@ def _summarize_ranking(
 
 def _run_ranking_campaign(
     model: WindowNet,
-    threshold: float,
+    threshold: _RankingThreshold,
     cfg: _RunConfig,
 ) -> dict[str, Any]:
     """Execute ranking evaluation across synthetic bars."""
@@ -408,9 +439,7 @@ def _run_ranking_campaign(
         ctx = _RankingContext(
             model=model,
             threshold=threshold,
-            rng=rng,
-            bar_idx=idx,
-            device=cfg.device,
+            env=_RankingEnv(rng=rng, bar_idx=idx, device=cfg.device),
         )
         res = _run_single_bar_ranking(ctx)
         if not res["preserved"]:
@@ -472,12 +501,12 @@ def _calibrate_and_select_op(
 
 def _run_mode(
     name: str,
-    threshold: float,
+    threshold: _RankingThreshold,
     model: WindowNet,
     cfg: _RunConfig,
 ) -> dict[str, Any]:
     """Run a ranking campaign for a given mode and threshold."""
-    print(f"Running ranking campaign for {name} ({threshold:.4f})...")
+    print(f"Running ranking campaign for {name} ({threshold.prob:.4f})...")
     res = _run_ranking_campaign(model, threshold, cfg)
     print(
         f"Ranking ({name}): mean ranked={res['mean_effort_ranked']}, "
@@ -491,7 +520,7 @@ def _calibrate_bar_budget(
     cfg: _RunConfig,
     budget: float = 1.0,
 ) -> float:
-    """Simulate clean bars and calibrate threshold for target flags per bar."""
+    """Simulate clean bars and calibrate logit threshold for target flags per bar."""
     n_clean = 2 if cfg.quick else 10
     print(f"Simulating {n_clean} clean bars for bar budget calibration (budget={budget})...")
     cal_rng = np.random.default_rng(cfg.seed + 1000)
@@ -507,15 +536,29 @@ def _run_all_rankings(
     cfg: _RunConfig,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Run ranking campaigns across all three evaluation modes."""
-    rank_op = _run_mode("operating_point", op_thresh, model, cfg)
+    thresh_op = _RankingThreshold(
+        prob=float(op_thresh),
+        logit=_prob_to_logit(op_thresh),
+    )
+    rank_op = _run_mode("operating_point", thresh_op, model, cfg)
+
     matched_thresh = _load_matched_threshold()
-    rank_matched = _run_mode("matched_fcr", matched_thresh, model, cfg)
+    thresh_matched = _RankingThreshold(
+        prob=float(matched_thresh),
+        logit=_prob_to_logit(matched_thresh),
+    )
+    rank_matched = _run_mode("matched_fcr", thresh_matched, model, cfg)
 
     budget_val = 1.0
-    cal_thresh = _calibrate_bar_budget(model, cfg, budget=budget_val)
-    rank_budget = _run_mode("bar_budget", cal_thresh, model, cfg)
+    cal_logit = _calibrate_bar_budget(model, cfg, budget=budget_val)
+    cal_prob = _logit_to_prob(cal_logit)
+    thresh_budget = _RankingThreshold(
+        prob=float(cal_prob),
+        logit=float(cal_logit),
+    )
+    rank_budget = _run_mode("bar_budget", thresh_budget, model, cfg)
     rank_budget["budget"] = budget_val
-    rank_budget["calibrated_threshold"] = float(cal_thresh)
+    rank_budget["calibrated_threshold"] = float(cal_prob)
 
     return rank_op, rank_matched, rank_budget
 
