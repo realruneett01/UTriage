@@ -6,13 +6,18 @@ Pure synthetic tests: no real dataset archives or trained models required.
 from __future__ import annotations
 
 import lzma
+import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 # Prioritize local worktree source tree over editable installs
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
+_ROOT = str(Path(__file__).resolve().parents[1])
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 if "utriage" in sys.modules:
     _pkg_dir = str(Path(_SRC) / "utriage")
     if _pkg_dir not in sys.modules["utriage"].__path__:
@@ -24,6 +29,7 @@ if "utriage.io" in sys.modules:
 
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
+import torch  # noqa: E402
 
 from utriage.io.ndt_ml_flaw import (  # noqa: E402
     N_SCAN,
@@ -137,3 +143,53 @@ def test_batch_selector_excludes_2xx(tmp_path: Path) -> None:
     pair_stems = [(xz.stem, txt.stem) for xz, txt in pairs]
     expected_stems = [("batch_013", "batch_013"), ("batch_019", "batch_019")]
     assert pair_stems == expected_stems
+
+
+def test_repo_parent_root_timeout_records_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify _repo_parent_root records/returns 'unknown' on subprocess timeout."""
+    from experiments.run_cross_dataset import _repo_parent_root
+
+    def _timeout_run(*args: Any, **kwargs: Any) -> Any:
+        raise subprocess.TimeoutExpired(cmd=["git"], timeout=30)
+
+    monkeypatch.setattr(subprocess, "run", _timeout_run)
+    assert _repo_parent_root() == "unknown"
+
+
+def test_repo_parent_root_passes_timeout(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Verify _repo_parent_root invokes subprocess with timeout=30."""
+    from experiments.run_cross_dataset import _repo_parent_root
+
+    calls: list[dict[str, Any]] = []
+
+    def _spy_run(*args: Any, **kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=str(tmp_path / ".git"))
+
+    monkeypatch.setattr(subprocess, "run", _spy_run)
+    res = _repo_parent_root()
+    assert res == tmp_path
+    assert len(calls) == 1
+    assert calls[0].get("timeout") == 30
+
+
+def test_evaluate_anomaly_weights_only(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Verify _evaluate_anomaly passes weights_only=True explicitly to torch.load."""
+    from experiments.run_cross_dataset import _evaluate_anomaly
+
+    from utriage.ml.anomaly import ConvAE2D
+
+    ckpt_path = tmp_path / "anomaly.pt"
+    ckpt_path.touch()
+    calls: list[dict[str, Any]] = []
+    dummy_state = ConvAE2D().state_dict()
+
+    def _fake_load(*args: Any, **kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return {"state_dict": dummy_state}
+
+    monkeypatch.setattr(torch, "load", _fake_load)
+    images = np.zeros((1, 256, 256), dtype=np.float32)
+    _evaluate_anomaly(ckpt_path, images, torch.device("cpu"))
+    assert len(calls) == 1
+    assert calls[0].get("weights_only") is True

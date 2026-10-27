@@ -65,14 +65,20 @@ class DatasetSample:
     flaw_types: list[str]
 
 
-def _repo_parent_root() -> Path | None:
+def _repo_parent_root() -> Path | str | None:
     """Locate root directory of parent repository across worktrees."""
     try:
         cmd = ["git", "rev-parse", "--git-common-dir"]
-        common = subprocess.check_output(  # noqa: S603
-            cmd, text=True, stderr=subprocess.DEVNULL
-        ).strip()
-        return Path(common).resolve().parent
+        res = subprocess.run(  # noqa: S603
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
+        )
+        return Path(res.stdout.strip()).resolve().parent
+    except subprocess.TimeoutExpired:
+        return "unknown"
     except (subprocess.SubprocessError, OSError):
         # Fall back if git directory inspection fails
         return None
@@ -84,7 +90,7 @@ def find_dataset_dir() -> Path:
     if local_p.exists():
         return local_p
     parent = _repo_parent_root()
-    if parent is not None:
+    if isinstance(parent, Path):
         cand = parent / "data" / "external" / "NDT_ML_Flaw" / "datasets"
         if cand.exists():
             return cand
@@ -100,7 +106,7 @@ def _resolve_model_path(name: str) -> Path | None:
     if local_p.exists():
         return local_p
     parent = _repo_parent_root()
-    if parent is not None:
+    if isinstance(parent, Path):
         cand = parent / "models" / name
         if cand.exists():
             return cand
@@ -125,7 +131,7 @@ def find_all_model_paths() -> dict[str, Path]:
             models[fixed] = cand
     _collect_loco_models(Path("models"), models)
     parent = _repo_parent_root()
-    if parent is not None:
+    if isinstance(parent, Path):
         _collect_loco_models(parent / "models", models)
     return models
 
@@ -213,7 +219,7 @@ def _evaluate_anomaly(
     """Load ConvAE2D and compute normalised anomaly scores."""
     from utriage.ml.anomaly import ConvAE2D, anomaly_score
 
-    ckpt = torch.load(model_path, map_location=dev)
+    ckpt = torch.load(model_path, map_location=dev, weights_only=True)
     model = ConvAE2D()
     state = ckpt.get("state_dict", ckpt) if isinstance(ckpt, dict) else ckpt
     model.load_state_dict(state)
