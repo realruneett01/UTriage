@@ -51,43 +51,60 @@ def test_parse_size_gb(size_str: str | None, expected_gb: float | None) -> None:
 
 def _create_fake_registry() -> list[dict]:
     """Create a test registry with accepted, rejected, and varying size entries."""
-    return [
+    tubers = {
+        "name": "TUBERS-Ultrasonic-Crack-Dataset",
+        "decision": "accept",
+        "size_on_disk": "44.14 MB",
+    }
+    tubers.update(
         {
-            "name": "TUBERS-Ultrasonic-Crack-Dataset",
-            "decision": "accept",
-            "size_on_disk": "44.14 MB",
             "url": "https://zenodo.org/records/11239514",
             "n_distinct_physical_flaws": None,
-        },
+            "download_status": "downloaded",
+            "relevance": 1,
+        }
+    )
+    strath = {
+        "name": "Strathclyde-FMC-Welded-316L",
+        "decision": "accept",
+        "size_on_disk": "260.05 MB",
+    }
+    strath.update(
         {
-            "name": "Strathclyde-FMC-Welded-316L",
-            "decision": "accept",
-            "size_on_disk": "260.05 MB",
             "url": "https://pureportal.strath.ac.uk/en/datasets/example",
             "n_distinct_physical_flaws": 1,
-        },
+            "download_status": "not_downloaded",
+            "relevance": 3,
+        }
+    )
+    large = {"name": "Large-Dataset", "decision": "accept", "size_on_disk": "12.7 GB"}
+    large.update(
         {
-            "name": "Large-Dataset",
-            "decision": "accept",
-            "size_on_disk": "12.7 GB",
             "url": "https://example.com/large",
             "n_distinct_physical_flaws": None,
-        },
+            "download_status": "not_downloaded",
+            "relevance": 2,
+        }
+    )
+    no_recipe = {"name": "No-Recipe-Dataset", "decision": "accept", "size_on_disk": "100 MB"}
+    no_recipe.update(
         {
-            "name": "No-Recipe-Dataset",
-            "decision": "accept",
-            "size_on_disk": "100 MB",
             "url": "https://example.com/norecipe",
             "n_distinct_physical_flaws": 2,
-        },
+            "download_status": "downloaded",
+            "relevance": 2,
+        }
+    )
+    rej = {"name": "Rejected-Dataset", "decision": "reject", "size_on_disk": "10 MB"}
+    rej.update(
         {
-            "name": "Rejected-Dataset",
-            "decision": "reject",
-            "size_on_disk": "10 MB",
             "url": "https://example.com/rejected",
             "n_distinct_physical_flaws": None,
-        },
-    ]
+            "download_status": "not_downloaded",
+            "relevance": 0,
+        }
+    )
+    return [tubers, strath, large, no_recipe, rej]
 
 
 def test_filter_datasets_max_gb_skipping() -> None:
@@ -219,23 +236,61 @@ def test_extract_strathclyde_download_url() -> None:
 
 
 @pytest.mark.parametrize(
-    ("datasets", "expected_flaws", "expected_unknown"),
+    ("datasets", "expected_flaws", "expected_used", "expected_unknown"),
     [
         (
             [
-                {"decision": "accept", "n_distinct_physical_flaws": 3},
-                {"decision": "accept", "n_distinct_physical_flaws": 1},
-                {"decision": "accept", "n_distinct_physical_flaws": None},
-                {"decision": "reject", "n_distinct_physical_flaws": 5},
+                {
+                    "name": "D1",
+                    "decision": "accept",
+                    "n_distinct_physical_flaws": 3,
+                    "download_status": "downloaded",
+                    "relevance": 2,
+                },
+                {
+                    "name": "D2",
+                    "decision": "accept",
+                    "n_distinct_physical_flaws": 1,
+                    "download_status": "not_downloaded",
+                    "relevance": 3,
+                },
+                {
+                    "name": "D3",
+                    "decision": "accept",
+                    "n_distinct_physical_flaws": None,
+                    "download_status": "downloaded",
+                    "relevance": 1,
+                },
+                {
+                    "name": "D4",
+                    "decision": "reject",
+                    "n_distinct_physical_flaws": 5,
+                    "download_status": "downloaded",
+                    "relevance": 3,
+                },
             ],
             4,
+            3,
             1,
         ),
         (
             [
-                {"decision": "accept", "n_distinct_physical_flaws": None},
-                {"decision": "accept", "n_distinct_physical_flaws": None},
+                {
+                    "name": "D1",
+                    "decision": "accept",
+                    "n_distinct_physical_flaws": None,
+                    "download_status": "downloaded",
+                    "relevance": 1,
+                },
+                {
+                    "name": "D2",
+                    "decision": "accept",
+                    "n_distinct_physical_flaws": None,
+                    "download_status": "not_downloaded",
+                    "relevance": 2,
+                },
             ],
+            0,
             0,
             2,
         ),
@@ -244,51 +299,70 @@ def test_extract_strathclyde_download_url() -> None:
 def test_inventory_flaw_summary_counts(
     datasets: list[dict],
     expected_flaws: int,
+    expected_used: int,
     expected_unknown: int,
 ) -> None:
     """Verify flaw totals and unknown counts on accepted datasets."""
     summary = calculate_flaw_summary(datasets)
     assert summary["total_flaws"] == expected_flaws
+    assert summary["used_flaws"] == expected_used
     assert summary["unknown_count"] == expected_unknown
+
+
+def test_inventory_used_vs_listed_on_fake_registry() -> None:
+    """Verify used evaluation vs listed flaw counts on fake registry."""
+    registry = _create_fake_registry()
+    summary = calculate_flaw_summary(registry)
+    assert summary["total_flaws"] == 3
+    assert summary["used_flaws"] == 2
+    assert summary["used_datasets"] == [("No-Recipe-Dataset", 2)]
+    md = generate_inventory_markdown(registry)
+    assert "Used in evaluation: 2 distinct physical flaws (No-Recipe-Dataset: 2)" in md
+    assert "Listed (accepted, known counts):" in md
 
 
 def test_inventory_markdown_generation() -> None:
     """Verify generated inventory markdown headers, rows, and summary text."""
-    datasets = [
+    ds_a = {"name": "Dataset-A", "decision": "accept", "licence": "LGPL-3.0", "material": "316L"}
+    ds_a.update(
         {
-            "name": "Dataset-A",
-            "decision": "accept",
-            "licence": "LGPL-3.0",
-            "material": "316L",
             "technique": "PAUT",
             "n_distinct_physical_flaws": 3,
             "download_status": "downloaded",
-        },
+            "relevance": 3,
+        }
+    )
+    ds_b = {"name": "Dataset-B", "decision": "accept", "licence": "MIT", "material": "steel"}
+    ds_b.update(
         {
-            "name": "Dataset-B",
-            "decision": "accept",
-            "licence": "MIT",
-            "material": "steel",
             "technique": "contact",
             "n_distinct_physical_flaws": None,
             "download_status": "not_downloaded",
-        },
+            "relevance": 2,
+        }
+    )
+    ds_c = {
+        "name": "Dataset-C",
+        "decision": "reject",
+        "licence": "CC BY 4.0",
+        "material": "concrete",
+    }
+    ds_c.update(
         {
-            "name": "Dataset-C",
-            "decision": "reject",
-            "licence": "CC BY 4.0",
-            "material": "concrete",
             "technique": "other",
             "n_distinct_physical_flaws": None,
             "download_status": "not_downloaded",
-        },
-    ]
-    md = generate_inventory_markdown(datasets)
+            "relevance": 0,
+        }
+    )
+    md = generate_inventory_markdown([ds_a, ds_b, ds_c])
     lines = md.strip().splitlines()
     assert lines[0] == "# Real-data evidence limits"
     assert "| Dataset | Licence | Material | Technique |" in md
     assert "Dataset-A" in md
     assert "Dataset-B" in md
     assert "Dataset-C" not in md
-    assert "3 distinct physical flaws" in md
+    assert "Used in evaluation: 3 distinct physical flaws (Dataset-A: 3)" in md
+    assert "Listed (accepted, known counts):" in md
+    assert "totaling 3 distinct physical flaws" in md
     assert "1 accepted dataset has an unknown" in md
