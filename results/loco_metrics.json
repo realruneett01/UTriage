@@ -1,0 +1,182 @@
+{
+  "label": "Real data (ML-NDT)",
+  "protocol": "Leave-one-crack-out (LOCO) cross-validation across 3 physical cracks. Train on 2 cracks and non-holdout unflawed, validation on official validation batches without held-out crack, test on held-out crack and holdout-batch unflawed only.",
+  "folds": [
+    {
+      "held_out": "crack_1.6",
+      "n_train": 14219,
+      "n_val": 159,
+      "n_test_flawed": 4014,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 19,
+        "n_flawed": 4014,
+        "rate": 0.004733432984554061
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "beta0": -11.821191366014009,
+        "beta1": 18.343687874981033,
+        "cov": [
+          [
+            3.5028835955351934,
+            -8.275279512114473
+          ],
+          [
+            -8.275279512114471,
+            19.854101544474005
+          ]
+        ],
+        "n": 4014,
+        "a50": 1.9048976643333777,
+        "a90": 2.1472957278940963,
+        "a90_95": 2.4708755381604712,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": 0.00012395690067498448,
+      "seconds": 778.75,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU"
+    },
+    {
+      "held_out": "crack_4.0",
+      "n_train": 14153,
+      "n_val": 167,
+      "n_test_flawed": 4078,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 19,
+        "n_flawed": 4078,
+        "rate": 0.004659146640510054
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "beta0": -20.725221064766092,
+        "beta1": 12.366744297942502,
+        "cov": [
+          [
+            16.38909178598596,
+            -12.474950878448377
+          ],
+          [
+            -12.474950878448373,
+            9.526636830385977
+          ]
+        ],
+        "n": 4078,
+        "a50": 5.34351334467253,
+        "a90": 6.382471453041126,
+        "a90_95": 7.996761373639983,
+        "method": "delta",
+        "reason": null
+      },
+      "best_val_loss": 0.00019768576230435537,
+      "seconds": 906.24,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU"
+    },
+    {
+      "held_out": "crack_8.6",
+      "n_train": 14263,
+      "n_val": 163,
+      "n_test_flawed": 3925,
+      "n_test_unflawed": 778,
+      "detections": {
+        "n_hit": 3925,
+        "n_flawed": 3925,
+        "rate": 1.0
+      },
+      "false_calls": {
+        "n_false": 0,
+        "n_unflawed": 778,
+        "rate": 0.0,
+        "upper95": 0.0038431517383073627
+      },
+      "pod": {
+        "n_flawed": 3925,
+        "n_hit": 3925,
+        "min_size": 4.468533992767334,
+        "max_size": 8.599480628967285,
+        "size_p10": 4.866891479492188,
+        "size_p50": 6.515909671783447,
+        "pod_lower95": 0.9992370473051781,
+        "method": "binomial Clopper-Pearson one-sided 95",
+        "note": "POD lower bound over the whole tested size range, not a POD curve.",
+        "reason": "Data is separable: only hits or only misses present.",
+        "a90_95": null
+      },
+      "best_val_loss": 7.662111736171267e-05,
+      "seconds": 876.15,
+      "device_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU"
+    }
+  ],
+  "official_validation": {
+    "flag": "leaky: validation shares all 3 physical cracks with training (see results/leakage_audit.json)",
+    "model_path": "models\\mlndt_best.pt",
+    "n_flawed": 111,
+    "n_unflawed": 89,
+    "detections": {
+      "n_hit": 111,
+      "n_flawed": 111,
+      "rate": 1.0
+    },
+    "false_calls": {
+      "n_false": 0,
+      "n_unflawed": 89,
+      "rate": 0.0,
+      "upper95": 0.03309972123627414
+    },
+    "pod": {
+      "n_flawed": 111,
+      "n_hit": 111,
+      "min_size": 0.9353771209716797,
+      "max_size": 8.50500774383545,
+      "size_p10": 1.1331126689910889,
+      "size_p50": 3.104783535003662,
+      "pod_lower95": 0.9733723583066243,
+      "method": "binomial Clopper-Pearson one-sided 95",
+      "note": "POD lower bound over the whole tested size range, not a POD curve.",
+      "reason": "Data is separable: only hits or only misses present.",
+      "a90_95": null
+    }
+  },
+  "part_a": {
+    "flag": "leaky: validation shares all 3 physical cracks with training (see results/leakage_audit.json)",
+    "model_path": "models\\mlndt_best.pt",
+    "n_flawed": 111,
+    "n_unflawed": 89,
+    "detections": {
+      "n_hit": 111,
+      "n_flawed": 111,
+      "rate": 1.0
+    },
+    "false_calls": {
+      "n_false": 0,
+      "n_unflawed": 89,
+      "rate": 0.0,
+      "upper95": 0.03309972123627414
+    },
+    "pod": {
+      "n_flawed": 111,
+      "n_hit": 111,
+      "min_size": 0.9353771209716797,
+      "max_size": 8.50500774383545,
+      "size_p10": 1.1331126689910889,
+      "size_p50": 3.104783535003662,
+      "pod_lower95": 0.9733723583066243,
+      "method": "binomial Clopper-Pearson one-sided 95",
+      "note": "POD lower bound over the whole tested size range, not a POD curve.",
+      "reason": "Data is separable: only hits or only misses present.",
+      "a90_95": null
+    }
+  }
+}
