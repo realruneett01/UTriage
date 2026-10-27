@@ -1,0 +1,44 @@
+# defaults are the pre-registered values; runs with changed values are exploratory
+
+supervised:
+  # Probability threshold above which an indication is flagged as a flaw
+  threshold: 0.5
+
+anomaly:
+  # Target false call rate on clean material used to calibrate quantile threshold
+  target_fcr: 0.01
+  # Moving-average filter window size along signal dimensions for error smoothing
+  smooth_window: 5
+  # Half-width in samples around wall echoes to zero out
+  wall_guard: 0
+
+hybrid:
+  # Fusion mode combining supervised and anomaly detectors
+  mode: or_union
+  # Target false call rate on clean material for fused score thresholding
+  fused_target_fcr: 0.01
+
+physics:
+  # Decision threshold for physics-guided linear classifier
+  threshold: 0.5
+  # Regularization parameter C for the linear SVM classifier
+  C: 1.0
+  # Weight balancing mode across classes during linear model training
+  class_weight: balanced
+  # Maximum solver iterations for linear model optimization
+  max_iter: 1000
+  # Noise level multiplier applied during feature extraction
+  noise_multiplier: 6.0
+  # Sample window size used to measure localized waveform energy
+  energy_window: 8
+
+evaluation:
+  # Statistical confidence level for Clopper-Pearson interval calculation
+  confidence: 0.95
+  # Evaluation aggregation mode for leave-one-crack-out cross-validation
+  loco_val_mode: batch
+  # Random seed list used across cross-validation runs
+  seeds:
+    - 0
+    - 1
+    - 2
