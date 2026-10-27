@@ -13,6 +13,7 @@ import sys
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
 if _SRC not in sys.path:
@@ -29,6 +30,7 @@ from utriage.app_logic import (  # noqa: E402
     Session,
     ascan_figure,
     cscan_figure,
+    load_evidence,
     load_session,
     record_decision,
 )
@@ -36,6 +38,7 @@ from utriage.report.html import ReportInput, render_report  # noqa: E402
 
 DEFAULT_SAMPLE = Path("data/samples/ti64/bar_0000.npz")
 DEFAULT_MODEL = Path("models/window_net.pt")
+DEFAULT_RESULTS = Path("results")
 
 st.set_page_config(
     page_title="UTriage — Ultrasonic Bar Inspection Review",
@@ -294,6 +297,46 @@ def _page_report(session: Session | None) -> None:
     )
 
 
+def _render_claims_table(claims: list[dict[str, Any]]) -> None:
+    """Render quantitative claims table with claim text and scope limit columns."""
+    if not claims:
+        return
+    st.subheader("Quantitative claims")
+    rows = [
+        {
+            "Claim text": c.get("text", ""),
+            "Scope limit": c.get("scope_limit", ""),
+        }
+        for c in claims
+    ]
+    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+
+
+def _page_evidence_limits(session: Session | None) -> None:
+    """Page 7: Real-data evidence limits, claims table, and generalization matrix."""
+    st.header("7 Evidence and limits")
+    st.caption(
+        "Quantitative claims, real-data evidence limits, and generalization matrix "
+        "read strictly from benchmark results."
+    )
+    results_dir = Path(st.session_state.get("results_dir", DEFAULT_RESULTS))
+    evidence = load_evidence(results_dir)
+    for missing_name in evidence.get("missing", []):
+        st.warning(f"Missing file: {missing_name}")
+
+    used_line = evidence.get("used_line", "")
+    if used_line:
+        st.subheader("Evidence limits")
+        st.info(used_line)
+
+    _render_claims_table(evidence.get("claims", []))
+
+    matrix_png = evidence.get("matrix_png")
+    if matrix_png is not None:
+        st.subheader("Generalization matrix")
+        st.image(str(matrix_png), use_container_width=True)
+
+
 PAGE_HANDLERS = {
     "1 Load scan": _page_load_scan,
     "2 C-scan view": _page_cscan,
@@ -301,6 +344,7 @@ PAGE_HANDLERS = {
     "4 Data quality": _page_data_quality,
     "5 Decision log": _page_decision_log,
     "6 Report": _page_report,
+    "7 Evidence and limits": _page_evidence_limits,
 }
 
 

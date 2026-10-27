@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 
@@ -254,3 +255,79 @@ def cscan_figure(session: Session) -> Figure:
     ax.legend(loc="upper right", fontsize=8)
     fig.tight_layout()
     return fig
+
+
+def _parse_used_line(path: Path) -> str:
+    """Extract first line starting with 'Used' from data inventory markdown."""
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                stripped = line.strip()
+                if stripped.startswith("Used"):
+                    return stripped
+    except OSError:
+        # Narrow exception for unreadable inventory file
+        pass
+    return ""
+
+
+def _load_claims_json(path: Path) -> list[dict[str, Any]]:
+    """Load claims list with claim text and scope limit from JSON."""
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        # Narrow exception for missing or malformed claims JSON
+        return []
+    if not isinstance(raw, list):
+        return []
+    result: list[dict[str, Any]] = []
+    for c in raw:
+        if isinstance(c, dict):
+            entry = dict(c)
+            entry["text"] = str(c.get("text", ""))
+            entry["scope_limit"] = str(c.get("scope_limit", ""))
+            result.append(entry)
+    return result
+
+
+def _find_matrix_png(results_dir: Path) -> Path | None:
+    """Find generalization matrix PNG in figures subfolder or directly in dir."""
+    nested = results_dir / "figures" / "generalization_matrix.png"
+    if nested.is_file():
+        return nested
+    flat = results_dir / "generalization_matrix.png"
+    if flat.is_file():
+        return flat
+    return None
+
+
+def load_evidence(results_dir: Path) -> dict[str, Any]:
+    """Load evidence limits, claims, and matrix figure from results directory."""
+    r_dir = Path(results_dir)
+    missing: list[str] = []
+
+    inv_path = r_dir / "data_inventory.md"
+    used_line = ""
+    if inv_path.is_file():
+        used_line = _parse_used_line(inv_path)
+    else:
+        missing.append("data_inventory.md")
+
+    claims_path = r_dir / "claims.json"
+    claims: list[dict[str, Any]] = []
+    if claims_path.is_file():
+        claims = _load_claims_json(claims_path)
+    else:
+        missing.append("claims.json")
+
+    matrix_png = _find_matrix_png(r_dir)
+    if matrix_png is None:
+        missing.append("figures/generalization_matrix.png")
+
+    return {
+        "used_line": used_line,
+        "claims": claims,
+        "matrix_png": matrix_png,
+        "missing": missing,
+    }
