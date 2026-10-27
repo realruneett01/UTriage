@@ -29,7 +29,7 @@ function Invoke-CheckedCommand {
     $parts = $Command.Trim() -split '\s+'
     $exe = $parts[0]
     $prefixArgs = if ($parts.Length -gt 1) { $parts[1..($parts.Length - 1)] } else { @() }
-    $allArgs = $prefixArgs + $Arguments
+    $allArgs = @($prefixArgs) + $Arguments
     & $exe @allArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Command failed with exit code ${LASTEXITCODE}: $Command $($Arguments -join ' ')"
