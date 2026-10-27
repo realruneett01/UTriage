@@ -63,8 +63,9 @@ plot and report.
 
 | Ranking Mode | Threshold | Flaws Found (Rules) | Flaws Found (Union) | Effort (Ranked) | Effort (Random) | ML False Flags / Bar |
 |---|---|---|---|---|---|---|
-| operating_point | 0.999 | 0.78 | 0.81 | 18.0 | 99.3 | 109.55 |
-| matched_fcr | 0.837 | 0.78 | 0.93 | 32.0 | 95.1 | 122.15 |
+| operating_point | 0.999 | 0.78 | 0.81 | 11.3 | 34.6 | 0.05 |
+| matched_fcr | 0.837 | 0.78 | 0.95 | 32.5 | 103.0 | 135.50 |
+| bar_budget | 4.514 | 0.78 | 0.78 | 12.0 | 38.4 | 0.00 |
 
 ### Table 4: Robustness and sim-to-real domain shift (Synthetic data)
 
