@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 
 from utriage import __version__
+from utriage.integrity import MANIFEST, IntegrityError, require_locked
 from utriage.physics.dataset import DatasetConfig, generate_dataset, load_scan
 from utriage.physics.figures import plot_cscan
 from utriage.physics.simulator import BarScan
@@ -32,6 +33,21 @@ def main() -> None:
 def version() -> None:
     """Print the UTriage version."""
     typer.echo(f"utriage {__version__}")
+
+
+MANIFEST_PATH: Path | None = None
+REPO_ROOT: Path | None = None
+
+
+def _enforce_locked() -> None:
+    """Enforce configuration and model integrity under UTRIAGE_LOCKED=1."""
+    manifest_p = MANIFEST_PATH if MANIFEST_PATH is not None else MANIFEST
+    root_p = REPO_ROOT if REPO_ROOT is not None else manifest_p.parents[1]
+    try:
+        require_locked(manifest_p, root_p)
+    except IntegrityError as exc:
+        typer.secho(f"ERROR: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
 
 
 def _process_bar(npz_path: Path, fig_dir: Path | None, idx: int) -> None:
@@ -90,6 +106,7 @@ def simulate(
     figures: Annotated[bool, typer.Option("--figures/--no-figures", help="Plot C-scans")] = True,
 ) -> None:
     """Generate synthetic bar UT scans with ground truth (Synthetic data)."""
+    _enforce_locked()
     opts = SimulateOptions(
         material=material,
         probe=probe,
@@ -159,6 +176,7 @@ def evaluate(
     ] = None,
 ) -> None:
     """Evaluate a bar scan against acceptance rules."""
+    _enforce_locked()
     bar_scan = load_scan(scan)
     _attach_scan_label(bar_scan, scan)
     cfg = _load_cfg(acceptance)
@@ -215,6 +233,7 @@ def triage(
     ] = None,
 ) -> None:
     """Batch shop-floor triage: advisory evaluation, report and JSON generation."""
+    _enforce_locked()
     typer.echo(ADVISORY_BANNER)
     resolved_model = _resolve_default_model(model)
     summaries = run_batch(scans, out, model=resolved_model, acceptance=acceptance)

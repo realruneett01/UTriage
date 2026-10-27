@@ -6,11 +6,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
+_ROOT = str(Path(__file__).resolve().parents[1])
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 
 import pytest  # noqa: E402
+from app.streamlit_app import upload_target  # noqa: E402
+from typer.testing import CliRunner  # noqa: E402
 
+from utriage.cli import app  # noqa: E402
 from utriage.integrity import (  # noqa: E402
     MANIFEST,
     IntegrityError,
@@ -244,3 +250,77 @@ def test_repo_manifest_integrity(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setenv("UTRIAGE_LOCKED", "1")
     require_locked(MANIFEST, repo_root)
+
+
+@dataclass(frozen=True)
+class CliLockScenario:
+    locked_env: str | None
+    expect_exit_zero: bool
+    expect_err_msg: str
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        CliLockScenario("1", False, "Locked configuration check failed"),
+        CliLockScenario(None, True, ""),
+    ],
+    ids=["locked_tampered_fails", "unlocked_tampered_passes"],
+)
+def test_cli_triage_lock_enforcement(
+    locked_workspace: tuple[Path, list[Path], Path],
+    monkeypatch: pytest.MonkeyPatch,
+    case: CliLockScenario,
+) -> None:
+    root, files, manifest_path = locked_workspace
+    files[0].write_text("tampered_content\n", encoding="utf-8")
+
+    if case.locked_env is not None:
+        monkeypatch.setenv("UTRIAGE_LOCKED", case.locked_env)
+    else:
+        monkeypatch.delenv("UTRIAGE_LOCKED", raising=False)
+
+    monkeypatch.setattr("utriage.cli.MANIFEST_PATH", manifest_path, raising=False)
+    monkeypatch.setattr("utriage.cli.REPO_ROOT", root, raising=False)
+
+    sample = Path(__file__).resolve().parents[1] / "data" / "samples" / "ti64" / "bar_0000.npz"
+    out_dir = root / "cli_out"
+    runner = CliRunner()
+    result = runner.invoke(app, ["triage", str(sample), "--out", str(out_dir)])
+
+    if case.expect_exit_zero:
+        assert result.exit_code == 0
+    else:
+        assert result.exit_code != 0
+        assert case.expect_err_msg in result.output
+
+
+@dataclass(frozen=True)
+class UploadTargetRejectScenario:
+    name: str
+    scenario_id: str
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        UploadTargetRejectScenario("../evil.npz", "traversal_unix"),
+        UploadTargetRejectScenario(r"..\evil.npz", "traversal_windows"),
+        UploadTargetRejectScenario("..", "traversal_dotdot"),
+        UploadTargetRejectScenario("CON.npz", "reserved_con"),
+        UploadTargetRejectScenario("NUL.csv", "reserved_nul"),
+        UploadTargetRejectScenario("COM1", "reserved_com1"),
+    ],
+    ids=lambda case: case.scenario_id,
+)
+def test_upload_target_rejects_unsafe(tmp_path: Path, case: UploadTargetRejectScenario) -> None:
+    """Verify upload_target rejects traversal and reserved names with ValueError."""
+    with pytest.raises(ValueError):
+        upload_target(tmp_path, case.name)
+
+
+def test_upload_target_normal(tmp_path: Path) -> None:
+    """Verify upload_target returns safe resolved target path for normal filename."""
+    target = upload_target(tmp_path, "bar_0000.npz")
+    assert target == tmp_path.resolve() / "bar_0000.npz"
+    assert tmp_path.resolve() in target.parents

@@ -34,6 +34,8 @@ from utriage.app_logic import (  # noqa: E402
     load_session,
     record_decision,
 )
+from utriage.integrity import MANIFEST, IntegrityError, require_locked  # noqa: E402
+from utriage.io.validate import MAX_SCAN_BYTES, safe_filename  # noqa: E402
 from utriage.report.html import ReportInput, render_report  # noqa: E402
 
 DEFAULT_SAMPLE = Path("data/samples/ti64/bar_0000.npz")
@@ -45,6 +47,20 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+MANIFEST_PATH: Path | None = None
+REPO_ROOT: Path | None = None
+
+
+def _enforce_locked() -> None:
+    """Enforce configuration and model integrity at start-up when UTRIAGE_LOCKED=1."""
+    manifest_p = MANIFEST_PATH if MANIFEST_PATH is not None else MANIFEST
+    root_p = REPO_ROOT if REPO_ROOT is not None else manifest_p.parents[1]
+    try:
+        require_locked(manifest_p, root_p)
+    except IntegrityError as exc:
+        st.error(f"Locked configuration check failed: {exc}")
+        st.stop()
 
 
 def _render_banners(session: Session | None) -> None:
@@ -80,17 +96,40 @@ def _handle_sample_load(session: Session | None) -> None:
             st.success("Loaded sample bar: data/samples/ti64/bar_0000.npz")
 
 
+def upload_target(tmp_dir: Path, name: str) -> Path:
+    """Resolve upload destination ensuring containment inside tmp_dir."""
+    if any(sep in name for sep in ("..", "/", "\\")):
+        raise ValueError(f"Unsafe filename containing path traversal: {name}")
+    clean_name = safe_filename(name)
+    resolved_dir = tmp_dir.resolve()
+    target = (resolved_dir / clean_name).resolve()
+    if resolved_dir not in target.parents:
+        raise ValueError(f"Target path outside directory: {target}")
+    return target
+
+
 def _handle_upload_load() -> None:
     """Handle user file upload for .npz or .csv scans."""
     uploaded = st.file_uploader("Upload .npz or .csv scan file", type=["npz", "csv"])
-    if uploaded is not None:
-        tmp_dir = Path(tempfile.gettempdir()) / "utriage_uploads"
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        tmp_file = tmp_dir / uploaded.name
-        tmp_file.write_bytes(uploaded.getbuffer())
-        if st.button("Process uploaded scan", type="primary"):
-            st.session_state.session = load_session(tmp_file, DEFAULT_MODEL)
-            st.success(f"Loaded {uploaded.name}")
+    if uploaded is None:
+        return
+    if uploaded.size > MAX_SCAN_BYTES:
+        st.error(f"File size exceeds maximum limit of {MAX_SCAN_BYTES} bytes.")
+        return
+    tmp_dir = (Path(tempfile.gettempdir()) / "utriage_uploads").resolve()
+    try:
+        tmp_file = upload_target(tmp_dir, uploaded.name)
+    except ValueError as exc:
+        st.error(f"Invalid upload filename: {exc}")
+        return
+    if tmp_dir not in tmp_file.parents:
+        st.error("Upload path outside temporary directory.")
+        return
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    tmp_file.write_bytes(uploaded.getbuffer())
+    if st.button("Process uploaded scan", type="primary"):
+        st.session_state.session = load_session(tmp_file, DEFAULT_MODEL)
+        st.success(f"Loaded {tmp_file.name}")
 
 
 def _page_load_scan(session: Session | None) -> None:
@@ -350,6 +389,7 @@ PAGE_HANDLERS = {
 
 def main() -> None:
     """Main Streamlit app router."""
+    _enforce_locked()
     session = _get_session()
     _render_banners(session)
     pages = list(PAGE_HANDLERS.keys())
