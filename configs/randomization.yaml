@@ -1,0 +1,89 @@
+# configs/randomization.yaml
+# Domain randomization parameter ranges for immersion UT bar simulation.
+# Output is Synthetic data.
+# Every range carries source: "UNVERIFIED — Ruri to check".
+
+ranges:
+  velocity_scale:
+    min: 0.95
+    max: 1.05
+    source: "UNVERIFIED — Ruri to check"
+
+  attenuation_scale:
+    min: 0.5
+    max: 2.0
+    source: "UNVERIFIED — Ruri to check"
+
+  grain_noise_scale:
+    min: 0.5
+    max: 2.0
+    source: "UNVERIFIED — Ruri to check"
+
+  frequency_mhz:
+    min: 4.0
+    max: 11.0
+    source: "UNVERIFIED — Ruri to check"
+
+  fractional_bandwidth:
+    min: 0.4
+    max: 0.8
+    source: "UNVERIFIED — Ruri to check"
+
+  focal_depth_mm:
+    min: 10.0
+    max: 25.0
+    source: "UNVERIFIED — Ruri to check"
+
+  water_path_mm:
+    min: 35.0
+    max: 65.0
+    source: "UNVERIFIED — Ruri to check"
+
+  diameter_mm:
+    min: 25.0
+    max: 60.0
+    source: "UNVERIFIED — Ruri to check"
+
+  gain_db:
+    min: -6.0
+    max: 6.0
+    source: "UNVERIFIED — Ruri to check"
+
+  reflector_size_mm:
+    min: 0.4
+    max: 2.0
+    source: "UNVERIFIED — Ruri to check"
+
+  reflector_depth_mm:
+    min: 3.0
+    max: 35.0
+    source: "UNVERIFIED — Ruri to check"
+
+  artefact_prob_bubble:
+    min: 0.0
+    max: 0.2
+    source: "UNVERIFIED — Ruri to check"
+
+  artefact_prob_lost_backwall:
+    min: 0.0
+    max: 0.2
+    source: "UNVERIFIED — Ruri to check"
+
+  artefact_prob_roughness:
+    min: 0.0
+    max: 0.2
+    source: "UNVERIFIED — Ruri to check"
+
+materials:
+  choices:
+    - "ti64"
+    - "in718"
+    - "maraging250"
+  source: "configs/materials.yaml keys ti64, in718, maraging250"
+
+not_supported:
+  orientation: "Simulator assumes normal-incidence beam reflection; reflector tilt and orientation are not modeled."
+  irregularity: "Inclusion facet delays and weights are hardcoded in _INCLUSION_FACETS and not parameterized for continuous variation."
+  reflector_orientation: "Simulator assumes normal-incidence beam reflection; reflector tilt and orientation are not modeled."
+  reflector_irregularity: "Inclusion facet delays and weights are hardcoded in _INCLUSION_FACETS and not parameterized for continuous variation."
+  coupling_drift: "Coupling transmission drift is not modeled; simulator supports waterpath_drift for column distance changes only."
