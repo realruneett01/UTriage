@@ -26,6 +26,7 @@ _UNIT_FACTORS = {
 }
 
 HONEST_USER_AGENT = "utriage-research-fetch (research project; contact: github.com/utriage)"
+MAX_EXTRACT_BYTES = 2 * 1024 * 1024 * 1024  # 2 GiB; zip-bomb guard
 
 
 @dataclass(frozen=True)
@@ -154,6 +155,33 @@ def download_file(url: str, dest_path: Path, timeout: int = 60) -> None:
             out_file.write(chunk)
 
 
+def validate_member_path(name: str, target_dir: Path) -> None:
+    """Ensure archive member path does not escape target directory."""
+    if bool(re.match(r"^[a-zA-Z]:", name)):
+        raise ValueError(f"Member '{name}' contains drive letter")
+    if any((name.startswith(("/", "\\")), Path(name).is_absolute())):
+        raise ValueError(f"Member '{name}' is an absolute path")
+    resolved_target = target_dir.resolve()
+    resolved_path = (target_dir / name).resolve()
+    if not resolved_path.is_relative_to(resolved_target):
+        raise ValueError(f"Member '{name}' resolves outside target directory")
+
+
+def safe_extract(zf: zipfile.ZipFile, target_dir: Path) -> None:
+    """Safely extract zip archive guarding against path traversal and zip bombs."""
+    target_path = Path(target_dir)
+    total_size = sum(info.file_size for info in zf.infolist())
+    if total_size > MAX_EXTRACT_BYTES:
+        raise ValueError(
+            f"Archive uncompressed size ({total_size} bytes) "
+            f"exceeds limit ({MAX_EXTRACT_BYTES} bytes)"
+        )
+    for info in zf.infolist():
+        validate_member_path(info.filename, target_path)
+    target_path.mkdir(parents=True, exist_ok=True)
+    zf.extractall(target_path)
+
+
 def fetch_tubers(entry: dict, target_dir: Path, timeout: int) -> None:
     """Download and unzip TUBERS Ultrasonic Crack Dataset from Zenodo API."""
     api_url = "https://zenodo.org/api/records/11239514"
@@ -169,7 +197,7 @@ def fetch_tubers(entry: dict, target_dir: Path, timeout: int) -> None:
     zip_path = target_dir / "Ultrasonic Data.zip"
     download_file(file_url, zip_path, timeout=timeout)
     with zipfile.ZipFile(zip_path, "r") as zf:
-        zf.extractall(target_dir)
+        safe_extract(zf, target_dir)
 
 
 def _is_challenge_or_html(content_type: str, initial_chunk: bytes) -> bool:

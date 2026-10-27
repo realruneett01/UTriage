@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -13,10 +15,12 @@ if _SCRIPTS not in sys.path:
     sys.path.insert(0, _SCRIPTS)
 
 from fetch_external import (  # noqa: E402
+    MAX_EXTRACT_BYTES,
     extract_strathclyde_download_url,
     extract_zenodo_file_url,
     filter_datasets_to_fetch,
     parse_size_gb,
+    safe_extract,
     write_sha256sums,
     write_source_txt,
 )
@@ -366,3 +370,80 @@ def test_inventory_markdown_generation() -> None:
     assert "Listed (accepted, known counts):" in md
     assert "totaling 3 distinct physical flaws" in md
     assert "1 accepted dataset has an unknown" in md
+
+
+def test_max_extract_bytes_limit() -> None:
+    """Verify MAX_EXTRACT_BYTES default limit is 2 GiB."""
+    assert MAX_EXTRACT_BYTES == 2 * 1024 * 1024 * 1024
+
+
+def test_safe_extract_rejects_traversal(tmp_path: Path) -> None:
+    """Verify safe_extract refuses path traversal members and writes nothing outside."""
+    zip_path = tmp_path / "slip.zip"
+    extract_dir = tmp_path / "target"
+    extract_dir.mkdir()
+    outside_file = tmp_path / "evil.txt"
+
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("../evil.txt", "malicious payload")
+
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        with pytest.raises(ValueError, match=r"\.\./evil\.txt"):
+            safe_extract(zf, extract_dir)
+
+    assert not outside_file.exists()
+
+
+@pytest.mark.parametrize(
+    "member_name",
+    [
+        "/absolute/evil.txt",
+        "C:evil.txt",
+    ],
+)
+def test_safe_extract_refuses_unsafe_members(tmp_path: Path, member_name: str) -> None:
+    """Verify safe_extract refuses absolute paths and drive letters."""
+    zip_path = tmp_path / "unsafe.zip"
+    extract_dir = tmp_path / "target"
+
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr(member_name, "unsafe payload")
+
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        with pytest.raises(ValueError, match=re.escape(member_name)):
+            safe_extract(zf, extract_dir)
+
+
+def test_safe_extract_refuses_oversize_archive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify safe_extract refuses archives exceeding MAX_EXTRACT_BYTES."""
+    import fetch_external
+
+    monkeypatch.setattr(fetch_external, "MAX_EXTRACT_BYTES", 10)
+    zip_path = tmp_path / "oversize.zip"
+    extract_dir = tmp_path / "target"
+
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("large.txt", b"x" * 20)
+
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        with pytest.raises(ValueError, match="exceeds limit"):
+            safe_extract(zf, extract_dir)
+
+
+def test_safe_extract_normal_archive(tmp_path: Path) -> None:
+    """Verify safe_extract extracts valid archive members into target directory."""
+    zip_path = tmp_path / "normal.zip"
+    extract_dir = tmp_path / "extracted"
+
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("hello.txt", "hello world")
+        zf.writestr("sub/nested.txt", "nested content")
+
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        safe_extract(zf, extract_dir)
+
+    assert (extract_dir / "hello.txt").read_text(encoding="utf-8") == "hello world"
+    assert (extract_dir / "sub" / "nested.txt").read_text(encoding="utf-8") == "nested content"
