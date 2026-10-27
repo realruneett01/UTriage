@@ -16,8 +16,8 @@ Features extracted:
 4. peak_depth: Row index of maximum amplitude reflection along time/depth axis.
 5. echo_duration: Number of time samples around peak above half-peak in peak's column (-6 dB FWHM).
 6. lateral_extent: Number of columns around peak above half-peak in peak's row (-6 dB beam width).
-7. above_noise_area: Count of pixels exceeding 6 x robust noise level.
-8. energy_ratio: Sum of squares within +-8 samples of peak row divided by total energy.
+7. above_noise_area: Count of pixels exceeding noise_multiplier x robust noise level.
+8. energy_ratio: Sum of squares within +-energy_window samples of peak row divided by total energy.
 """
 
 from __future__ import annotations
@@ -92,9 +92,13 @@ def compute_lateral_extent(row: np.ndarray, c_max: int, half_peak: float) -> flo
     return _contiguous_count(row, c_max, half_peak)
 
 
-def compute_above_noise_area(arr: np.ndarray, noise_level: float) -> float:
-    """Count image pixels whose amplitude strictly exceeds 6 times noise level."""
-    threshold = 6.0 * max(0.0, noise_level)
+def compute_above_noise_area(
+    arr: np.ndarray,
+    noise_level: float,
+    noise_multiplier: float = 6.0,
+) -> float:
+    """Count image pixels whose amplitude strictly exceeds noise_multiplier times noise level."""
+    threshold = noise_multiplier * max(0.0, noise_level)
     return float(np.sum(np.abs(arr) > threshold))
 
 
@@ -112,7 +116,11 @@ def compute_energy_ratio(arr: np.ndarray, r_max: int, window: int = 8) -> float:
     return float(band_energy / total_energy)
 
 
-def extract_features(img: np.ndarray) -> np.ndarray:
+def extract_features(
+    img: np.ndarray,
+    noise_multiplier: float = 6.0,
+    energy_window: int = 8,
+) -> np.ndarray:
     """Extract 8 hand-crafted physics features from raw 2D ultrasonic image."""
     arr = np.asarray(img, dtype=np.float64)
     if arr.ndim > 2:
@@ -131,8 +139,8 @@ def extract_features(img: np.ndarray) -> np.ndarray:
 
     duration = compute_echo_duration(np.abs(arr[:, c_idx]), r_idx, half_peak)
     lateral = compute_lateral_extent(np.abs(arr[r_idx, :]), c_idx, half_peak)
-    area = compute_above_noise_area(arr, noise)
-    e_ratio = compute_energy_ratio(arr, r_idx)
+    area = compute_above_noise_area(arr, noise, noise_multiplier=noise_multiplier)
+    e_ratio = compute_energy_ratio(arr, r_idx, window=energy_window)
 
     return np.array(
         [peak, noise, snr, float(r_idx), duration, lateral, area, e_ratio],

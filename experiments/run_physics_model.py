@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +29,13 @@ import numpy as np  # noqa: E402
 from sklearn.linear_model import LogisticRegression  # noqa: E402
 from sklearn.preprocessing import StandardScaler  # noqa: E402
 
+from utriage.detector_config import (  # noqa: E402
+    DEFAULT_PATH,
+    DetectorConfig,
+    PhysicsConfig,
+    config_fingerprint,
+    load_detector_config,
+)
 from utriage.ml.datasets import (  # noqa: E402
     MLNDT_ROOT,
     list_batches,
@@ -57,6 +64,16 @@ class PhysicsModelConfig:
     root: Path = MLNDT_ROOT
     out_path: Path = Path("results/physics_model_metrics.json")
     quick: bool = False
+    detector_cfg: DetectorConfig = field(default_factory=load_detector_config)
+
+
+@dataclass(frozen=True)
+class FoldData:
+    """Features, binary labels, and flaw sizes for a dataset split."""
+
+    features: np.ndarray
+    labels: np.ndarray
+    sizes: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -68,7 +85,7 @@ class FitResult:
     coefficients: dict[str, float]
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI options for physics feature LOCO experiment."""
     parser = argparse.ArgumentParser(description="Physics feature LOCO experiment")
     parser.add_argument("--quick", action="store_true", help="Quick run with subset")
@@ -79,7 +96,22 @@ def _parse_args() -> argparse.Namespace:
         default="results/physics_model_metrics.json",
         help="Path to output JSON",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_PATH,
+        help="Path to detector YAML configuration file",
+    )
+    parser.add_argument(
+        "--set",
+        dest="set",
+        action="append",
+        default=[],
+        help="Override configuration setting in dot-notation (e.g., physics.threshold=0.6)",
+    )
+    parsed = parser.parse_args(args)
+    parsed.overrides = parsed.set
+    return parsed
 
 
 def _repo_parent_root() -> Path | None:
@@ -118,6 +150,8 @@ def _resolve_batches(root: Path, quick: bool) -> tuple[list[Path], list[Path]]:
 
 def build_feature_dataset(
     items: list[tuple[Path, int]],
+    noise_multiplier: float = 6.0,
+    energy_window: int = 8,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Extract features, labels, and flaw sizes streaming images from disk."""
     feats: list[np.ndarray] = []
@@ -132,7 +166,13 @@ def build_feature_dataset(
         flaws.append(int(lbl[idx, 0]))
         sizes.append(float(lbl[idx, 1]))
         img = read_image(bins_path, idx)
-        feats.append(extract_features(img))
+        feats.append(
+            extract_features(
+                img,
+                noise_multiplier=noise_multiplier,
+                energy_window=energy_window,
+            )
+        )
 
     x_arr = np.array(feats, dtype=np.float64) if feats else np.empty((0, 8), dtype=np.float64)
     y_arr = np.array(flaws, dtype=np.int64) if flaws else np.empty(0, dtype=np.int64)
@@ -144,13 +184,15 @@ def fit_fold_classifier(
     x_tr: np.ndarray,
     y_tr: np.ndarray,
     scaler: StandardScaler,
+    cfg: PhysicsConfig | None = None,
 ) -> FitResult:
     """Fit StandardScaler and LogisticRegression classifier on train fold split."""
+    p_cfg = cfg if cfg is not None else PhysicsConfig()
     x_tr_scaled = scaler.fit_transform(x_tr)
     clf = LogisticRegression(
-        class_weight="balanced",
-        C=1.0,
-        max_iter=1000,
+        class_weight=p_cfg.class_weight,
+        C=p_cfg.C,
+        max_iter=p_cfg.max_iter,
         random_state=0,
     )
     clf.fit(x_tr_scaled, y_tr)
@@ -163,14 +205,14 @@ def fit_fold_classifier(
 
 def _evaluate_fold(
     fit_res: FitResult,
-    x_te: np.ndarray,
-    y_te: np.ndarray,
-    s_te: np.ndarray,
+    test_split: FoldData,
+    threshold: float = 0.5,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Evaluate trained fold classifier on test split."""
+    x_te, y_te, s_te = test_split.features, test_split.labels, test_split.sizes
     x_te_scaled = fit_res.scaler.transform(x_te)
     probs = fit_res.classifier.predict_proba(x_te_scaled)[:, 1]
-    flags = (probs >= 0.5).astype(int)
+    flags = (probs >= threshold).astype(int)
 
     f_mask = y_te == 1
     u_mask = y_te == 0
@@ -190,14 +232,19 @@ def _evaluate_fold(
     return det_summary, fc_summary, c
 
 
-def _run_single_fold(fold: LocoFold) -> dict[str, Any]:
+def _run_single_fold(
+    fold: LocoFold,
+    p_cfg: PhysicsConfig | None = None,
+) -> dict[str, Any]:
     """Train and evaluate physics detector on a single LOCO fold."""
-    x_tr, y_tr, _ = build_feature_dataset(fold.train)
-    x_te, y_te, s_te = build_feature_dataset(fold.test)
+    cfg = p_cfg if p_cfg is not None else PhysicsConfig()
+    x_tr, y_tr, _ = build_feature_dataset(fold.train, cfg.noise_multiplier, cfg.energy_window)
+    x_te, y_te, s_te = build_feature_dataset(fold.test, cfg.noise_multiplier, cfg.energy_window)
 
     scaler = StandardScaler()
-    fit_res = fit_fold_classifier(x_tr, y_tr, scaler)
-    det, fc, fold_cell = _evaluate_fold(fit_res, x_te, y_te, s_te)
+    fit_res = fit_fold_classifier(x_tr, y_tr, scaler, cfg)
+    test_split = FoldData(features=x_te, labels=y_te, sizes=s_te)
+    det, fc, fold_cell = _evaluate_fold(fit_res, test_split, cfg.threshold)
 
     return {
         "held_out": fold.held_out,
@@ -216,13 +263,18 @@ def run_physics_experiment(cfg: PhysicsModelConfig) -> dict[str, Any]:
     tr_batches, val_batches = _resolve_batches(cfg.root, cfg.quick)
     folds = make_folds(tr_batches, val_batches, seed=0, val_mode="batch")
 
+    p_cfg = cfg.detector_cfg.physics
     fold_results: list[dict[str, Any]] = []
     for f in folds:
-        res = _run_single_fold(f)
+        res = _run_single_fold(f, p_cfg)
         fold_results.append(res)
 
+    fp = config_fingerprint(cfg.detector_cfg)
+    run_label = "pre-registered" if fp["is_default"] else "exploratory"
     payload = {
         "label": "Real data (ML-NDT)",
+        "run_label": run_label,
+        "detector_config": fp,
         "protocol": PROTOCOL_TEXT,
         "feature_names": list(FEATURE_NAMES),
         "folds": fold_results,
@@ -236,10 +288,13 @@ def run_physics_experiment(cfg: PhysicsModelConfig) -> dict[str, Any]:
 def main() -> None:
     """CLI entry point for physics model experiment."""
     args = _parse_args()
+    overrides = args.overrides or None
+    detector_cfg = load_detector_config(path=args.config, overrides=overrides)
     cfg = PhysicsModelConfig(
         root=Path(args.root),
         out_path=Path(args.out),
         quick=args.quick,
+        detector_cfg=detector_cfg,
     )
     payload = run_physics_experiment(cfg)
     print(f"Physics model experiment complete. Folds evaluated: {len(payload['folds'])}")
