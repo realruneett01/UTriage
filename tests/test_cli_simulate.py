@@ -88,3 +88,55 @@ def test_plot_cscan_writes_file(tmp_path: Path, tiny_scan) -> None:
     assert result_path == out_path
     assert out_path.exists()
     assert out_path.stat().st_size > 0
+
+
+EXPECTED_SIMULATE_HELP = (
+    "                                                                               \n"
+    " Usage: root simulate [OPTIONS]                                                \n"
+    "                                                                               \n"
+    " Generate synthetic bar UT scans with ground truth (Synthetic data).           \n"
+    "                                                                               \n"
+    "┌─ Options ───────────────────────────────────────────────────────────────────┐\n"
+    "│ --material                     <str>    Material name [default: ti64]       │\n"
+    "│ --probe                        <str>    Probe config [default: p5]          │\n"
+    "│ --bars                         <int>    Number of bars to simulate          │\n"
+    "│                                         [default: 5]                        │\n"
+    "│ --seed                         <int>    Random seed [default: 0]            │\n"
+    "│ --out                          <path>   Output directory                    │\n"
+    "│ --length-mm                    <float>  Bar length in mm [default: 64.0]    │\n"
+    "│ --n-angle                      <int>    Number of angular steps             │\n"
+    "│                                         [default: 120]                      │\n"
+    "│ --figures      --no-figures             Plot C-scans [default: figures]     │\n"
+    "│ --help                                  Show this message and exit.         │\n"
+    "└─────────────────────────────────────────────────────────────────────────────┘\n\n"
+)
+
+_EXPECTED_HELP_OPTIONS: tuple[tuple[str, str | None], ...] = (
+    ("--material", "ti64"),
+    ("--probe", "p5"),
+    ("--bars", "5"),
+    ("--seed", "0"),
+    ("--out", None),
+    ("--length-mm", "64.0"),
+    ("--n-angle", "120"),
+    ("--figures", "figures"),
+    ("--no-figures", None),
+    ("--help", None),
+)
+
+
+def test_simulate_help_output_matches_captured() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["simulate", "--help"])
+    assert result.exit_code == 0
+    assert result.output == EXPECTED_SIMULATE_HELP
+
+
+@pytest.mark.parametrize(("opt_name", "opt_default"), _EXPECTED_HELP_OPTIONS)
+def test_simulate_help_option_names_and_defaults(opt_name: str, opt_default: str | None) -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["simulate", "--help"])
+    assert result.exit_code == 0
+    assert opt_name in result.output
+    if opt_default is not None:
+        assert f"default: {opt_default}" in result.output

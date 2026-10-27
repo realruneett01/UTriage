@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
@@ -43,6 +44,40 @@ def _process_bar(npz_path: Path, fig_dir: Path | None, idx: int) -> None:
     typer.echo(f"{npz_path.name}: {n_refl} reflectors, artefacts: {artefacts}")
 
 
+@dataclass(frozen=True)
+class SimulateOptions:
+    """Options for simulating synthetic bar scans."""
+
+    material: str = "ti64"
+    probe: str = "p5"
+    bars: int = 5
+    seed: int = 0
+    out: Path | None = None
+    length_mm: float = 64.0
+    n_angle: int = 120
+    figures: bool = True
+
+
+def _run_simulate(opts: SimulateOptions) -> None:
+    """Execute synthetic dataset generation with the given options."""
+    out_dir = opts.out if opts.out is not None else Path(f"data/synthetic/{opts.material}")
+    cfg = DatasetConfig(
+        n_bars=opts.bars,
+        material=opts.material,
+        probe=opts.probe,
+        seed=opts.seed,
+        length_mm=opts.length_mm,
+        n_angle=opts.n_angle,
+    )
+    npz_paths = generate_dataset(cfg, out_dir)
+    fig_dir = out_dir / "figures" if opts.figures else None
+
+    for i, npz_path in enumerate(npz_paths):
+        _process_bar(npz_path, fig_dir, i)
+
+    typer.echo(f"Synthetic data written to {out_dir}")
+
+
 @app.command()
 def simulate(
     material: Annotated[str, typer.Option("--material", help="Material name")] = "ti64",
@@ -55,22 +90,17 @@ def simulate(
     figures: Annotated[bool, typer.Option("--figures/--no-figures", help="Plot C-scans")] = True,
 ) -> None:
     """Generate synthetic bar UT scans with ground truth (Synthetic data)."""
-    out_dir = out if out is not None else Path(f"data/synthetic/{material}")
-    cfg = DatasetConfig(
-        n_bars=bars,
+    opts = SimulateOptions(
         material=material,
         probe=probe,
+        bars=bars,
         seed=seed,
+        out=out,
         length_mm=length_mm,
         n_angle=n_angle,
+        figures=figures,
     )
-    npz_paths = generate_dataset(cfg, out_dir)
-    fig_dir = out_dir / "figures" if figures else None
-
-    for i, npz_path in enumerate(npz_paths):
-        _process_bar(npz_path, fig_dir, i)
-
-    typer.echo(f"Synthetic data written to {out_dir}")
+    _run_simulate(opts)
 
 
 def _attach_scan_label(scan: BarScan, scan_path: Path) -> None:
