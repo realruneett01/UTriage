@@ -58,25 +58,16 @@ class FailureConfig:
     out_dir: Path
     quick: bool
     device: str
-
-
-@dataclass
-class CaseCollector:
-    """Accumulator for failure records and categorical counts."""
-
-    records: list[dict[str, Any]]
-    counts: dict[str, int]
-    p10: float = SMALL_FLAW_P10_DEFAULT
-    png_limit: int = 20
+    max_cases: int = 20
 
 
 @dataclass(frozen=True)
-class CaseRequest:
-    """Request parameters for a failure case record."""
+class ProcessTarget:
+    """Target category specifications for failure collection."""
 
-    idx: int
     kind: str
-    save_png: bool = True
+    limit: int
+    p10: float = SMALL_FLAW_P10_DEFAULT
 
 
 @dataclass(frozen=True)
@@ -112,6 +103,12 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--device", type=str, default="auto", help="Compute device ('auto', 'cuda', 'cpu')"
+    )
+    parser.add_argument(
+        "--max-cases",
+        type=int,
+        default=20,
+        help="Maximum failure cases per category to save (default 20)",
     )
     return parser.parse_args()
 
@@ -183,78 +180,94 @@ def _save_case(
     score = float(ctx.probs[spec.idx])
     name = _build_case_id(spec.kind, ctx.fold_name, bins_path.stem, img_idx)
     save_failure_case(img, meta, score, ctx.fold_dir, name, save_png=spec.save_png)
+    json_path = ctx.fold_dir / f"{name}.json"
+    evidence_dict: dict[str, Any] = {}
+    if json_path.exists():
+        evidence_dict = json.loads(json_path.read_text(encoding="utf-8"))
+        json_path.unlink()
     return {
         "name": name,
         "fold": ctx.fold_name,
         "kind": spec.kind,
         "score": score,
         "cause": spec.cause,
+        "png_file": f"{name}.png",
         "has_png": spec.save_png,
-        "evidence": _format_evidence(spec.kind, meta),
+        "evidence": evidence_dict,
+        "evidence_str": _format_evidence(spec.kind, meta),
     }
 
 
-def _record_case(
+def _evaluate_case(
     ctx: FoldContext,
-    req: CaseRequest,
-    acc: CaseCollector,
-) -> None:
-    """Classify failure, persist plot or evidence, and accumulate counts."""
-    bins_path, img_idx = ctx.test_items[req.idx]
+    idx: int,
+    kind: str,
+    p10: float,
+) -> tuple[str, np.ndarray, dict[str, Any]]:
+    """Load case image and metadata and classify failure cause."""
+    bins_path, img_idx = ctx.test_items[idx]
     img = read_image(bins_path, img_idx)
     meta = read_flaw_meta(bins_path)[img_idx]
     cause = (
-        classify_failure(meta, "miss", p10_threshold=acc.p10, img=img)
-        if req.kind == "miss"
+        classify_failure(meta, "miss", p10_threshold=p10, img=img)
+        if kind == "miss"
         else classify_failure(meta, "false_call", img=img)
     )
-    acc.counts[cause] += 1
-    spec = CaseSpec(idx=req.idx, kind=req.kind, cause=cause, save_png=req.save_png)
-    acc.records.append(_save_case(ctx, spec, img, meta))
+    return cause, img, meta
 
 
-def _collect_cases(
+def _collect_top_cases(
     ctx: FoldContext,
     indices: np.ndarray,
-    kind: str,
-    acc: CaseCollector,
+    target: ProcessTarget,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Record cases across indices and return record list and cause counts."""
+    """Count causes across all indices and save artifacts only for top cases."""
+    counts: dict[str, int] = collections.defaultdict(int)
+    saved: list[dict[str, Any]] = []
     for i, idx in enumerate(indices):
-        req = CaseRequest(idx=int(idx), kind=kind, save_png=(i < acc.png_limit))
-        _record_case(ctx, req, acc)
-    return acc.records, dict(acc.counts)
+        cause, img, meta = _evaluate_case(ctx, int(idx), target.kind, target.p10)
+        counts[cause] += 1
+        if i < target.limit:
+            spec = CaseSpec(idx=int(idx), kind=target.kind, cause=cause, save_png=True)
+            saved.append(_save_case(ctx, spec, img, meta))
+    return saved, dict(counts)
+
+
+def _resolve_limit(max_cases: int | bool) -> int:
+    """Resolve case limit from integer or quick boolean flag."""
+    if isinstance(max_cases, bool):
+        return 5 if max_cases else 20
+    return max(0, int(max_cases))
 
 
 def _process_misses(
     ctx: FoldContext,
     p10: float,
-    quick: bool,
+    max_cases: int | bool = 20,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Collect detection misses and save case plots and evidence."""
+    """Collect detection misses, saving only top cases while counting all."""
     miss_indices = np.where(ctx.flawed_mask & (~ctx.hits))[0]
     if len(miss_indices) == 0:
         return [], {}
+    limit = _resolve_limit(max_cases)
     sorted_order = np.argsort(-ctx.probs[miss_indices])
-    sorted_indices = miss_indices[sorted_order]
-    target_indices = sorted_indices[:5] if quick else sorted_indices
-    png_limit = 5 if quick else 20
-    acc = CaseCollector([], collections.defaultdict(int), p10=p10, png_limit=png_limit)
-    return _collect_cases(ctx, target_indices, "miss", acc)
+    target = ProcessTarget(kind="miss", limit=limit, p10=p10)
+    return _collect_top_cases(ctx, miss_indices[sorted_order], target)
 
 
 def _process_false_calls(
     ctx: FoldContext,
-    quick: bool,
+    max_cases: int | bool = 20,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Collect top false call candidates and save case plots and evidence."""
-    unflawed_indices = np.where(ctx.unflawed_mask)[0]
-    if len(unflawed_indices) == 0:
+    """Collect false calls, saving only top cases while counting all."""
+    actual_fc = np.where(ctx.unflawed_mask & ctx.hits)[0]
+    candidates = actual_fc if len(actual_fc) > 0 else np.where(ctx.unflawed_mask)[0]
+    if len(candidates) == 0:
         return [], {}
-    sorted_order = np.argsort(-ctx.probs[unflawed_indices])
-    top_indices = unflawed_indices[sorted_order][: 5 if quick else 20]
-    acc = CaseCollector([], collections.defaultdict(int), png_limit=len(top_indices))
-    return _collect_cases(ctx, top_indices, "false_call", acc)
+    limit = _resolve_limit(max_cases)
+    sorted_order = np.argsort(-ctx.probs[candidates])
+    target = ProcessTarget(kind="false_call", limit=limit)
+    return _collect_top_cases(ctx, candidates[sorted_order], target)
 
 
 def _score_fold_test(
@@ -269,6 +282,22 @@ def _score_fold_test(
     probs, _ = predict(model, test_ds, eval_cfg)
     flaw_labels, eq_sizes = test_ds.get_labels()
     return probs, flaw_labels, eq_sizes
+
+
+def _write_cases_json(
+    fold_dir: Path,
+    misses: list[dict[str, Any]],
+    false_calls: list[dict[str, Any]],
+) -> Path:
+    """Save top failure cases to cases.json in fold directory."""
+    data = {
+        "misses": misses,
+        "false_calls": false_calls,
+        "cases": misses + false_calls,
+    }
+    cases_path = fold_dir / "cases.json"
+    cases_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return cases_path
 
 
 def _eval_single_fold(
@@ -288,14 +317,15 @@ def _eval_single_fold(
     p10 = float(np.percentile(det_sizes, 10)) if len(det_sizes) > 0 else SMALL_FLAW_P10_DEFAULT
 
     ctx = FoldContext(fold.held_out, fold.test, flawed, unflawed, hits, probs, fold_dir)
-    miss_recs, miss_counts = _process_misses(ctx, p10, cfg.quick)
-    fc_recs, fc_counts = _process_false_calls(ctx, cfg.quick)
+    miss_recs, miss_counts = _process_misses(ctx, p10, cfg.max_cases)
+    fc_recs, fc_counts = _process_false_calls(ctx, cfg.max_cases)
+    _write_cases_json(fold_dir, miss_recs, fc_recs)
 
     summary = {
         "fold": fold.held_out,
-        "n_misses": len(miss_recs),
+        "n_misses": sum(miss_counts.values()),
         "miss_causes": miss_counts,
-        "n_false_calls": len(fc_recs),
+        "n_false_calls": sum(fc_counts.values()),
         "false_call_causes": fc_counts,
     }
     return summary, miss_recs + fc_recs
@@ -346,6 +376,30 @@ def _process_folds(
     return summaries, cases
 
 
+def _write_failure_modes_report(
+    report_path: Path,
+    summaries: list[dict[str, Any]],
+    cases: list[dict[str, Any]],
+    cfg: FailureConfig,
+) -> None:
+    """Build and write failure modes report stating coverage and case cap."""
+    sim_gen = _load_sim_gen(Path("results/sim_generalization.json"))
+    png_count = sum(1 for c in cases if c.get("has_png", True))
+    md_cases = [{**c, "evidence": c.get("evidence_str", c.get("evidence"))} for c in cases]
+    md_content = build_failure_modes_md(summaries, md_cases, sim_gen, png_count=png_count)
+
+    old_tail = "full JSON evidence retained for all evaluated failure cases."
+    new_tail = (
+        f"cause counts cover all cases while files are kept for the top {cfg.max_cases} of each"
+        " kind."
+    )
+    md_content = md_content.replace(old_tail, new_tail)
+
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(md_content, encoding="utf-8")
+    print(f"Wrote failure modes report to {report_path}")
+
+
 def main() -> None:
     """Run failure mode extraction, plot generation, and report synthesis."""
     args = _parse_args()
@@ -361,17 +415,11 @@ def main() -> None:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    cfg = FailureConfig(out_dir=out_dir, quick=args.quick, device=str(dev))
+    max_cases = 5 if args.quick else args.max_cases
+    cfg = FailureConfig(out_dir=out_dir, quick=args.quick, device=str(dev), max_cases=max_cases)
     summaries, cases = _process_folds(models, fold_map, cfg)
     _write_summary_json(out_dir, summaries)
-
-    sim_gen = _load_sim_gen(Path("results/sim_generalization.json"))
-    png_count = sum(1 for c in cases if c.get("has_png", True))
-    md_content = build_failure_modes_md(summaries, cases, sim_gen, png_count=png_count)
-    report_path = Path(args.report_path)
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(md_content, encoding="utf-8")
-    print(f"Wrote failure modes report to {report_path}")
+    _write_failure_modes_report(Path(args.report_path), summaries, cases, cfg)
 
 
 if __name__ == "__main__":

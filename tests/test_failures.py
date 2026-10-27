@@ -16,6 +16,7 @@ if _SRC not in sys.path:
 
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
+from experiments.run_failures import FoldContext  # noqa: E402
 
 from utriage.report.failures import (  # noqa: E402
     build_failure_modes_md,
@@ -191,7 +192,7 @@ def test_write_summary_json(tmp_path: Path) -> None:
 
 
 def test_process_misses_png_capping(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Verify _process_misses saves JSON for all misses but caps PNG generation to 20."""
+    """Verify _process_misses caps saved cases to max_cases without per-case JSON."""
     from experiments.run_failures import FoldContext, _process_misses
 
     n_cases = 25
@@ -208,16 +209,117 @@ def test_process_misses_png_capping(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     probs = np.linspace(0.01, 0.49, n_cases)
 
     ctx = FoldContext("crack_1.6", test_items, flawed_mask, unflawed_mask, hits, probs, tmp_path)
-    recs, _ = _process_misses(ctx, p10=1.5, quick=False)
+    recs, counts = _process_misses(ctx, p10=1.5, max_cases=20)
 
-    assert len(recs) == n_cases
+    assert len(recs) == 20
+    assert sum(counts.values()) == n_cases
     assert sum(1 for r in recs if r["has_png"]) == 20
-    assert sum(1 for r in recs if not r["has_png"]) == 5
+    assert len(list(tmp_path.glob("*.png"))) == 20
+    assert len(list(tmp_path.glob("*.json"))) == 0
 
-    png_files = list(tmp_path.glob("*.png"))
-    json_files = list(tmp_path.glob("*.json"))
-    assert len(png_files) == 20
-    assert len(json_files) == n_cases
+
+def _make_fake_fold_context(
+    fold_name: str,
+    n_misses: int,
+    n_fc: int,
+    fold_dir: Path,
+) -> FoldContext:
+    """Create synthetic FoldContext with specified miss and false call counts."""
+    from experiments.run_failures import FoldContext
+
+    total = n_misses + n_fc
+    test_items = [(Path("batch_01.bins"), i) for i in range(total)]
+    flawed = np.array([True] * n_misses + [False] * n_fc)
+    unflawed = ~flawed
+    hits = np.array([False] * n_misses + [True] * n_fc)
+    probs = np.linspace(0.1, 0.9, total)
+    return FoldContext(fold_name, test_items, flawed, unflawed, hits, probs, fold_dir)
+
+
+def _verify_cases_json_structure(cases_path: Path, expected_count: int) -> None:
+    """Verify cases.json schema, category counts, and case attributes."""
+    data = json.loads(cases_path.read_text(encoding="utf-8"))
+    assert len(data["misses"]) == expected_count
+    assert len(data["false_calls"]) == expected_count
+
+    first_case = data["misses"][0]
+    for key in ("name", "fold", "kind", "score", "cause", "png_file", "evidence"):
+        assert key in first_case
+    assert isinstance(first_case["evidence"], dict)
+    assert (cases_path.parent / first_case["png_file"]).exists()
+
+
+def test_fake_fold_eval_counts_and_cases_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify cause counts cover all cases while only max_cases are written to cases.json."""
+    from experiments.run_failures import (
+        _process_false_calls,
+        _process_misses,
+        _write_cases_json,
+    )
+
+    fake_img = _make_test_image(peak_row=128, peak_val=500.0, noise_amp=10.0)
+    fake_meta = [{"equivalent_flawsize": 3.0} for _ in range(50)]
+    monkeypatch.setattr("experiments.run_failures.read_image", lambda path, idx: fake_img)
+    monkeypatch.setattr("experiments.run_failures.read_flaw_meta", lambda path: fake_meta)
+
+    ctx = _make_fake_fold_context("fold_a", 25, 25, tmp_path)
+    miss_recs, miss_counts = _process_misses(ctx, p10=1.5, max_cases=20)
+    fc_recs, fc_counts = _process_false_calls(ctx, max_cases=20)
+    cases_file = _write_cases_json(tmp_path, miss_recs, fc_recs)
+
+    assert sum(miss_counts.values()) == 25
+    assert sum(fc_counts.values()) == 25
+    assert len(miss_recs) == 20
+    assert len(fc_recs) == 20
+    _verify_cases_json_structure(cases_file, expected_count=20)
+    assert len(list(tmp_path.glob("*.png"))) == 40
+    assert list(tmp_path.glob("*.json")) == [cases_file]
+
+
+def test_fake_fold_custom_max_cases(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify custom max_cases option restricts saved cases while counts cover all."""
+    from experiments.run_failures import (
+        _process_false_calls,
+        _process_misses,
+        _write_cases_json,
+    )
+
+    fake_img = _make_test_image(peak_row=128, peak_val=500.0, noise_amp=10.0)
+    fake_meta = [{"equivalent_flawsize": 3.0} for _ in range(50)]
+    monkeypatch.setattr("experiments.run_failures.read_image", lambda path, idx: fake_img)
+    monkeypatch.setattr("experiments.run_failures.read_flaw_meta", lambda path: fake_meta)
+
+    ctx = _make_fake_fold_context("fold_b", 25, 25, tmp_path)
+    miss_recs, miss_counts = _process_misses(ctx, p10=1.5, max_cases=5)
+    fc_recs, fc_counts = _process_false_calls(ctx, max_cases=5)
+    cases_file = _write_cases_json(tmp_path, miss_recs, fc_recs)
+
+    assert sum(miss_counts.values()) == 25
+    assert sum(fc_counts.values()) == 25
+    assert len(miss_recs) == 5
+    assert len(fc_recs) == 5
+    _verify_cases_json_structure(cases_file, expected_count=5)
+    assert len(list(tmp_path.glob("*.png"))) == 10
+    assert list(tmp_path.glob("*.json")) == [cases_file]
+
+
+def test_report_states_case_capping(tmp_path: Path) -> None:
+    """Verify failure modes report text states that cause counts cover all cases."""
+    from experiments.run_failures import FailureConfig, _write_failure_modes_report
+
+    summaries, cases, _ = _make_fake_markdown_inputs()
+    report_file = tmp_path / "failure_modes.md"
+    cfg = FailureConfig(out_dir=tmp_path, quick=False, device="cpu", max_cases=20)
+    _write_failure_modes_report(report_file, summaries, cases, cfg)
+
+    content = report_file.read_text(encoding="utf-8")
+    expected_statement = (
+        "cause counts cover all cases while files are kept for the top 20 of each kind."
+    )
+    assert expected_statement in content
+    assert "## Evaluated Failure Cases" in content
 
 
 def _fake_sim_data() -> dict:
