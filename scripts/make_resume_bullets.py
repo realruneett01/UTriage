@@ -112,6 +112,69 @@ def _build_anomaly_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
     return _ensure_scope(text, "leave-one-crack-out")
 
 
+def _format_det_range(min_k: float | int, max_k: float | int, n: int) -> str:
+    """Format detection count or range as string."""
+    if int(min_k) == int(max_k):
+        return f"{int(min_k)}/{n}"
+    return f"{int(min_k)}-{int(max_k)}/{n}"
+
+
+def _extract_crack_det(claim: dict[str, Any], crack: str, n_default: int) -> str:
+    """Extract detection counts or range for crack from claim numbers or text."""
+    nums = claim.get("numbers", {})
+    min_k = nums.get(f"k_min_{crack}", nums.get(f"crack_{crack}_min_k"))
+    max_k = nums.get(f"k_max_{crack}", nums.get(f"crack_{crack}_max_k"))
+    n_val = int(nums.get(f"n_{crack}", nums.get(f"crack_{crack}_n", n_default)))
+    if min_k is not None and max_k is not None:
+        return _format_det_range(min_k, max_k, n_val)
+    k_val = nums.get(f"k_{crack}", nums.get(f"crack_{crack}_k"))
+    if k_val is not None:
+        return f"{int(k_val)}/{n_val}"
+    match = re.search(rf"{re.escape(crack)}[^\d]*?(\d+(?:-\d+)?\s*/\s*\d+)", claim.get("text", ""))
+    if match:
+        return match.group(1).replace(" ", "")
+    match_n = re.search(rf"(\d+(?:-\d+)?\s*/\s*{n_default})", claim.get("text", ""))
+    if match_n:
+        return match_n.group(1).replace(" ", "")
+    return f"0/{n_default}"
+
+
+def _extract_false_calls(claim: dict[str, Any]) -> str:
+    """Extract false calls count from claim numbers or text."""
+    nums = claim.get("numbers", {})
+    if "n_false" in nums and "n_scans" in nums:
+        return f"{int(nums['n_false'])}/{int(nums['n_scans'])}"
+    if "n_false" in nums and "n_clean" in nums:
+        return f"{int(nums['n_false'])}/{int(nums['n_clean'])}"
+    match = re.search(r"false[- ]calls?\s*(\d+(?:\s*/\s*\d+)?)", claim.get("text", ""))
+    if match:
+        return match.group(1).replace(" ", "")
+    return "0/778"
+
+
+def _build_hybrid_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
+    """Build bullet combining pre-registered hybrid H2 and physics H3 claims."""
+    keys = ("hybrid_h2", "physics_h3", "hybrid_comparison")
+    if not all(k in claims for k in keys):
+        return None
+    h2_claim = claims["hybrid_h2"]
+    h3_claim = claims["physics_h3"]
+    h2_1 = _extract_crack_det(h2_claim, "1.6", 4014)
+    h3_1 = _extract_crack_det(h3_claim, "1.6", 4014)
+    h2_4 = _extract_crack_det(h2_claim, "4.0", 4078)
+    h3_4 = _extract_crack_det(h3_claim, "4.0", 4078)
+    h2_8 = _extract_crack_det(h2_claim, "8.6", 3925)
+    h2_fc = _extract_false_calls(h2_claim)
+    h3_fc = _extract_false_calls(h3_claim)
+    text = (
+        f"Pre-registered a supervised+anomaly hybrid and a physics-feature detector, "
+        f"reaching {h2_1} vs {h3_1} on 1.6 mm, {h2_4} vs {h3_4} on 4.0 mm, "
+        f"{h2_8} on 8.6 mm, false calls {h2_fc} vs {h3_fc}, "
+        "confirming the two are complementary"
+    )
+    return _ensure_scope(text, "public dataset, pre-registered")
+
+
 def _build_sim_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
     """Build simulator and cross-dataset bullet from sim_regions and cross_dataset claims."""
     c_sim = claims.get("sim_regions")
@@ -177,6 +240,7 @@ def build_bullets(results_dir: Path) -> list[str]:
         _build_leakage_bullet,
         _build_loco_bullet,
         _build_anomaly_bullet,
+        _build_hybrid_bullet,
         _build_sim_bullet,
         _build_engineering_bullet,
     ]

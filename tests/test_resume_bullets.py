@@ -61,7 +61,71 @@ def _write_claims(path: Path, data: list[dict[str, Any]]) -> None:
         json.dump(data, fh)
 
 
-def _make_fake_claims(*, include_cross: bool = True) -> list[dict[str, Any]]:
+def _make_hybrid_claims() -> list[dict[str, Any]]:
+    """Build representative fake claims for hybrid H2 and physics H3 detectors."""
+    return [
+        {
+            "id": "hybrid_h2",
+            "text": (
+                "Pre-registered hybrid H2 across seeds: crack 1.6 mm 3687-3766/4014, "
+                "crack 4.0 mm 899-2272/4078, crack 8.6 mm 3925/3925; false calls 7/778 scans."
+            ),
+            "evidence_file": "results/hybrid_metrics.json",
+            "evidence_path": "folds",
+            "scope_limit": (
+                "pre-registered ADR 0010, one weld PAUT public dataset, "
+                "3 physical cracks, seed-sensitive"
+            ),
+            "numbers": {
+                "k_min_1.6": 3687.0,
+                "k_max_1.6": 3766.0,
+                "n_1.6": 4014.0,
+                "k_min_4.0": 899.0,
+                "k_max_4.0": 2272.0,
+                "n_4.0": 4078.0,
+                "k_8.6": 3925.0,
+                "n_8.6": 3925.0,
+                "n_false": 7.0,
+                "n_scans": 778.0,
+            },
+        },
+        {
+            "id": "physics_h3",
+            "text": (
+                "Physics model H3: crack 1.6 mm 2661/4014, crack 4.0 mm 2578/4078, "
+                "crack 8.6 mm 3925/3925; false calls 0/778 scans."
+            ),
+            "evidence_file": "results/physics_model_metrics.json",
+            "evidence_path": "folds",
+            "scope_limit": "pre-registered ADR 0010 addendum, coefficients unstable across folds",
+            "numbers": {
+                "k_1.6": 2661.0,
+                "n_1.6": 4014.0,
+                "k_4.0": 2578.0,
+                "n_4.0": 4078.0,
+                "k_8.6": 3925.0,
+                "n_8.6": 3925.0,
+                "n_false": 0.0,
+                "n_clean": 778.0,
+            },
+        },
+        {
+            "id": "hybrid_comparison",
+            "text": (
+                "H2 strongest on the 1.6 mm crack, H3 strongest on the 4.0 mm crack, "
+                "confirming the two models are complementary."
+            ),
+            "evidence_file": "results/generalization_matrix.json",
+            "evidence_path": "rows",
+            "scope_limit": "pre-registered evaluation, complementary strengths",
+            "numbers": {},
+        },
+    ]
+
+
+def _make_fake_claims(
+    *, include_cross: bool = True, include_hybrid: bool = False
+) -> list[dict[str, Any]]:
     """Build representative fake claims.json data for unit testing."""
     claims: list[dict[str, Any]] = [
         {
@@ -172,6 +236,8 @@ def _make_fake_claims(*, include_cross: bool = True) -> list[dict[str, Any]]:
                 "numbers": {"n_false": 0.0},
             }
         )
+    if include_hybrid:
+        claims.extend(_make_hybrid_claims())
     return claims
 
 
@@ -191,7 +257,7 @@ def test_bullet_word_limit_and_sentence(tmp_path: Path) -> None:
     claims = _make_fake_claims(include_cross=True)
     _write_claims(tmp_path / "claims.json", claims)
     bullets = build_bullets(tmp_path)
-    assert 5 <= len(bullets) <= 6
+    assert 5 <= len(bullets) <= 7
     for b in bullets:
         words = b.split()
         assert len(words) <= 40, f"Bullet exceeds 40 words ({len(words)}): {b}"
@@ -301,7 +367,7 @@ def test_real_results() -> None:
     if not claims_path.exists():
         pytest.skip(f"{claims_path} does not exist yet")
     bullets = build_bullets(results_dir)
-    assert 5 <= len(bullets) <= 6
+    assert 5 <= len(bullets) <= 7
     for bullet in bullets:
         assert bullet.endswith(").")
 
@@ -317,3 +383,70 @@ def test_main(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert len(lines) == 6
     assert out_file.exists()
     assert len(out_file.read_text(encoding="utf-8").splitlines()) == len(lines)
+
+
+def test_hybrid_bullet_word_limit_and_structure(tmp_path: Path) -> None:
+    """Verify hybrid bullet is at most 40 words, single sentence, and ends with scope tag."""
+    claims = _make_fake_claims(include_cross=True, include_hybrid=True)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert len(bullets) == 7
+    hybrid_b = bullets[4]
+    words = hybrid_b.split()
+    assert len(words) <= 40, f"Hybrid bullet exceeds 40 words ({len(words)}): {hybrid_b}"
+    assert hybrid_b.count(". ") == 0, f"Hybrid bullet contains multiple sentences: {hybrid_b}"
+    assert hybrid_b.startswith("Pre-registered ")
+    assert hybrid_b.endswith("(public dataset, pre-registered).")
+    assert "complementary" in hybrid_b
+
+
+def test_hybrid_story_order_and_verbs(tmp_path: Path) -> None:
+    """Verify bullets follow story order including pre-registered hybrid detector."""
+    claims = _make_fake_claims(include_cross=True, include_hybrid=True)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert len(bullets) == 7
+    expected = [
+        ("Built", "(advisory)."),
+        ("Audited", "(public dataset)."),
+        ("Detected", "(leave-one-crack-out)."),
+        ("Trained", "(leave-one-crack-out)."),
+        ("Pre-registered", "(public dataset, pre-registered)."),
+        ("Observed", "(simulated)."),
+        ("Verified", "(advisory)."),
+    ]
+    for b, (verb, tag) in zip(bullets, expected, strict=True):
+        assert b.startswith(f"{verb} "), f"Expected verb {verb} in {b}"
+        assert b.endswith(tag), f"Expected tag {tag} in {b}"
+
+
+def test_hybrid_every_number_in_claims(tmp_path: Path) -> None:
+    """Verify every number in the 7 bullets appears in some claim text or numbers."""
+    claims = _make_fake_claims(include_cross=True, include_hybrid=True)
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    for bullet in bullets:
+        numbers = re.findall(r"\b\d+(?:\.\d+)?\b", bullet)
+        for num in numbers:
+            assert _number_in_claims(num, claims), f"Number {num} in {bullet!r} not in claims"
+
+
+@pytest.mark.parametrize(
+    "missing_id",
+    [
+        "hybrid_h2",
+        "physics_h3",
+        "hybrid_comparison",
+    ],
+)
+def test_skipping_missing_hybrid_claim(tmp_path: Path, missing_id: str) -> None:
+    """Verify skipping hybrid bullet when any underlying hybrid claim is missing."""
+    claims = [
+        c
+        for c in _make_fake_claims(include_cross=True, include_hybrid=True)
+        if c["id"] != missing_id
+    ]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert len(bullets) == 6
+    assert not any("pre-registered" in b.lower() for b in bullets)
