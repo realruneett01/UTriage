@@ -54,6 +54,7 @@ class _Candidate:
     angle_idx: int
     depth_mm: float
     score: float
+    logit: float
     uncertainty: float
     std: float
 
@@ -61,6 +62,7 @@ class _Candidate:
 @dataclass(frozen=True)
 class _InferStats:
     score: np.ndarray
+    logit: np.ndarray
     uncertainty: np.ndarray
     std: np.ndarray
 
@@ -71,6 +73,22 @@ class _GraphContext:
     n_angle: int
     grid: dict[tuple[int, int], list[int]]
     adj: list[list[int]]
+
+
+def _prob_to_logit(p: float) -> float:
+    """Convert probability in [0, 1] to log-odds logit, clipped to [-30, 30]."""
+    if p <= 0.0:
+        return -30.0
+    if p >= 1.0:
+        return 30.0
+    val = float(np.log(p / (1.0 - p)))
+    return float(np.clip(val, -30.0, 30.0))
+
+
+def _logit_to_prob(logit: float) -> float:
+    """Convert log-odds logit to probability via float64 sigmoid."""
+    clamped = float(np.clip(logit, -30.0, 30.0))
+    return float(1.0 / (1.0 + np.exp(-clamped)))
 
 
 def save_window_model(model: WindowNet, path: Path | str, meta: dict) -> Path:
@@ -135,7 +153,7 @@ def _eval_batches(
 ) -> _InferStats:
     n_samples = len(windows)
     passes = max(1, settings.mc_passes)
-    all_probs = np.empty((passes, n_samples), dtype=np.float32)
+    all_logits = np.empty((passes, n_samples), dtype=np.float64)
     _activate_mc_dropout(model)
     model.to(dev)
     for start in range(0, n_samples, settings.batch):
@@ -144,14 +162,17 @@ def _eval_batches(
         for p_idx in range(passes):
             logits, _ = model(batch)
             lg = flaw_logit(logits)
-            all_probs[p_idx, start:end] = torch.sigmoid(lg).cpu().numpy()
+            all_logits[p_idx, start:end] = lg.detach().cpu().to(torch.float64).numpy()
     model.eval()
-    mean, std = ensemble_stats(all_probs)
+    all_probs = 1.0 / (1.0 + np.exp(-np.clip(all_logits, -30.0, 30.0)))
+    mean_prob, std = ensemble_stats(all_probs)
+    mean_logit = np.mean(all_logits, axis=0)
     unc = np.minimum(1.0, 2.0 * std)
     return _InferStats(
-        score=mean.astype(np.float32),
-        uncertainty=unc.astype(np.float32),
-        std=std.astype(np.float32),
+        score=mean_prob.astype(np.float64),
+        logit=mean_logit.astype(np.float64),
+        uncertainty=unc.astype(np.float64),
+        std=std.astype(np.float64),
     )
 
 
@@ -160,7 +181,10 @@ def _build_candidates(
     stats: _InferStats,
     threshold: float,
 ) -> list[_Candidate]:
-    indices = np.where(stats.score >= threshold)[0]
+    if threshold > 1.0:
+        return []
+    thresh_logit = _prob_to_logit(threshold)
+    indices = np.where(stats.logit >= thresh_logit)[0]
     cands: list[_Candidate] = []
     for idx in indices:
         cands.append(
@@ -169,6 +193,7 @@ def _build_candidates(
                 angle_idx=int(sites[idx, 1]),
                 depth_mm=float(sites[idx, 2]),
                 score=float(stats.score[idx]),
+                logit=float(stats.logit[idx]),
                 uncertainty=float(stats.uncertainty[idx]),
                 std=float(stats.std[idx]),
             )
@@ -205,24 +230,52 @@ def _build_adj(cands: list[_Candidate], n_angle: int) -> list[list[int]]:
     return adj
 
 
-def _greedy_nms(cands: list[_Candidate], adj: list[list[int]]) -> list[_Candidate]:
-    order = sorted(range(len(cands)), key=lambda idx: cands[idx].score, reverse=True)
-    suppressed = [False] * len(cands)
-    kept: list[_Candidate] = []
-    for idx in order:
-        if suppressed[idx]:
+def _expand_node(
+    curr: int,
+    adj: list[list[int]],
+    visited: list[bool],
+    queue: list[int],
+) -> None:
+    for nbr in adj[curr]:
+        if not visited[nbr]:
+            visited[nbr] = True
+            queue.append(nbr)
+
+
+def _bfs_component(start: int, adj: list[list[int]], visited: list[bool]) -> list[int]:
+    comp: list[int] = []
+    queue = [start]
+    visited[start] = True
+    while queue:
+        curr = queue.pop()
+        comp.append(curr)
+        _expand_node(curr, adj, visited, queue)
+    return comp
+
+
+def _connected_groups(adj: list[list[int]]) -> list[list[int]]:
+    visited = [False] * len(adj)
+    groups: list[list[int]] = []
+    for i in range(len(adj)):
+        if visited[i]:
             continue
-        kept.append(cands[idx])
-        for nbr in adj[idx]:
-            suppressed[nbr] = True
-    return kept
+        groups.append(_bfs_component(i, adj, visited))
+    return groups
+
+
+def _pick_best(group: list[int], cands: list[_Candidate]) -> _Candidate:
+    best_idx = max(group, key=lambda idx: (cands[idx].logit, -idx))
+    return cands[best_idx]
 
 
 def _suppress_candidates(cands: list[_Candidate], n_angle: int) -> list[_Candidate]:
     if not cands:
         return []
     adj = _build_adj(cands, n_angle)
-    return _greedy_nms(cands, adj)
+    groups = _connected_groups(adj)
+    kept = [_pick_best(grp, cands) for grp in groups]
+    kept.sort(key=lambda c: c.logit, reverse=True)
+    return kept
 
 
 def _candidate_to_finding(c: _Candidate) -> MlFinding:
@@ -308,12 +361,13 @@ def calibrate_bar_threshold(
     if not all_scores:
         return 0.0
     max_total = max_flags_per_bar * len(clean_scans)
-    arr = np.sort(np.asarray(all_scores, dtype=np.float64))
+    arr = np.asarray(all_scores, dtype=np.float64)
     if len(arr) <= max_total:
         return 0.0
-    for val in np.unique(arr):
-        if int(np.sum(arr >= val)) <= max_total:
-            return float(val)
+    logits = np.array([_prob_to_logit(float(s)) for s in arr], dtype=np.float64)
+    for val in np.unique(np.sort(logits)):
+        if int(np.sum(logits >= val)) <= max_total:
+            return _logit_to_prob(float(val))
     return 1.0
 
 

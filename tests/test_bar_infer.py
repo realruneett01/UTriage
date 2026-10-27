@@ -26,6 +26,9 @@ import torch.nn as nn  # noqa: E402
 
 from utriage.ml.bar_infer import (  # noqa: E402
     ScanSettings,
+    _Candidate,
+    _InferStats,
+    _suppress_candidates,
     calibrate_bar_threshold,
     candidate_scores,
     findings_to_dicts,
@@ -240,3 +243,116 @@ def test_candidate_scores_count_gte_scan_bar(
     findings = scan_bar(tiny_model, tiny_scan, settings, device="cpu")
     assert len(scores) >= len(findings)
     assert np.all((scores >= 0.0) & (scores <= 1.0))
+
+
+def test_blob_3x3_yields_single_finding() -> None:
+    """A 3x3 blob of connected neighbouring candidates collapses to exactly one finding."""
+    cands = [
+        _Candidate(
+            axial_idx=ax,
+            angle_idx=an,
+            depth_mm=5.0,
+            score=0.9 if (ax == 1 and an == 1) else 0.8,
+            logit=2.0 if (ax == 1 and an == 1) else 1.0,
+            uncertainty=0.1,
+            std=0.05,
+        )
+        for ax in range(3)
+        for an in range(3)
+    ]
+    kept = _suppress_candidates(cands, n_angle=8)
+    assert len(kept) == 1
+    assert kept[0].axial_idx == 1
+    assert kept[0].angle_idx == 1
+
+
+def test_two_separated_blobs_yield_two_findings() -> None:
+    """Two spatially separated blobs yield exactly two findings."""
+    blob1 = [
+        _Candidate(
+            axial_idx=ax,
+            angle_idx=an,
+            depth_mm=5.0,
+            score=0.9 if (ax == 0 and an == 0) else 0.8,
+            logit=2.0 if (ax == 0 and an == 0) else 1.0,
+            uncertainty=0.1,
+            std=0.05,
+        )
+        for ax in range(2)
+        for an in range(2)
+    ]
+    blob2 = [
+        _Candidate(
+            axial_idx=ax,
+            angle_idx=an,
+            depth_mm=5.0,
+            score=0.85 if (ax == 10 and an == 10) else 0.7,
+            logit=1.8 if (ax == 10 and an == 10) else 0.9,
+            uncertainty=0.1,
+            std=0.05,
+        )
+        for ax in range(10, 12)
+        for an in range(10, 12)
+    ]
+    kept = _suppress_candidates(blob1 + blob2, n_angle=20)
+    assert len(kept) == 2
+    assert {c.axial_idx for c in kept} == {0, 10}
+
+
+def test_candidate_count_invariant_to_batch(tiny_scan: BarScan) -> None:
+    """Candidate count and findings are invariant to settings.batch."""
+    model = WindowNet(in_channels=1, width=4, dropout=0.0)
+    settings_small = ScanSettings(threshold=0.0, batch=16, mc_passes=1)
+    settings_large = ScanSettings(threshold=0.0, batch=256, mc_passes=1)
+    scores_small = candidate_scores(model, tiny_scan, settings_small, device="cpu")
+    scores_large = candidate_scores(model, tiny_scan, settings_large, device="cpu")
+    assert len(scores_small) == len(scores_large)
+    assert np.allclose(scores_small, scores_large)
+    findings_small = scan_bar(model, tiny_scan, settings_small, device="cpu")
+    findings_large = scan_bar(model, tiny_scan, settings_large, device="cpu")
+    assert len(findings_small) == len(findings_large)
+
+
+def test_calibrate_bar_threshold_high_logits_budget(
+    monkeypatch: pytest.MonkeyPatch,
+    tiny_scan: BarScan,
+) -> None:
+    """calibrate_bar_threshold gives mean flags <= k when raw scores are 1.0 in float32."""
+    call_idx = 0
+    logits_per_scan = {
+        0: 18.0,
+        1: 21.0,
+    }
+
+    def mock_eval_batches(
+        model: Any,
+        windows: np.ndarray,
+        settings: ScanSettings,
+        dev: torch.device,
+    ) -> _InferStats:
+        nonlocal call_idx
+        n = len(windows)
+        lg = np.full(n, 0.0, dtype=np.float64)
+        lg[0] = logits_per_scan[call_idx % 2]
+        call_idx += 1
+        probs = 1.0 / (1.0 + np.exp(-lg))
+        return _InferStats(
+            score=probs,
+            logit=lg,
+            uncertainty=np.zeros(n, dtype=np.float64),
+            std=np.zeros(n, dtype=np.float64),
+        )
+
+    monkeypatch.setattr("utriage.ml.bar_infer._eval_batches", mock_eval_batches)
+    model = WindowNet(in_channels=1, width=4)
+    clean_scans = [tiny_scan, tiny_scan]
+    budget_k = 0.5
+    thresh = calibrate_bar_threshold(model, clean_scans, max_flags_per_bar=budget_k)
+    assert 0.99999 <= thresh < 1.0
+
+    call_idx = 0
+    f0 = scan_bar(model, clean_scans[0], ScanSettings(threshold=thresh), device="cpu")
+    call_idx = 1
+    f1 = scan_bar(model, clean_scans[1], ScanSettings(threshold=thresh), device="cpu")
+    mean_flags = (len(f0) + len(f1)) / 2.0
+    assert mean_flags <= budget_k
