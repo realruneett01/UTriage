@@ -22,7 +22,16 @@ Features extracted:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from pathlib import Path
+
 import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+
+from utriage.detector_config import PhysicsConfig
+from utriage.ml.datasets import read_image, read_labels
+from utriage.ml.loco import LocoFold
 
 FEATURE_NAMES: tuple[str, ...] = (
     "peak_amplitude",
@@ -34,6 +43,15 @@ FEATURE_NAMES: tuple[str, ...] = (
     "above_noise_area",
     "energy_ratio",
 )
+
+
+@dataclass(frozen=True)
+class FitResult:
+    """Trained classifier, fitted scaler, and extracted feature coefficients."""
+
+    classifier: LogisticRegression
+    scaler: StandardScaler
+    coefficients: dict[str, float]
 
 
 def compute_peak_amplitude(arr: np.ndarray) -> float:
@@ -146,3 +164,86 @@ def extract_features(
         [peak, noise, snr, float(r_idx), duration, lateral, area, e_ratio],
         dtype=np.float64,
     )
+
+
+def build_feature_dataset(
+    items: list[tuple[Path, int]],
+    noise_multiplier: float = 6.0,
+    energy_window: int = 8,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract features, labels, and flaw sizes streaming images from disk."""
+    feats: list[np.ndarray] = []
+    flaws: list[int] = []
+    sizes: list[float] = []
+    labels_cache: dict[Path, np.ndarray] = {}
+
+    for bins_path, idx in items:
+        if bins_path not in labels_cache:
+            labels_cache[bins_path] = read_labels(bins_path)
+        lbl = labels_cache[bins_path]
+        flaws.append(int(lbl[idx, 0]))
+        sizes.append(float(lbl[idx, 1]))
+        img = read_image(bins_path, idx)
+        feats.append(
+            extract_features(
+                img,
+                noise_multiplier=noise_multiplier,
+                energy_window=energy_window,
+            )
+        )
+
+    x_arr = np.array(feats, dtype=np.float64) if feats else np.empty((0, 8), dtype=np.float64)
+    y_arr = np.array(flaws, dtype=np.int64) if flaws else np.empty(0, dtype=np.int64)
+    s_arr = np.array(sizes, dtype=np.float32) if sizes else np.empty(0, dtype=np.float32)
+    return x_arr, y_arr, s_arr
+
+
+def fit_fold_classifier(
+    x_tr: np.ndarray,
+    y_tr: np.ndarray,
+    scaler: StandardScaler,
+    cfg: PhysicsConfig | None = None,
+) -> FitResult:
+    """Fit StandardScaler and LogisticRegression classifier on train fold split."""
+    p_cfg = cfg if cfg is not None else PhysicsConfig()
+    x_tr_scaled = scaler.fit_transform(x_tr)
+    clf = LogisticRegression(
+        class_weight=p_cfg.class_weight,
+        C=p_cfg.C,
+        max_iter=p_cfg.max_iter,
+        random_state=0,
+    )
+    clf.fit(x_tr_scaled, y_tr)
+    coefs = clf.coef_[0]
+    intercept = float(clf.intercept_[0])
+    coeff_dict = {name: float(coefs[i]) for i, name in enumerate(FEATURE_NAMES)}
+    coeff_dict["intercept"] = intercept
+    return FitResult(classifier=clf, scaler=scaler, coefficients=coeff_dict)
+
+
+def score_physics_classifier(
+    fold: LocoFold,
+    items: list[tuple[Path, int]],
+    cfg: PhysicsConfig | None = None,
+) -> np.ndarray:
+    """Train logistic regression on fold training features and score items."""
+    p_cfg = cfg if cfg is not None else PhysicsConfig()
+    x_tr, y_tr, _ = build_feature_dataset(
+        fold.train,
+        noise_multiplier=p_cfg.noise_multiplier,
+        energy_window=p_cfg.energy_window,
+    )
+    scaler = StandardScaler()
+    fit_res = fit_fold_classifier(x_tr, y_tr, scaler, cfg=p_cfg)
+    x_te, _, _ = build_feature_dataset(
+        items,
+        noise_multiplier=p_cfg.noise_multiplier,
+        energy_window=p_cfg.energy_window,
+    )
+    if len(x_te) == 0:
+        return np.empty(0, dtype=np.float64)
+    x_te_scaled = fit_res.scaler.transform(x_te)
+    return fit_res.classifier.predict_proba(x_te_scaled)[:, 1]
+
+
+score_physics_fold = score_physics_classifier

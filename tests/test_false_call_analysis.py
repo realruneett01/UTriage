@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -291,3 +292,78 @@ def test_run_false_call_analysis_exploratory_config(tmp_path: Path) -> None:
     assert result["run_label"] == "exploratory"
     assert result["detector_config"]["is_default"] is False
     assert result["thresholds"]["supervised"] == 0.6
+
+
+def test_cli_help_from_temp_dir(tmp_path: Path) -> None:
+    """Verify running false call analysis script with --help from isolated directory succeeds."""
+    script = str(Path(__file__).resolve().parents[1] / "experiments" / "run_false_call_analysis.py")
+    res = subprocess.run(  # noqa: S603
+        [sys.executable, script, "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert res.returncode == 0
+
+
+def _create_test_items(tmp_path: Path) -> list[tuple[Path, int]]:
+    """Generate minimal fake batch files and return item coordinates."""
+    batch_dir = tmp_path / "batch_data"
+    batch_dir.mkdir(parents=True)
+    batch_path = batch_dir / "test_batch.bins"
+    flaws = [{"size": "1.6"}, {"size": "4.0"}, {"size": "0.0"}, {"size": "0.0"}]
+    labels = [(1.0, 1.6), (1.0, 4.0), (0.0, 0.0), (0.0, 0.0)]
+    _make_fake_batch(batch_path, flaws, labels, seed=42)
+    return [(batch_path, i) for i in range(len(flaws))]
+
+
+def test_build_feature_dataset_shapes(tmp_path: Path) -> None:
+    """Verify build_feature_dataset extracts correct feature, label, and size arrays."""
+    from utriage.ml.physics_features import build_feature_dataset
+
+    items = _create_test_items(tmp_path)
+    x_arr, y_arr, s_arr = build_feature_dataset(items)
+    assert x_arr.shape == (4, 8)
+    assert y_arr.shape == (4,)
+    assert s_arr.shape == (4,)
+
+    x_empty, y_empty, s_empty = build_feature_dataset([])
+    assert x_empty.shape == (0, 8)
+    assert y_empty.shape == (0,)
+    assert s_empty.shape == (0,)
+
+
+def test_fit_fold_classifier_output(tmp_path: Path) -> None:
+    """Verify fit_fold_classifier fits StandardScaler and LogisticRegression."""
+    from sklearn.preprocessing import StandardScaler
+
+    from utriage.ml.physics_features import FitResult, build_feature_dataset, fit_fold_classifier
+
+    items = _create_test_items(tmp_path)
+    x_tr, y_tr, _ = build_feature_dataset(items)
+    scaler = StandardScaler()
+    fit_res = fit_fold_classifier(x_tr, y_tr, scaler)
+
+    assert isinstance(fit_res, FitResult)
+    assert len(fit_res.coefficients) == 9
+    assert "intercept" in fit_res.coefficients
+
+
+@pytest.mark.parametrize("empty_test", [False, True], ids=["with_items", "empty_items"])
+def test_score_physics_classifier_predictions(tmp_path: Path, empty_test: bool) -> None:
+    """Verify score_physics_classifier outputs valid probabilities for fold test items."""
+    from utriage.ml.loco import LocoFold
+    from utriage.ml.physics_features import score_physics_classifier, score_physics_fold
+
+    items = _create_test_items(tmp_path)
+    fold = LocoFold(held_out="crack_1.6", train=items, val=[], test=items)
+    test_items = [] if empty_test else items
+    scores = score_physics_classifier(fold, test_items)
+
+    expected_len = 0 if empty_test else len(items)
+    assert len(scores) == expected_len
+    if not empty_test:
+        assert all(0.0 <= float(s) <= 1.0 for s in scores)
+    assert score_physics_fold is score_physics_classifier

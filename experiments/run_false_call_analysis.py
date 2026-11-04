@@ -18,20 +18,10 @@ from typing import Any
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
-if "utriage" in sys.modules:
-    _pkg_dir = str(Path(_SRC) / "utriage")
-    if _pkg_dir not in sys.modules["utriage"].__path__:
-        del sys.modules["utriage"]
 
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
-from experiments.run_physics_model import (  # noqa: E402
-    build_feature_dataset,
-    fit_fold_classifier,
-)
-from sklearn.linear_model import LogisticRegression  # noqa: E402
-from sklearn.preprocessing import StandardScaler  # noqa: E402
 from torch.utils.data import DataLoader  # noqa: E402
 
 from utriage.detector_config import (  # noqa: E402
@@ -49,6 +39,7 @@ from utriage.ml.datasets import (  # noqa: E402
 from utriage.ml.infer import load_model  # noqa: E402
 from utriage.ml.loco import IndexedMlNdtDataset, LocoFold, make_folds  # noqa: E402
 from utriage.ml.mlndt_meta import image_index  # noqa: E402
+from utriage.ml.physics_features import score_physics_classifier  # noqa: E402
 from utriage.ml.train import TrainConfig, pick_device, predict, set_seed  # noqa: E402
 from utriage.report.failures import compute_image_snr, is_near_edge  # noqa: E402
 from utriage.report.false_calls import (  # noqa: E402
@@ -360,15 +351,7 @@ def _score_physics_classifier(
     items: list[tuple[Path, int]],
 ) -> np.ndarray:
     """Train logistic regression on fold training features and score items."""
-    x_tr, y_tr, _ = build_feature_dataset(fold.train)
-    scaler = StandardScaler()
-    clf = LogisticRegression(class_weight="balanced", C=1.0, max_iter=1000, random_state=0)
-    fit_res = fit_fold_classifier(x_tr, y_tr, scaler) if hasattr(clf, "fit") else None
-    x_te, _, _ = build_feature_dataset(items)
-    if len(x_te) == 0:
-        return np.empty(0, dtype=np.float64)
-    x_te_scaled = fit_res.scaler.transform(x_te)
-    return fit_res.classifier.predict_proba(x_te_scaled)[:, 1]
+    return score_physics_classifier(fold, items)
 
 
 def _diagnose_image(
