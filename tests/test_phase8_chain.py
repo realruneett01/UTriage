@@ -24,6 +24,8 @@ EXPECTED_STAGES: tuple[str, ...] = (
     "experiments/run_hybrid.py",
     "experiments/run_physics_model.py",
     "experiments/run_false_call_analysis.py",
+    "experiments/run_site_adaptation.py",
+    "experiments/run_joint_train.py",
     "experiments/run_fit_diagnostics.py",
     "experiments/run_failures.py",
     "experiments/run_hardware.py",
@@ -58,8 +60,10 @@ def test_experiment_scripts_constant_order() -> None:
     h_idx = EXPERIMENT_SCRIPTS.index("experiments/run_hybrid.py")
     p_idx = EXPERIMENT_SCRIPTS.index("experiments/run_physics_model.py")
     f_idx = EXPERIMENT_SCRIPTS.index("experiments/run_false_call_analysis.py")
+    s_idx = EXPERIMENT_SCRIPTS.index("experiments/run_site_adaptation.py")
+    j_idx = EXPERIMENT_SCRIPTS.index("experiments/run_joint_train.py")
     d_idx = EXPERIMENT_SCRIPTS.index("experiments/run_fit_diagnostics.py")
-    assert c_idx < h_idx < p_idx < f_idx < d_idx
+    assert c_idx < h_idx < p_idx < f_idx < s_idx < j_idx < d_idx
 
 
 def test_stage_order_when_all_exist(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -110,6 +114,8 @@ def test_missing_script_skipped_with_note(
         ("experiments/run_hybrid.py", True),
         ("experiments/run_physics_model.py", True),
         ("experiments/run_false_call_analysis.py", True),
+        ("experiments/run_site_adaptation.py", True),
+        ("experiments/run_joint_train.py", True),
         ("experiments/run_fit_diagnostics.py", True),
         ("experiments/run_failures.py", True),
         ("experiments/run_hardware.py", False),

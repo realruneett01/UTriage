@@ -2,8 +2,9 @@
 
 Regenerates all Phase 8 experiments from scratch in sequence:
 audit -> LOCO -> anomaly -> sim generalization -> cross-dataset -> hybrid ->
-physics model -> false call analysis -> diagnostics -> failures -> hardware ->
-data inventory -> generalization matrix -> claims/resume bullets.
+physics model -> false call analysis -> site adaptation -> joint train ->
+diagnostics -> failures -> hardware -> data inventory -> generalization matrix ->
+claims/resume bullets.
 """
 
 from __future__ import annotations
@@ -31,6 +32,8 @@ EXPERIMENT_SCRIPTS: tuple[str, ...] = (
     "experiments/run_hybrid.py",
     "experiments/run_physics_model.py",
     "experiments/run_false_call_analysis.py",
+    "experiments/run_site_adaptation.py",
+    "experiments/run_joint_train.py",
     "experiments/run_fit_diagnostics.py",
     "experiments/run_failures.py",
     "experiments/run_hardware.py",
@@ -51,6 +54,8 @@ QUICK_CAPABLE: frozenset[str] = frozenset(
         "run_hybrid.py",
         "run_physics_model.py",
         "run_false_call_analysis.py",
+        "run_site_adaptation.py",
+        "run_joint_train.py",
         "run_fit_diagnostics.py",
         "run_failures.py",
     }
