@@ -84,6 +84,10 @@ def test_missing_script_skipped_with_note(
 ) -> None:
     """Missing script like run_false_call_analysis is skipped with printed note."""
     mock_run = _setup_mock_run(monkeypatch)
+    monkeypatch.setattr(
+        "experiments.run_phase8.Path.is_file",
+        lambda self: self.name != "run_false_call_analysis.py",
+    )
     cfg = Phase8Config(results_dir=tmp_path)
     run_phase8(cfg)
 
