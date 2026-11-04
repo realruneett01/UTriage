@@ -40,6 +40,7 @@ from utriage.ml.site_adapt import (  # noqa: E402
     apply_site_stats,
     calibrate_site_threshold,
     fit_site_stats,
+    min_clean_scans,
     recalibrate_batchnorm,
 )
 from utriage.ml.train import pick_device, set_seed  # noqa: E402
@@ -113,6 +114,29 @@ class SiteAdaptationConfig:
     device: str = "auto"
     seed: int = 0
     quick: bool = False
+
+
+@dataclass(frozen=True)
+class PartitionResult:
+    """Disjoint calibration clean, test clean, and test flawed item partitions."""
+
+    cal_clean: list[tuple[Path, int]]
+    test_clean: list[tuple[Path, int]]
+    test_flawed: list[tuple[Path, int]]
+    overlaps_model_training: bool
+    underpowered: bool
+    min_required: int
+    fcr_choice_reason: str
+
+
+@dataclass(frozen=True)
+class ExperimentPayloadInput:
+    """Input metadata required to generate output JSON payload."""
+
+    cfg: SiteAdaptationConfig
+    data: ShiftEvaluationData
+    part: PartitionResult
+    model_sha: str
 
 
 def apply_shift(
@@ -250,26 +274,112 @@ def evaluate_shift(
     }
 
 
+def _assert_disjoint_partitions(
+    cal_clean: list[tuple[Path, int]],
+    test_clean: list[tuple[Path, int]],
+    test_flawed: list[tuple[Path, int]],
+) -> None:
+    """Assert zero index overlap between calibration clean items and test items."""
+    cal_set = set(cal_clean)
+    test_set = set(test_clean) | set(test_flawed)
+    overlap = cal_set & test_set
+    assert not overlap, f"Calibration and test overlap: {overlap}"  # noqa: S101
+
+
+def _extract_clean_flawed(
+    batches: Sequence[Path],
+) -> tuple[list[tuple[Path, int]], list[tuple[Path, int]]]:
+    """Extract clean (label 0) and flawed (label 1) (batch, index) pairs from batches."""
+    clean_items: list[tuple[Path, int]] = []
+    flawed_items: list[tuple[Path, int]] = []
+    for b in batches:
+        lbl = read_labels(b)[:, 0]
+        for i in np.where(lbl == 0)[0]:
+            clean_items.append((b, int(i)))
+        for i in np.where(lbl == 1)[0]:
+            flawed_items.append((b, int(i)))
+    return clean_items, flawed_items
+
+
+def _partition_validation_split(
+    val_batches: list[Path],
+    seed: int,
+) -> tuple[list[tuple[Path, int]], list[tuple[Path, int]], list[tuple[Path, int]]]:
+    """Split validation batches into validation calibration clean, test clean, and test flawed."""
+    if len(val_batches) >= 2:
+        cal_b, test_b = split_holdout(val_batches, test_frac=0.5, seed=seed)
+        val_cal_clean, _ = _extract_clean_flawed(cal_b)
+        test_clean, test_flawed = _extract_clean_flawed(test_b)
+        return val_cal_clean, test_clean, test_flawed
+    if not val_batches:
+        return [], [], []
+    b = val_batches[0]
+    lbl = read_labels(b)[:, 0]
+    cl_idx = np.where(lbl == 0)[0]
+    mid = len(cl_idx) // 2
+    cal_clean = [(b, int(i)) for i in cl_idx[:mid]]
+    test_clean = [(b, int(i)) for i in cl_idx[mid:]]
+    test_flawed = [(b, int(i)) for i in np.where(lbl == 1)[0]]
+    return cal_clean, test_clean, test_flawed
+
+
+def _partition_training_batches(
+    tr_batches: list[Path],
+) -> tuple[list[tuple[Path, int]], list[tuple[Path, int]], set[Path]]:
+    """Split training batches into untrained holdout, trained clean, and trained batch paths."""
+    if not tr_batches:
+        return [], [], set()
+    non_ho, ho = split_holdout(tr_batches, test_frac=0.1, seed=0)
+    ho_clean, _ = _extract_clean_flawed(ho)
+    trained_clean, _ = _extract_clean_flawed(non_ho)
+    trained_batches = {b.resolve() for b in non_ho}
+    return ho_clean, trained_clean, trained_batches
+
+
+def _make_fcr_reason(fcr: float, n_cal: int, min_req: int, underpowered: bool) -> str:
+    """Generate explanatory text for target false call rate power status."""
+    if underpowered:
+        return (
+            f"Target FCR {fcr} requires {min_req} clean scans, "
+            f"but only {n_cal} available (calibration underpowered)"
+        )
+    return f"Target FCR {fcr} requires {min_req} clean scans; calibration pool has {n_cal} scans"
+
+
+def partition_adaptation_data(
+    val_batches: list[Path],
+    tr_batches: list[Path],
+    cfg: SiteAdaptationConfig,
+) -> PartitionResult:
+    """Partition ML-NDT data into disjoint calibration clean, test clean, and test flawed sets."""
+    val_cal, tc, tf = _partition_validation_split(val_batches, cfg.seed)
+    ho_clean, tr_clean, trained_b = _partition_training_batches(tr_batches)
+
+    untrained = val_cal + ho_clean
+    min_req = min_clean_scans(cfg.fcr)
+    candidate_cal = list(untrained) if len(untrained) >= min_req else untrained + tr_clean
+
+    lim = 16 if cfg.quick else sys.maxsize
+    cal_clean = candidate_cal[:lim]
+    test_clean = tc[:lim]
+    test_flawed = tf[:lim]
+
+    _assert_disjoint_partitions(cal_clean, test_clean, test_flawed)
+    overlaps = any(b.resolve() in trained_b for b, _ in cal_clean)
+    underpowered = len(cal_clean) < min_req
+    reason = _make_fcr_reason(cfg.fcr, len(cal_clean), min_req, underpowered)
+    return PartitionResult(
+        cal_clean, test_clean, test_flawed, overlaps, underpowered, min_req, reason
+    )
+
+
 def _partition_val_items(
     batches: list[Path],
     seed: int,
     quick: bool,
 ) -> tuple[list[tuple[Path, int]], list[tuple[Path, int]], list[tuple[Path, int]]]:
     """Extract disjoint calibration clean, test clean, and test flawed item indices."""
-    if len(batches) >= 2:
-        cal_b, test_b = split_holdout(batches, test_frac=0.5, seed=seed)
-        cal_clean = [(b, int(i)) for b in cal_b for i in np.where(read_labels(b)[:, 0] == 0)[0]]
-        test_clean = [(b, int(i)) for b in test_b for i in np.where(read_labels(b)[:, 0] == 0)[0]]
-        test_flawed = [(b, int(i)) for b in test_b for i in np.where(read_labels(b)[:, 0] == 1)[0]]
-    else:
-        b = batches[0]
-        lbl = read_labels(b)
-        cl_idx = np.where(lbl[:, 0] == 0)[0]
-        mid = len(cl_idx) // 2
-        cal_clean = [(b, int(i)) for i in cl_idx[:mid]]
-        test_clean = [(b, int(i)) for i in cl_idx[mid:]]
-        test_flawed = [(b, int(i)) for i in np.where(lbl[:, 0] == 1)[0]]
-
+    cal_clean, test_clean, test_flawed = _partition_validation_split(batches, seed)
     lim = 16 if quick else sys.maxsize
     return cal_clean[:lim], test_clean[:lim], test_flawed[:lim]
 
@@ -324,9 +434,7 @@ def _load_model(path: Path, dev: torch.device) -> ConvAE2D:
 
 
 def _build_payload(
-    cfg: SiteAdaptationConfig,
-    data: ShiftEvaluationData,
-    model_sha: str,
+    inp: ExperimentPayloadInput,
     shifts: dict[str, Any],
 ) -> dict[str, Any]:
     """Construct complete JSON payload with limits and provenance information."""
@@ -334,18 +442,38 @@ def _build_payload(
         "label": DATASET_LABEL,
         "dataset_label": DATASET_LABEL,
         "limits": LIMITS_TEXT,
-        "model_sha256": model_sha,
-        "seed": cfg.seed,
-        "target_fcr": cfg.fcr,
-        "original_threshold": float(data.t_orig),
+        "model_sha256": inp.model_sha,
+        "seed": inp.cfg.seed,
+        "target_fcr": inp.cfg.fcr,
+        "original_threshold": float(inp.data.t_orig),
         "n_images": {
-            "cal_clean": len(data.cal_clean),
-            "test_clean": len(data.test_clean),
-            "test_flawed": len(data.test_flawed),
-            "total": len(data.cal_clean) + len(data.test_clean) + len(data.test_flawed),
+            "cal_clean": len(inp.data.cal_clean),
+            "test_clean": len(inp.data.test_clean),
+            "test_flawed": len(inp.data.test_flawed),
+            "total": len(inp.data.cal_clean) + len(inp.data.test_clean) + len(inp.data.test_flawed),
         },
         "shifts": shifts,
+        "n_calib_clean": len(inp.data.cal_clean),
+        "min_clean_required": inp.part.min_required,
+        "calibration_underpowered": inp.part.underpowered,
+        "calib_overlaps_model_training": inp.part.overlaps_model_training,
+        "fcr_choice_reason": inp.part.fcr_choice_reason,
     }
+
+
+def _print_underpowered_warning(n_cal: int, min_req: int, fcr: float) -> None:
+    """Print standard warning when calibration clean pool is underpowered."""
+    print(
+        f"WARNING: calibration clean pool ({n_cal}) below recommended minimum "
+        f"({min_req}) for target FCR {fcr} at 95% confidence (underpowered)."
+    )
+
+
+def _write_site_payload(out_dir: Path, payload: dict[str, Any]) -> None:
+    """Write site adaptation evaluation payload to site_adaptation.json."""
+    out_file = out_dir / "site_adaptation.json"
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def run_site_adaptation(cfg: SiteAdaptationConfig) -> dict[str, Any]:
@@ -354,25 +482,25 @@ def run_site_adaptation(cfg: SiteAdaptationConfig) -> dict[str, Any]:
     dev = pick_device(cfg.device)
     model_path = _resolve_model_path(cfg.models_dir, cfg.model_path)
     model = _load_model(model_path, dev)
-    model_sha = sha256_file(model_path)
 
-    val_batches = list_batches("validation", root=cfg.root)
-    cal_idx, tc_idx, tf_idx = _partition_val_items(val_batches, cfg.seed, cfg.quick)
-    cal_clean = _stream_scan_images(cal_idx)
-    test_clean = _stream_scan_images(tc_idx)
-    test_flawed = _stream_scan_images(tf_idx)
+    val_b, tr_b = list_batches("validation", root=cfg.root), list_batches("training", root=cfg.root)
+    part = partition_adaptation_data(val_b, tr_b, cfg)
+    cal_cl = _stream_scan_images(part.cal_clean)
+    test_cl = _stream_scan_images(part.test_clean)
+    test_fl = _stream_scan_images(part.test_flawed)
 
-    cal_scores = score_images(model, cal_clean, dev)
-    t_orig = calibrate_site_threshold(cal_scores, false_call_rate=cfg.fcr).threshold
-    data = ShiftEvaluationData(cal_clean, test_clean, test_flawed, t_orig)
+    if part.underpowered:
+        _print_underpowered_warning(len(cal_cl), part.min_required, cfg.fcr)
+
+    t_orig = calibrate_site_threshold(score_images(model, cal_cl, dev), cfg.fcr).threshold
+    data = ShiftEvaluationData(cal_cl, test_cl, test_fl, t_orig)
     settings = ShiftEvalSettings(cfg.fcr, dev, batch_size=32, seed=cfg.seed)
+    shifts = {s.name: evaluate_shift(model, s, data, settings) for s in FIXED_SHIFTS}
 
-    shift_results = {s.name: evaluate_shift(model, s, data, settings) for s in FIXED_SHIFTS}
-    payload = _build_payload(cfg, data, model_sha, shift_results)
-
-    out_file = cfg.out_dir / "site_adaptation.json"
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    out_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    payload = _build_payload(
+        ExperimentPayloadInput(cfg, data, part, sha256_file(model_path)), shifts
+    )
+    _write_site_payload(cfg.out_dir, payload)
     return payload
 
 
