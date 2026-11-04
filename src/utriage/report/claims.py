@@ -655,6 +655,269 @@ def _build_loco_crackval_claim(results_dir: Path) -> Claim | None:
     )
 
 
+def _extract_seed_metrics(models: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract detection range and false call counts across seed models."""
+    seeds = [m for name, m in models.items() if "_seed" in name]
+    targets = seeds if seeds else list(models.values())
+    if not targets:
+        return None
+    k_vals: list[int] = []
+    n_vals: list[int] = []
+    fc_vals: list[int] = []
+    scans_vals: list[int] = []
+    for m in targets:
+        h2 = m.get("methods", {}).get("h2", {})
+        det, fc = h2.get("detection", {}), h2.get("false_calls", {})
+        if "k" in det and "n" in det:
+            k_vals.append(int(det["k"]))
+            n_vals.append(int(det["n"]))
+        if "n_false" in fc and "n_scans" in fc:
+            fc_vals.append(int(fc["n_false"]))
+            scans_vals.append(int(fc["n_scans"]))
+    if not k_vals or not fc_vals:
+        return None
+    return {
+        "min_k": min(k_vals),
+        "max_k": max(k_vals),
+        "n": n_vals[0],
+        "n_false": max(fc_vals),
+        "n_scans": scans_vals[0],
+    }
+
+
+def _format_hybrid_fold(crack: str, fold: dict[str, Any]) -> tuple[str, dict[str, float]] | None:
+    """Format single crack fold description and counts for hybrid H2."""
+    models = fold.get("models")
+    if not isinstance(models, dict):
+        return None
+    m = _extract_seed_metrics(models)
+    if m is None:
+        return None
+    min_k, max_k = m["min_k"], m["max_k"]
+    n, n_false, n_scans = m["n"], m["n_false"], m["n_scans"]
+    part = (
+        f"{crack}: detections range across seeds {min_k}-{max_k}/{n}, "
+        f"false calls {n_false}/{n_scans}"
+    )
+    nums = {
+        f"{crack}_min_k": float(min_k),
+        f"{crack}_max_k": float(max_k),
+        f"{crack}_n": float(n),
+        f"{crack}_n_false": float(n_false),
+        f"{crack}_n_scans": float(n_scans),
+    }
+    return part, nums
+
+
+def _build_hybrid_h2_claim(data_or_dir: dict[str, Any] | Path) -> Claim | None:
+    """Build claim for hybrid H2 score fusion across seeds."""
+    data = (
+        data_or_dir
+        if isinstance(data_or_dir, dict)
+        else _load_json(data_or_dir / "hybrid_metrics.json")
+    )
+    if data is None:
+        return None
+    folds = data.get("folds")
+    if not isinstance(folds, dict) or not folds:
+        print("Skipping hybrid_h2: folds data missing", file=sys.stderr)
+        return None
+    parts: list[str] = []
+    numbers: dict[str, float] = {}
+    for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
+        res = _format_hybrid_fold(crack, folds.get(crack, {}))
+        if res is not None:
+            parts.append(res[0])
+            numbers.update(res[1])
+    if not parts:
+        return None
+    prefix = "Exploratory: " if data.get("run_label") == "exploratory" else ""
+    text = f"{prefix}Hybrid H2: {'; '.join(parts)}."
+    scope = (
+        "pre-registered ADR 0010, one weld PAUT public dataset, 3 physical cracks, seed-sensitive"
+    )
+    return Claim(
+        id="hybrid_h2",
+        text=text,
+        evidence_file="results/hybrid_metrics.json",
+        evidence_path="folds",
+        scope_limit=scope,
+        numbers=numbers,
+    )
+
+
+def _get_fold_dict(folds_raw: Any) -> dict[str, dict[str, Any]]:
+    """Convert folds list or dict to dictionary keyed by held_out crack."""
+    if isinstance(folds_raw, dict):
+        return {str(k): v for k, v in folds_raw.items() if isinstance(v, dict)}
+    if isinstance(folds_raw, list):
+        res: dict[str, dict[str, Any]] = {}
+        for item in folds_raw:
+            if isinstance(item, dict) and "held_out" in item:
+                res[str(item["held_out"])] = item
+        return res
+    return {}
+
+
+def _format_physics_fold(crack: str, fold: dict[str, Any]) -> tuple[str, dict[str, float]] | None:
+    """Format single crack fold description and metrics for physics H3."""
+    det = fold.get("detections", fold.get("detection", {}))
+    fc = fold.get("false_calls", {})
+    if not isinstance(det, dict) or not isinstance(fc, dict):
+        return None
+    k = int(det.get("k", det.get("n_hit", 0)))
+    n = int(det.get("n", det.get("n_flawed", 0)))
+    n_false = int(fc.get("n_false", 0))
+    n_clean = int(fc.get("n_clean", fc.get("n_scans", fc.get("n_unflawed", 0))))
+    if n <= 0 or n_clean <= 0:
+        return None
+    part = f"{crack}: detections {k}/{n}, false calls {n_false}/{n_clean}"
+    nums = {
+        f"{crack}_k": float(k),
+        f"{crack}_n": float(n),
+        f"{crack}_n_false": float(n_false),
+        f"{crack}_n_clean": float(n_clean),
+    }
+    return part, nums
+
+
+def _build_physics_h3_claim(data_or_dir: dict[str, Any] | Path) -> Claim | None:
+    """Build claim for physics feature model H3 across cracks."""
+    data = (
+        data_or_dir
+        if isinstance(data_or_dir, dict)
+        else _load_json(data_or_dir / "physics_model_metrics.json")
+    )
+    if data is None:
+        return None
+    fold_dict = _get_fold_dict(data.get("folds"))
+    if not fold_dict:
+        print("Skipping physics_h3: folds data missing", file=sys.stderr)
+        return None
+    parts: list[str] = []
+    numbers: dict[str, float] = {}
+    for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
+        res = _format_physics_fold(crack, fold_dict.get(crack, {}))
+        if res is not None:
+            parts.append(res[0])
+            numbers.update(res[1])
+    if not parts:
+        return None
+    prefix = "Exploratory: " if data.get("run_label") == "exploratory" else ""
+    text = f"{prefix}Physics model H3: {'; '.join(parts)}."
+    scope = "pre-registered ADR 0010 addendum, coefficients unstable across folds"
+    return Claim(
+        id="physics_h3",
+        text=text,
+        evidence_file="results/physics_model_metrics.json",
+        evidence_path="folds",
+        scope_limit=scope,
+        numbers=numbers,
+    )
+
+
+def _get_h2_det_rate(fold: dict[str, Any]) -> float:
+    """Retrieve best or mean H2 detection rate for a fold."""
+    models = fold.get("models", {})
+    if isinstance(models, dict):
+        for name, m in models.items():
+            if name.endswith(".pt") and "_seed" not in name:
+                det = m.get("methods", {}).get("h2", {}).get("detection", {})
+                if "rate" in det:
+                    return float(det["rate"])
+        seed_rates = [
+            float(m.get("methods", {}).get("h2", {}).get("detection", {}).get("rate", 0.0))
+            for name, m in models.items()
+            if "_seed" in name
+        ]
+        if seed_rates:
+            return sum(seed_rates) / len(seed_rates)
+    agg_rate = fold.get("aggregate", {}).get("h2", {}).get("mean_detection_rate")
+    return float(agg_rate) if agg_rate is not None else 0.0
+
+
+def _get_h3_det_rate(fold: dict[str, Any]) -> float:
+    """Retrieve H3 detection rate for a fold."""
+    det = fold.get("detections", fold.get("detection", {}))
+    if isinstance(det, dict) and "rate" in det:
+        return float(det["rate"])
+    k = float(det.get("k", 0))
+    n = float(det.get("n", 1))
+    return k / n if n > 0 else 0.0
+
+
+def _build_hybrid_comparison_claim(
+    h_input: dict[str, Any] | Path, p_input: dict[str, Any] | None = None
+) -> Claim | None:
+    """Build claim comparing H2 and H3 performance across cracks."""
+    h_data = _load_json(h_input / "hybrid_metrics.json") if isinstance(h_input, Path) else h_input
+    p_data = (
+        _load_json(h_input / "physics_model_metrics.json") if isinstance(h_input, Path) else p_input
+    )
+    if h_data is None or p_data is None:
+        return None
+    h_folds = h_data.get("folds", {})
+    p_folds = _get_fold_dict(p_data.get("folds"))
+    f_1_6_h, f_1_6_p = h_folds.get("crack_1.6", {}), p_folds.get("crack_1.6", {})
+    f_4_0_h, f_4_0_p = h_folds.get("crack_4.0", {}), p_folds.get("crack_4.0", {})
+    h2_1_6, h3_1_6 = _get_h2_det_rate(f_1_6_h), _get_h3_det_rate(f_1_6_p)
+    h2_4_0, h3_4_0 = _get_h2_det_rate(f_4_0_h), _get_h3_det_rate(f_4_0_p)
+    w_1_6 = "H2" if h2_1_6 >= h3_1_6 else "H3"
+    w_4_0 = "H3" if h3_4_0 >= h2_4_0 else "H2"
+    is_exp = any(
+        [
+            h_data.get("run_label") == "exploratory",
+            p_data.get("run_label") == "exploratory",
+        ]
+    )
+    pfx = "Exploratory: " if is_exp else ""
+    text = f"{pfx}{w_1_6} strongest on the 1.6 mm crack, {w_4_0} strongest on the 4.0 mm crack."
+    scope = "pre-registered ADR 0010, one weld PAUT public dataset, 3 physical cracks"
+    return Claim(
+        id="hybrid_comparison",
+        text=text,
+        evidence_file="results/hybrid_metrics.json",
+        evidence_path="folds",
+        scope_limit=scope,
+        numbers={"crack_1.6": 1.6, "crack_4.0": 4.0},
+    )
+
+
+def _collect_h2_claim(h_data: dict[str, Any] | None) -> Claim | None:
+    """Build hybrid H2 claim if data is available."""
+    if h_data is None:
+        return None
+    return _build_hybrid_h2_claim(h_data)
+
+
+def _collect_h3_claim(p_data: dict[str, Any] | None) -> Claim | None:
+    """Build physics H3 claim if data is available."""
+    if p_data is None:
+        return None
+    return _build_physics_h3_claim(p_data)
+
+
+def _collect_comparison_claim(
+    h_data: dict[str, Any] | None, p_data: dict[str, Any] | None
+) -> Claim | None:
+    """Build comparison claim if both H2 and H3 data are available."""
+    if h_data is None or p_data is None:
+        return None
+    return _build_hybrid_comparison_claim(h_data, p_data)
+
+
+def _collect_hybrid_claims(r_dir: Path) -> list[Claim]:
+    """Collect hybrid H2, physics H3, and comparison claims."""
+    h_data = _load_json(r_dir / "hybrid_metrics.json")
+    p_data = _load_json(r_dir / "physics_model_metrics.json")
+    candidates = [
+        _collect_h2_claim(h_data),
+        _collect_h3_claim(p_data),
+        _collect_comparison_claim(h_data, p_data),
+    ]
+    return [c for c in candidates if c is not None]
+
+
 def build_claims(results_dir: Path | str) -> list[Claim]:
     """Build all verified claims composed only from allowed results files."""
     r_dir = Path(results_dir)
@@ -673,5 +936,6 @@ def build_claims(results_dir: Path | str) -> list[Claim]:
     if c_crackval is not None:
         claims.append(c_crackval)
 
+    claims.extend(_collect_hybrid_claims(r_dir))
     claims.extend(_collect_final_claims(r_dir, mat_dict))
     return claims

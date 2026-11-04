@@ -563,3 +563,169 @@ def test_loco_crackval_false_calls_swing_sentence(
         assert f"false calls exceed half the clean images in fold {fold_name}" in claim.text
     else:
         assert "exceed half" not in claim.text
+
+
+def _make_fake_hybrid_fold(
+    crack: str, k_range: tuple[int, int], n: int, n_false: int, n_scans: int
+) -> dict[str, Any]:
+    """Helper creating a single fold dictionary for fake hybrid_metrics.json."""
+    min_k, max_k = k_range
+    return {
+        "held_out": crack,
+        "models": {
+            f"loco_{crack}_seed0.pt": {
+                "methods": {
+                    "h2": {
+                        "detection": {"k": min_k, "n": n, "rate": min_k / n},
+                        "false_calls": {
+                            "n_false": n_false,
+                            "n_scans": n_scans,
+                            "rate": n_false / n_scans,
+                        },
+                    }
+                }
+            },
+            f"loco_{crack}_seed1.pt": {
+                "methods": {
+                    "h2": {
+                        "detection": {"k": max_k, "n": n, "rate": max_k / n},
+                        "false_calls": {
+                            "n_false": n_false,
+                            "n_scans": n_scans,
+                            "rate": n_false / n_scans,
+                        },
+                    }
+                }
+            },
+        },
+    }
+
+
+def _make_fake_hybrid_data(run_label: str = "pre-registered") -> dict[str, Any]:
+    """Helper creating fake hybrid_metrics dictionary."""
+    return {
+        "run_label": run_label,
+        "folds": {
+            "crack_1.6": _make_fake_hybrid_fold("crack_1.6", (3687, 3766), 4014, 7, 778),
+            "crack_4.0": _make_fake_hybrid_fold("crack_4.0", (899, 2272), 4078, 7, 778),
+            "crack_8.6": _make_fake_hybrid_fold("crack_8.6", (3925, 3925), 3925, 7, 778),
+        },
+    }
+
+
+def _make_fake_physics_data(run_label: str = "pre-registered") -> dict[str, Any]:
+    """Helper creating fake physics_model_metrics dictionary."""
+    return {
+        "run_label": run_label,
+        "folds": [
+            {
+                "held_out": "crack_1.6",
+                "detections": {"k": 2661, "n": 4014, "rate": 2661 / 4014},
+                "false_calls": {"n_false": 0, "n_clean": 778, "rate": 0.0},
+            },
+            {
+                "held_out": "crack_4.0",
+                "detections": {"k": 2578, "n": 4078, "rate": 2578 / 4078},
+                "false_calls": {"n_false": 0, "n_clean": 778, "rate": 0.0},
+            },
+            {
+                "held_out": "crack_8.6",
+                "detections": {"k": 3925, "n": 3925, "rate": 1.0},
+                "false_calls": {"n_false": 1, "n_clean": 778, "rate": 1 / 778},
+            },
+        ],
+    }
+
+
+def test_hybrid_h2_claim_present(tmp_path: Path) -> None:
+    """Verify hybrid_h2 claim is constructed with expected numbers and scope."""
+    from utriage.report.claims import build_claims
+
+    data = _make_fake_hybrid_data()
+    (tmp_path / "hybrid_metrics.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim = next((c for c in claims if c.id == "hybrid_h2"), None)
+    assert claim is not None
+    assert claim.evidence_file == "results/hybrid_metrics.json"
+    assert claim.evidence_path == "folds"
+    assert claim.scope_limit == (
+        "pre-registered ADR 0010, one weld PAUT public dataset, 3 physical cracks, seed-sensitive"
+    )
+    for expected in (
+        "crack_1.6: detections range across seeds 3687-3766/4014, false calls 7/778",
+        "crack_4.0: detections range across seeds 899-2272/4078, false calls 7/778",
+        "crack_8.6: detections range across seeds 3925-3925/3925, false calls 7/778",
+    ):
+        assert expected in claim.text
+    for val in claim.numbers.values():
+        assert str(int(val)) in claim.text
+
+
+def test_physics_h3_claim_present(tmp_path: Path) -> None:
+    """Verify physics_h3 claim is constructed with expected numbers and scope."""
+    from utriage.report.claims import build_claims
+
+    data = _make_fake_physics_data()
+    (tmp_path / "physics_model_metrics.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim = next((c for c in claims if c.id == "physics_h3"), None)
+    assert claim is not None
+    assert claim.evidence_file == "results/physics_model_metrics.json"
+    assert claim.evidence_path == "folds"
+    assert (
+        claim.scope_limit == "pre-registered ADR 0010 addendum, coefficients unstable across folds"
+    )
+    for expected in (
+        "crack_1.6: detections 2661/4014, false calls 0/778",
+        "crack_4.0: detections 2578/4078, false calls 0/778",
+        "crack_8.6: detections 3925/3925, false calls 1/778",
+    ):
+        assert expected in claim.text
+    for val in claim.numbers.values():
+        assert str(int(val)) in claim.text
+
+
+def test_hybrid_comparison_claim(tmp_path: Path) -> None:
+    """Verify hybrid_comparison derives strongest methods dynamically from metrics."""
+    from utriage.report.claims import build_claims
+
+    h_data = _make_fake_hybrid_data()
+    p_data = _make_fake_physics_data()
+    (tmp_path / "hybrid_metrics.json").write_text(json.dumps(h_data), encoding="utf-8")
+    (tmp_path / "physics_model_metrics.json").write_text(json.dumps(p_data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim = next((c for c in claims if c.id == "hybrid_comparison"), None)
+    assert claim is not None
+    assert claim.evidence_file == "results/hybrid_metrics.json"
+    assert claim.evidence_path == "folds"
+    assert claim.text == "H2 strongest on the 1.6 mm crack, H3 strongest on the 4.0 mm crack."
+    assert claim.numbers["crack_1.6"] == 1.6
+    assert claim.numbers["crack_4.0"] == 4.0
+
+
+@pytest.mark.parametrize("claim_id", ["hybrid_h2", "physics_h3", "hybrid_comparison"])
+def test_exploratory_prefix_on_claims(tmp_path: Path, claim_id: str) -> None:
+    """Verify exploratory run_label prefixes claim text with Exploratory:."""
+    from utriage.report.claims import build_claims
+
+    h_data = _make_fake_hybrid_data(run_label="exploratory")
+    p_data = _make_fake_physics_data(run_label="exploratory")
+    (tmp_path / "hybrid_metrics.json").write_text(json.dumps(h_data), encoding="utf-8")
+    (tmp_path / "physics_model_metrics.json").write_text(json.dumps(p_data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim = next(c for c in claims if c.id == claim_id)
+    assert claim.text.startswith("Exploratory: ")
+
+
+def test_missing_hybrid_files_skipped(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Verify hybrid claims are skipped with printed reason when files are missing."""
+    from utriage.report.claims import build_claims
+
+    claims = build_claims(tmp_path)
+    ids = {c.id for c in claims}
+    assert "hybrid_h2" not in ids
+    assert "physics_h3" not in ids
+    assert "hybrid_comparison" not in ids
+    captured = capsys.readouterr().err
+    assert "Skipping claims requiring hybrid_metrics.json: file not found" in captured
+    assert "Skipping claims requiring physics_model_metrics.json: file not found" in captured
