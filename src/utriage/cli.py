@@ -7,10 +7,25 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
+import numpy as np
+import torch
+import torch.nn as nn
 import typer
 
 from utriage import __version__
+from utriage.detector_config import DEFAULT_PATH, load_detector_config
 from utriage.integrity import MANIFEST, IntegrityError, require_locked
+from utriage.ml.anomaly import ConvAE2D, anomaly_score
+from utriage.ml.site_adapt import (
+    SiteCalibration,
+    apply_site_stats,
+    calibrate_site_threshold,
+    fit_site_stats,
+    min_clean_scans,
+    recalibrate_batchnorm,
+    save_site_profile,
+)
+from utriage.ml.train import pick_device
 from utriage.physics.dataset import DatasetConfig, generate_dataset, load_scan
 from utriage.physics.figures import plot_cscan
 from utriage.physics.simulator import BarScan
@@ -243,3 +258,155 @@ def triage(
             has_failure = True
     if has_failure:
         raise typer.Exit(code=1)
+
+
+@dataclass(frozen=True)
+class SiteCalibrateOptions:
+    """Options for site adaptation threshold calibration."""
+
+    clean_dir: Path
+    out: Path
+    label: str
+    model: Path = Path("models/anomaly_2d.pt")
+    fcr: float | None = None
+
+
+def _resolve_site_fcr(fcr: float | None) -> float:
+    """Resolve false call rate from option or detector config."""
+    if fcr is not None:
+        return fcr
+    if DEFAULT_PATH.is_file():
+        cfg = load_detector_config(DEFAULT_PATH)
+        return float(cfg.anomaly.target_fcr)
+    typer.secho(
+        "Error: --fcr is required when detector config does not exist.",
+        fg=typer.colors.RED,
+    )
+    raise typer.Exit(code=2)
+
+
+def _load_clean_images(clean_dir: Path) -> list[np.ndarray]:
+    """Load all .npy scan arrays from clean directory in sorted order."""
+    if not clean_dir.is_dir():
+        typer.secho(f"Error: Directory not found: {clean_dir}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    paths = sorted(clean_dir.glob("*.npy"))
+    if not paths:
+        typer.secho(f"Error: No .npy files found in {clean_dir}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    return [np.load(p) for p in paths]
+
+
+def _load_site_model(model_path: Path, dev: torch.device) -> ConvAE2D:
+    """Load trained 2D convolutional autoencoder from checkpoint."""
+    if not model_path.is_file():
+        typer.secho(f"Error: Model not found at {model_path}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    ckpt = torch.load(model_path, map_location=dev, weights_only=True)
+    if isinstance(ckpt, nn.Module):
+        model = ckpt
+    else:
+        model = ConvAE2D()
+        state = ckpt
+        if isinstance(state, dict):
+            state = state.get("state_dict", state.get("model_state_dict", state))
+        model.load_state_dict(state)
+    model.to(dev)
+    model.eval()
+    return model
+
+
+def _prepare_scan_tensors(norm_imgs: list[np.ndarray]) -> list[torch.Tensor]:
+    """Convert normalized arrays into 4D PyTorch tensors (B, 1, H, W)."""
+    same_shape = all(img.shape == norm_imgs[0].shape for img in norm_imgs)
+    if same_shape:
+        stacked = np.stack(norm_imgs, axis=0)
+        t = torch.as_tensor(stacked, dtype=torch.float32)
+        if t.ndim == 3:
+            t = t.unsqueeze(1)
+        return [t]
+    tensors: list[torch.Tensor] = []
+    for img in norm_imgs:
+        arr = torch.as_tensor(img, dtype=torch.float32)
+        while arr.ndim < 4:
+            arr = arr.unsqueeze(0)
+        tensors.append(arr)
+    return tensors
+
+
+def _score_clean_scans(
+    model: nn.Module,
+    tensors: list[torch.Tensor],
+    dev: torch.device,
+) -> list[float]:
+    """Score clean scan tensors using anomaly_score reconstruction error."""
+    scores: list[float] = []
+    for t in tensors:
+        batch_scores = anomaly_score(model, t.to(dev)).detach().cpu().numpy()
+        scores.extend(float(s) for s in np.atleast_1d(batch_scores))
+    return scores
+
+
+def _print_site_results(calib: SiteCalibration, fcr: float) -> None:
+    """Print calibration summary, sample-count warning if low, and advisory notice."""
+    typer.echo(f"n_clean: {calib.n_clean}")
+    typer.echo(f"threshold: {calib.threshold:.6f}")
+    typer.echo(f"upper95_fcr: {calib.upper95_fcr:.4f}")
+    min_scans = min_clean_scans(fcr)
+    if calib.n_clean < min_scans:
+        typer.echo(
+            f"WARNING: clean scans ({calib.n_clean}) below recommended minimum ({min_scans}) "
+            f"for false call rate {fcr} at 95% confidence."
+        )
+    typer.echo(
+        "Advisory only - this profile changes ML thresholds, never rules limits; "
+        "accept/reject stays with the certified inspector."
+    )
+
+
+def _run_site_calibrate(opts: SiteCalibrateOptions) -> None:
+    """Execute site adaptation calibration pipeline."""
+    if opts.label not in {"Real", "Synthetic"}:
+        typer.secho(
+            f"Error: Invalid label {opts.label!r}. Must be 'Real' or 'Synthetic'.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=2)
+    fcr = _resolve_site_fcr(opts.fcr)
+    images = _load_clean_images(opts.clean_dir)
+    stats = fit_site_stats(images, label=opts.label)
+    norm_imgs = [apply_site_stats(img, stats) for img in images]
+    dev = pick_device("auto")
+    model = _load_site_model(opts.model, dev)
+    tensors = _prepare_scan_tensors(norm_imgs)
+    recalibrate_batchnorm(model, tensors, device=dev)
+    scores = _score_clean_scans(model, tensors, dev)
+    calib = calibrate_site_threshold(scores, false_call_rate=fcr)
+    save_site_profile(opts.out, stats, calib, label=opts.label)
+    _print_site_results(calib, fcr)
+
+
+@app.command("site-calibrate")
+def site_calibrate(
+    clean_dir: Annotated[Path, typer.Option("--clean-dir", help="Folder of .npy clean scans")],
+    out: Annotated[Path, typer.Option("--out", help="Profile JSON output path")],
+    label: Annotated[str, typer.Option("--label", help="Data provenance ('Real' or 'Synthetic')")],
+    model: Annotated[
+        Path,
+        typer.Option("--model", help="Path to 2D autoencoder checkpoint"),
+    ] = Path("models/anomaly_2d.pt"),
+    fcr: Annotated[
+        float | None,
+        typer.Option("--fcr", help="Target false call rate (default from detector config)"),
+    ] = None,
+) -> None:
+    """Calibrate ML anomaly detection threshold on clean reference scans."""
+    _enforce_locked()
+    opts = SiteCalibrateOptions(
+        clean_dir=clean_dir,
+        out=out,
+        label=label,
+        model=model,
+        fcr=fcr,
+    )
+    _run_site_calibrate(opts)
