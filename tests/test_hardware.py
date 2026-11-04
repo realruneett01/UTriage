@@ -7,6 +7,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 import torch
@@ -16,6 +17,7 @@ import torch.nn as nn
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "experiments"))
 
 from run_hardware import (  # noqa: E402
+    PROXY_HARDWARE_NOTE,
     BenchmarkSpec,
     _read_linux_cpu_name,
     benchmark_bar_model,
@@ -26,6 +28,7 @@ from run_hardware import (  # noqa: E402
     measure_latency,
     parse_args,
     run_hardware,
+    setup_threads,
     write_hardware_json,
 )
 
@@ -249,3 +252,121 @@ def test_metadata_only_preserves_latency(tmp_path: Path) -> None:
     assert res["cpu_latency_ms"] == orig_latency
     assert loaded["inference_machine"]["processor"] != "old_proc"
     assert "cpu_name" in loaded["inference_machine"]
+
+
+@pytest.mark.parametrize(
+    ("cli_args", "expected_threads"),
+    [
+        (["--threads", "4"], 4),
+        ([], None),
+        (["--n", "100"], None),
+    ],
+)
+def test_parse_args_threads(cli_args: list[str], expected_threads: int | None) -> None:
+    """Argument parser correctly extracts threads option or defaults to None."""
+    args = parse_args(cli_args)
+    assert args.threads == expected_threads
+
+
+def test_torch_num_threads_after_setup() -> None:
+    """Setup sets torch thread count to N and restores old thread count."""
+    old_threads = torch.get_num_threads()
+    target_threads = 2 if old_threads != 2 else 3
+    try:
+        setup_threads(target_threads)
+        assert torch.get_num_threads() == target_threads
+    finally:
+        torch.set_num_threads(old_threads)
+    assert torch.get_num_threads() == old_threads
+
+
+def _assert_proxy_metadata(
+    data: dict[str, Any],
+    threads: int | None,
+    expected: bool,
+) -> None:
+    """Verify presence or absence of proxy metadata fields."""
+    if expected:
+        assert data["threads"] == threads
+        assert data["hardware_note"] == PROXY_HARDWARE_NOTE
+    else:
+        assert "threads" not in data
+        assert "hardware_note" not in data
+
+
+@pytest.mark.parametrize(
+    ("threads_val", "expect_proxy_metadata"),
+    [
+        (3, True),
+        (None, False),
+    ],
+)
+def test_output_contains_threads_and_hardware_note(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    threads_val: int | None,
+    expect_proxy_metadata: bool,
+) -> None:
+    """Output dict and saved JSON include proxy notes when threads is set."""
+    monkeypatch.setattr(
+        "run_hardware.benchmark_mlndt_model",
+        lambda *a, **k: {"status": "skipped", "reason": "mock"},
+    )
+    monkeypatch.setattr(
+        "run_hardware.benchmark_bar_model",
+        lambda *a, **k: {"status": "skipped", "reason": "mock"},
+    )
+    monkeypatch.setattr("run_hardware.list_batches", lambda *a, **k: [])
+    monkeypatch.setattr("run_hardware.load_bar_inputs", lambda *a, **k: [])
+
+    old_threads = torch.get_num_threads()
+    out_file = tmp_path / "hardware_out.json"
+    args = argparse.Namespace(
+        output=str(out_file),
+        metadata_only=False,
+        threads=threads_val,
+        n=10,
+        warmup=2,
+    )
+    try:
+        res = run_hardware(args)
+        _assert_proxy_metadata(res, threads_val, expect_proxy_metadata)
+    finally:
+        torch.set_num_threads(old_threads)
+
+
+@pytest.mark.parametrize(
+    ("threads_val", "expect_proxy_metadata"),
+    [
+        (4, True),
+        (None, False),
+    ],
+)
+def test_metadata_only_threads_and_hardware_note(
+    tmp_path: Path,
+    threads_val: int | None,
+    expect_proxy_metadata: bool,
+) -> None:
+    """Metadata-only execution respects threads and proxy note presence."""
+    fake_path = tmp_path / "hw.json"
+    fake_doc = {
+        "inference_machine": {"processor": "proc", "cpu_count": 4},
+        "training_machine": {"device_name": "gpu", "source_file": "src.json"},
+        "cpu_latency_ms": {"test": {"median_ms": 1.0}},
+    }
+    fake_path.write_text(json.dumps(fake_doc), encoding="utf-8")
+    args = argparse.Namespace(
+        output=str(fake_path),
+        metadata_only=True,
+        threads=threads_val,
+        n=10,
+        warmup=2,
+    )
+    old_threads = torch.get_num_threads()
+    try:
+        res = run_hardware(args)
+        loaded = json.loads(fake_path.read_text(encoding="utf-8"))
+        _assert_proxy_metadata(res, threads_val, expect_proxy_metadata)
+        _assert_proxy_metadata(loaded, threads_val, expect_proxy_metadata)
+    finally:
+        torch.set_num_threads(old_threads)

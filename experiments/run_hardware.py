@@ -33,6 +33,9 @@ from utriage.ml.datasets import (
 )
 from utriage.ml.infer import load_model
 
+PROXY_HARDWARE_NOTE = "CPU thread-limited proxy, NOT measured on the target i5-1135G7"
+HARDWARE_NOTE = PROXY_HARDWARE_NOTE
+
 
 @dataclass(frozen=True)
 class BenchmarkSpec:
@@ -41,6 +44,16 @@ class BenchmarkSpec:
     n: int = 500
     warmup: int = 20
     threads: int = 1
+
+
+def setup_threads(threads: int | None = None) -> None:
+    """Configure torch thread count and execution device before benchmarking."""
+    if threads is not None:
+        torch.set_num_threads(threads)
+        torch.set_default_device("cpu")
+
+
+setup_hardware = setup_threads
 
 
 def _parse_cpuinfo_line(line: str) -> str | None:
@@ -295,19 +308,23 @@ def write_hardware_json(
 def update_hardware_metadata(
     path: Path,
     threads: int | None = None,
+    proxy_threads: int | None = None,
 ) -> dict[str, Any]:
     """Rewrite machine metadata in existing hardware JSON while keeping latencies."""
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     existing_t = data.get("inference_machine", {}).get("torch_num_threads")
-    t = threads or existing_t or torch.get_num_threads()
+    t = threads or (existing_t or torch.get_num_threads())
     data["inference_machine"] = get_inference_machine(t)
     data["training_machine"] = get_training_machine()
+    if proxy_threads is not None:
+        data["threads"] = proxy_threads
+        data["hardware_note"] = PROXY_HARDWARE_NOTE
     write_hardware_json(data, path)
     return data
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     """Parse benchmark command-line arguments."""
     parser = argparse.ArgumentParser(description="Benchmark CPU inference latency.")
     parser.add_argument("--n", type=int, default=500, help="Iteration count (default: 500)")
@@ -319,38 +336,43 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Update only machine metadata in existing output file without re-benchmarking",
     )
-    return parser.parse_args()
+    return parser.parse_args(args)
+
+
+def _collect_benchmark_latencies(spec: BenchmarkSpec) -> dict[str, Any]:
+    """Benchmark ML-NDT and bar models using given spec."""
+    val_batches = list_batches("validation", root=resolve_data_root())
+    val_inputs = load_val_images(val_batches)
+    mlndt_res = benchmark_mlndt_model(resolve_model_path("mlndt_best.pt"), val_inputs, spec)
+    b1_inputs = load_bar_inputs("test_1d_full.npz", channels=1)
+    bar1d_res = benchmark_bar_model(resolve_model_path("bar_1d.pt"), b1_inputs, spec)
+    b2_inputs = load_bar_inputs("test_2d_full.npz", channels=9)
+    bar2d_res = benchmark_bar_model(resolve_model_path("bar_2d.pt"), b2_inputs, spec)
+    return {
+        "mlndt": mlndt_res,
+        "bar_1d": bar1d_res,
+        "bar_2d": bar2d_res,
+    }
 
 
 def run_hardware(args: argparse.Namespace) -> dict[str, Any]:
     """Run full hardware benchmark suite or update metadata in-place."""
-    if args.threads is not None:
-        torch.set_num_threads(args.threads)
+    setup_threads(args.threads)
     threads = torch.get_num_threads()
     out_path = Path(args.output)
     if getattr(args, "metadata_only", False):
-        return update_hardware_metadata(out_path, threads)
+        return update_hardware_metadata(out_path, threads=threads, proxy_threads=args.threads)
 
     spec = BenchmarkSpec(n=args.n, warmup=args.warmup, threads=threads)
-    val_batches = list_batches("validation", root=resolve_data_root())
-    val_inputs = load_val_images(val_batches)
-    mlndt_res = benchmark_mlndt_model(resolve_model_path("mlndt_best.pt"), val_inputs, spec)
-
-    b1_inputs = load_bar_inputs("test_1d_full.npz", channels=1)
-    bar1d_res = benchmark_bar_model(resolve_model_path("bar_1d.pt"), b1_inputs, spec)
-
-    b2_inputs = load_bar_inputs("test_2d_full.npz", channels=9)
-    bar2d_res = benchmark_bar_model(resolve_model_path("bar_2d.pt"), b2_inputs, spec)
-
-    return {
+    results: dict[str, Any] = {
         "inference_machine": get_inference_machine(threads),
         "training_machine": get_training_machine(),
-        "cpu_latency_ms": {
-            "mlndt": mlndt_res,
-            "bar_1d": bar1d_res,
-            "bar_2d": bar2d_res,
-        },
+        "cpu_latency_ms": _collect_benchmark_latencies(spec),
     }
+    if args.threads is not None:
+        results["threads"] = args.threads
+        results["hardware_note"] = PROXY_HARDWARE_NOTE
+    return results
 
 
 def main() -> None:
