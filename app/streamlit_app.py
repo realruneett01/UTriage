@@ -9,6 +9,7 @@ Set `gatherUsageStats = false` in `.streamlit/config.toml`.
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 from datetime import UTC, datetime
@@ -36,6 +37,12 @@ from utriage.app_logic import (  # noqa: E402
 )
 from utriage.integrity import MANIFEST, IntegrityError, require_locked  # noqa: E402
 from utriage.io.validate import MAX_SCAN_BYTES, safe_filename  # noqa: E402
+from utriage.ml.site_adapt import (  # noqa: E402
+    SiteCalibration,
+    SiteProfile,
+    load_site_profile,
+    min_clean_scans,
+)
 from utriage.report.html import ReportInput, render_report  # noqa: E402
 
 DEFAULT_SAMPLE = Path("data/samples/ti64/bar_0000.npz")
@@ -376,6 +383,146 @@ def _page_evidence_limits(session: Session | None) -> None:
         st.image(str(matrix_png), use_container_width=True)
 
 
+def _extract_profile_fields(
+    profile: SiteProfile | dict[str, Any],
+) -> tuple[str, str, int, float, float, float]:
+    """Extract standard fields from SiteProfile or raw dictionary."""
+    if isinstance(profile, SiteProfile):
+        return (
+            profile.label,
+            profile.created,
+            profile.calib.n_clean,
+            profile.calib.false_call_rate,
+            profile.calib.threshold,
+            profile.calib.upper95_fcr,
+        )
+    calib = profile.get("calib", {})
+    if isinstance(calib, SiteCalibration):
+        return (
+            str(profile.get("label", "Synthetic")),
+            str(profile.get("created", "")),
+            calib.n_clean,
+            calib.false_call_rate,
+            calib.threshold,
+            calib.upper95_fcr,
+        )
+    return (
+        str(profile.get("label", "Synthetic")),
+        str(profile.get("created", "")),
+        int(calib.get("n_clean", 0)),
+        float(calib.get("false_call_rate", 0.0)),
+        float(calib.get("threshold", 0.0)),
+        float(calib.get("upper95_fcr", 0.0)),
+    )
+
+
+def profile_summary(profile: SiteProfile | dict[str, Any]) -> dict[str, Any]:
+    """Extract and format site profile calibration summary metrics.
+
+    Parameters
+    ----------
+    profile : SiteProfile | dict[str, Any]
+        Loaded site profile object or dictionary.
+
+    Returns
+    -------
+    dict[str, Any]
+        Summary containing provenance, scan counts, threshold, FCR, and warning.
+    """
+    label, created, n_clean, fcr, thresh, upper95 = _extract_profile_fields(profile)
+    min_scans = min_clean_scans(fcr) if (0.0 < fcr < 1.0) else 0
+    warn = n_clean < min_scans
+    return {
+        "label": label,
+        "n_clean": n_clean,
+        "false_call_rate": fcr,
+        "threshold": thresh,
+        "upper95_fcr": upper95,
+        "created": created,
+        "min_clean_scans": min_scans,
+        "warning": warn,
+        "warning_flag": warn,
+    }
+
+
+def _load_profile_from_source() -> SiteProfile | None:
+    """Load SiteProfile from uploaded file or file system path."""
+    uploaded = st.file_uploader("Upload site profile JSON", type=["json"])
+    path_str = st.text_input("Or enter profile JSON path", value="")
+    if uploaded is not None:
+        try:
+            tmp_dir = Path(tempfile.gettempdir()) / "utriage_profiles"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            tmp_target = upload_target(tmp_dir, uploaded.name)
+            tmp_target.write_bytes(uploaded.getbuffer())
+            return load_site_profile(tmp_target)
+        except (ValueError, json.JSONDecodeError) as exc:
+            # Handle invalid or malformed profile json upload
+            st.error(f"Failed to load uploaded profile: {exc}")
+            return None
+    if path_str.strip():
+        p = Path(path_str.strip())
+        if not p.is_file():
+            st.error(f"Profile file not found: {p}")
+            return None
+        try:
+            return load_site_profile(p)
+        except (ValueError, json.JSONDecodeError) as exc:
+            # Handle invalid profile content at specified path
+            st.error(f"Failed to load profile from path: {exc}")
+            return None
+    return None
+
+
+def _render_profile_metrics(summary: dict[str, Any]) -> None:
+    """Display profile metrics and scan count adequacy warnings."""
+    st.subheader("Profile summary")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Provenance label", summary["label"])
+        st.metric("Clean scans (n_clean)", summary["n_clean"])
+        st.metric("Target false-call rate", f"{summary['false_call_rate']:.4f}")
+    with col2:
+        st.metric("Calibrated threshold", f"{summary['threshold']:.4f}")
+        st.metric("Upper 95% FCR bound", f"{summary['upper95_fcr']:.4f}")
+        st.metric("Created timestamp", summary["created"])
+
+    if summary["warning"]:
+        st.warning(
+            f"Clean scans ({summary['n_clean']}) below recommended minimum "
+            f"({summary['min_clean_scans']}) for target false-call rate "
+            f"{summary['false_call_rate']} at 95% confidence."
+        )
+    else:
+        st.success(
+            f"Clean scans ({summary['n_clean']}) meet or exceed recommended minimum "
+            f"({summary['min_clean_scans']}) for target false-call rate."
+        )
+
+
+def _page_site_calibration(session: Session | None) -> None:
+    """Page 8: Site calibration profile inspection and CLI guidance."""
+    st.header("8 Site calibration")
+    st.caption(
+        "Inspect site-specific acoustic baseline and anomaly threshold profile. "
+        "Site profiles adapt detection thresholds without altering rules limits."
+    )
+    st.info(
+        "Advisory only. A site profile changes ML thresholds only, never rules limits. "
+        "Accept/reject stays with the certified inspector. No plant validation exists."
+    )
+    st.subheader("Create site profile")
+    cmd = (
+        "utriage site-calibrate --clean-dir <clean_dir> "
+        "--out <profile.json> --label <Real|Synthetic>"
+    )
+    st.code(cmd)
+    profile = _load_profile_from_source()
+    if profile is not None:
+        summary = profile_summary(profile)
+        _render_profile_metrics(summary)
+
+
 PAGE_HANDLERS = {
     "1 Load scan": _page_load_scan,
     "2 C-scan view": _page_cscan,
@@ -384,6 +531,7 @@ PAGE_HANDLERS = {
     "5 Decision log": _page_decision_log,
     "6 Report": _page_report,
     "7 Evidence and limits": _page_evidence_limits,
+    "8 Site calibration": _page_site_calibration,
 }
 
 
@@ -399,5 +547,5 @@ def main() -> None:
         handler(session)
 
 
-if __name__ == "__main__" or True:  # Streamlit script entrypoint
+if __name__ == "__main__" or st.runtime.exists():  # Streamlit script entrypoint
     main()
