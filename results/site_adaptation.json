@@ -1,0 +1,400 @@
+{
+  "label": "Real (ML-NDT weld, 3 physical cracks; shifts are synthetic perturbations)",
+  "dataset_label": "Real (ML-NDT weld, 3 physical cracks; shifts are synthetic perturbations)",
+  "limits": "Real ML-NDT data contains only 3 physical thermal fatigue cracks in an austenitic pipe weld; all inspection environment shifts (gain, offset, noise) are synthetic perturbations applied in software. Advisory only: UTriage never accepts or passes a part.",
+  "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b",
+  "seed": 0,
+  "target_fcr": 0.01,
+  "original_threshold": 0.41128002673387526,
+  "n_images": {
+    "cal_clean": 824,
+    "test_clean": 43,
+    "test_flawed": 57,
+    "total": 924
+  },
+  "shifts": {
+    "identity": {
+      "shift": {
+        "name": "identity",
+        "gain": 1.0,
+        "offset": 0.0,
+        "noise_std": 0.0
+      },
+      "baseline": {
+        "threshold": 0.41128002673387526,
+        "false_calls": {
+          "k": 0,
+          "n": 43,
+          "rate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.08221112115413848,
+          "interval_95": [
+            0.0,
+            0.08221112115413848
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 42,
+          "n": 57,
+          "rate": 0.7368421052631579,
+          "ci_low": 0.6033725372107366,
+          "ci_high": 0.844615249637035,
+          "interval_95": [
+            0.6033725372107366,
+            0.844615249637035
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      },
+      "adapted": {
+        "threshold": 0.41122193217277525,
+        "upper95_fcr": 0.01898219951694971,
+        "false_calls": {
+          "k": 0,
+          "n": 43,
+          "rate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.08221112115413848,
+          "interval_95": [
+            0.0,
+            0.08221112115413848
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 42,
+          "n": 57,
+          "rate": 0.7368421052631579,
+          "ci_low": 0.6033725372107366,
+          "ci_high": 0.844615249637035,
+          "interval_95": [
+            0.6033725372107366,
+            0.844615249637035
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      }
+    },
+    "gain 0.5": {
+      "shift": {
+        "name": "gain 0.5",
+        "gain": 0.5,
+        "offset": 0.0,
+        "noise_std": 0.0
+      },
+      "baseline": {
+        "threshold": 0.41128002673387526,
+        "false_calls": {
+          "k": 0,
+          "n": 43,
+          "rate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.08221112115413848,
+          "interval_95": [
+            0.0,
+            0.08221112115413848
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 19,
+          "n": 57,
+          "rate": 0.3333333333333333,
+          "ci_low": 0.21400530673067275,
+          "ci_high": 0.4706475575190316,
+          "interval_95": [
+            0.21400530673067275,
+            0.4706475575190316
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      },
+      "adapted": {
+        "threshold": 0.4112567093968391,
+        "upper95_fcr": 0.01898219951694971,
+        "false_calls": {
+          "k": 0,
+          "n": 43,
+          "rate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.08221112115413848,
+          "interval_95": [
+            0.0,
+            0.08221112115413848
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 42,
+          "n": 57,
+          "rate": 0.7368421052631579,
+          "ci_low": 0.6033725372107366,
+          "ci_high": 0.844615249637035,
+          "interval_95": [
+            0.6033725372107366,
+            0.844615249637035
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      }
+    },
+    "gain 2.0": {
+      "shift": {
+        "name": "gain 2.0",
+        "gain": 2.0,
+        "offset": 0.0,
+        "noise_std": 0.0
+      },
+      "baseline": {
+        "threshold": 0.41128002673387526,
+        "false_calls": {
+          "k": 43,
+          "n": 43,
+          "rate": 1.0,
+          "ci_low": 0.9177888788458616,
+          "ci_high": 1.0,
+          "interval_95": [
+            0.9177888788458616,
+            1.0
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 57,
+          "n": 57,
+          "rate": 1.0,
+          "ci_low": 0.9373325190855151,
+          "ci_high": 1.0,
+          "interval_95": [
+            0.9373325190855151,
+            1.0
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      },
+      "adapted": {
+        "threshold": 0.41125203162431717,
+        "upper95_fcr": 0.01898219951694971,
+        "false_calls": {
+          "k": 0,
+          "n": 43,
+          "rate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.08221112115413848,
+          "interval_95": [
+            0.0,
+            0.08221112115413848
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 42,
+          "n": 57,
+          "rate": 0.7368421052631579,
+          "ci_low": 0.6033725372107366,
+          "ci_high": 0.844615249637035,
+          "interval_95": [
+            0.6033725372107366,
+            0.844615249637035
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      }
+    },
+    "offset +0.5": {
+      "shift": {
+        "name": "offset +0.5",
+        "gain": 1.0,
+        "offset": 0.5,
+        "noise_std": 0.0
+      },
+      "baseline": {
+        "threshold": 0.41128002673387526,
+        "false_calls": {
+          "k": 4,
+          "n": 43,
+          "rate": 0.09302325581395349,
+          "ci_low": 0.025931290266323452,
+          "ci_high": 0.22135344538138638,
+          "interval_95": [
+            0.025931290266323452,
+            0.22135344538138638
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 44,
+          "n": 57,
+          "rate": 0.7719298245614035,
+          "ci_low": 0.6416365591692864,
+          "ci_high": 0.8726028923918511,
+          "interval_95": [
+            0.6416365591692864,
+            0.8726028923918511
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      },
+      "adapted": {
+        "threshold": 0.4112219253182411,
+        "upper95_fcr": 0.01898219951694971,
+        "false_calls": {
+          "k": 0,
+          "n": 43,
+          "rate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.08221112115413848,
+          "interval_95": [
+            0.0,
+            0.08221112115413848
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 42,
+          "n": 57,
+          "rate": 0.7368421052631579,
+          "ci_low": 0.6033725372107366,
+          "ci_high": 0.844615249637035,
+          "interval_95": [
+            0.6033725372107366,
+            0.844615249637035
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      }
+    },
+    "noise 0.2": {
+      "shift": {
+        "name": "noise 0.2",
+        "gain": 1.0,
+        "offset": 0.0,
+        "noise_std": 0.2
+      },
+      "baseline": {
+        "threshold": 0.41128002673387526,
+        "false_calls": {
+          "k": 1,
+          "n": 43,
+          "rate": 0.023255813953488372,
+          "ci_low": 0.0005886129315931829,
+          "ci_high": 0.12289048270133966,
+          "interval_95": [
+            0.0005886129315931829,
+            0.12289048270133966
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 45,
+          "n": 57,
+          "rate": 0.7894736842105263,
+          "ci_low": 0.6611299420734733,
+          "ci_high": 0.8862097756836405,
+          "interval_95": [
+            0.6611299420734733,
+            0.8862097756836405
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      },
+      "adapted": {
+        "threshold": 0.45986141175031636,
+        "upper95_fcr": 0.01898219951694971,
+        "false_calls": {
+          "k": 0,
+          "n": 43,
+          "rate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.08221112115413848,
+          "interval_95": [
+            0.0,
+            0.08221112115413848
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 41,
+          "n": 57,
+          "rate": 0.7192982456140351,
+          "ci_low": 0.5845710818499819,
+          "ci_high": 0.8302708245625608,
+          "interval_95": [
+            0.5845710818499819,
+            0.8302708245625608
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      }
+    },
+    "combined": {
+      "shift": {
+        "name": "combined",
+        "gain": 0.5,
+        "offset": 0.5,
+        "noise_std": 0.2
+      },
+      "baseline": {
+        "threshold": 0.41128002673387526,
+        "false_calls": {
+          "k": 0,
+          "n": 43,
+          "rate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.08221112115413848,
+          "interval_95": [
+            0.0,
+            0.08221112115413848
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 19,
+          "n": 57,
+          "rate": 0.3333333333333333,
+          "ci_low": 0.21400530673067275,
+          "ci_high": 0.4706475575190316,
+          "interval_95": [
+            0.21400530673067275,
+            0.4706475575190316
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      },
+      "adapted": {
+        "threshold": 0.5904966390132903,
+        "upper95_fcr": 0.01898219951694971,
+        "false_calls": {
+          "k": 0,
+          "n": 43,
+          "rate": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.08221112115413848,
+          "interval_95": [
+            0.0,
+            0.08221112115413848
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        },
+        "detection": {
+          "k": 39,
+          "n": 57,
+          "rate": 0.6842105263157895,
+          "ci_low": 0.5475701582112286,
+          "ci_high": 0.8009499222617819,
+          "interval_95": [
+            0.5475701582112286,
+            0.8009499222617819
+          ],
+          "method": "Clopper-Pearson two-sided 95"
+        }
+      }
+    }
+  },
+  "n_calib_clean": 824,
+  "min_clean_required": 299,
+  "calibration_underpowered": false,
+  "calib_overlaps_model_training": false,
+  "fcr_choice_reason": "Target FCR 0.01 requires 299 clean scans; calibration pool has 824 scans"
+}
