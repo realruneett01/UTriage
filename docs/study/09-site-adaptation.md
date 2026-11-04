@@ -7,9 +7,9 @@ Immersion ultrasonic testing (UT) setups vary significantly between plants, insp
 - **Electronics & hardware**: Pulser excitation voltage, analog receiver gain, filter bandwidth, and digitiser sampling rate.
 - **Material variations**: Alloy composition (e.g., Ti-6Al-4V vs. nickel superalloys), grain noise scattering levels, and acoustic velocity variations across production batches.
 
-Supervised neural networks trained on a single inspection tank or synthetic simulator data suffer from domain shift when deployed to a different site. In production, confirmed defect indications are rare events, making it impractical to collect labelled flaw datasets at every new site. 
+Supervised neural networks trained on a single inspection tank or synthetic simulator data suffer from domain shift when used at a different site. In practice, confirmed defect indications are rare events, making it impractical to collect labelled flaw datasets at every new site. 
 
-Unsupervised site adaptation addresses domain shift using **only inspector-confirmed clean reference scans** (bars certified free of rejectable flaws) with zero labelled defect indications.
+Unsupervised site adaptation addresses domain shift using **only inspector-confirmed clean reference scans** (bars confirmed free of rejectable flaws) with zero labelled defect indications.
 
 > **Safety constraint**: UTriage is advisory-only. The conventional rules engine stays in charge. ML models can only add candidate flags, never remove or downgrade a conventional rule flag. UTriage never accepts or passes a part; all accept/reject decisions remain strictly with the certified inspector.
 
@@ -82,7 +82,7 @@ This provides an operationally controlled trade-off between detection sensitivit
 
 ## 4. One-sided 95% Clopper-Pearson upper bound
 
-The empirical false-call rate measured on calibration scans is subject to finite-sample variability. To certify that the true false-call rate does not exceed operational limits, UTriage calculates an exact one-sided 95% Clopper-Pearson upper confidence bound.
+The empirical false-call rate measured on calibration scans is subject to finite-sample variability. To bound the false-call rate statistically (an estimate on the supplied clean scans, not a certification), UTriage calculates an exact one-sided 95% Clopper-Pearson upper confidence bound.
 
 ### Formulation
 Let $n$ be the number of clean calibration scans evaluated, and let $k = \sum_{i=1}^n \mathbf{1}(s_i > \theta)$ be the observed count of false calls. Modeling false calls as independent Bernoulli trials with true rate $p$:
@@ -97,14 +97,14 @@ Using the relationship between the cumulative binomial distribution and the inco
 
 $$p_{\text{upper}} = \begin{cases} I^{-1}_{0.95}(k + 1, n - k) = \text{BetaQuantile}(0.95;\, k + 1,\, n - k), & \text{if } k < n \\ 1.0, & \text{if } k \ge n \end{cases}$$
 
-This guarantees with 95% statistical confidence that the true false-call rate in production will not exceed $p_{\text{upper}}$.
+This provides a 95% statistical upper bound ($p_{\text{upper}}$) on the true false-call rate in practice under the independent Bernoulli assumption on the supplied clean scans.
 
 ---
 
 ## 5. Zero-failure sample size and the Rule of Three
 
 ### Required calibration sample size
-To verify that a site achieves a target false-call rate $p$ at confidence $c$ (e.g., $c = 0.95$) assuming zero false calls are observed ($k = 0$), how many clean scans $n$ must be inspected?
+To bound the false-call rate at target $p$ with confidence $c$ (e.g., $c = 0.95$) assuming zero false calls are observed ($k = 0$), how many clean scans $n$ must be inspected?
 
 Under true rate $p$, the probability of observing zero false calls in $n$ independent clean scans is:
 
