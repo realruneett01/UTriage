@@ -729,3 +729,163 @@ def test_missing_hybrid_files_skipped(tmp_path: Path, capsys: pytest.CaptureFixt
     captured = capsys.readouterr().err
     assert "Skipping claims requiring hybrid_metrics.json: file not found" in captured
     assert "Skipping claims requiring physics_model_metrics.json: file not found" in captured
+
+
+def _make_fake_site_adaptation_shift(
+    name: str,
+    b_fc: tuple[int, int, float, float, float],
+    a_fc: tuple[int, int, float, float, float],
+) -> dict[str, Any]:
+    """Helper creating a single shift entry for fake site_adaptation.json."""
+    bk, bn, br, blow, bhigh = b_fc
+    ak, an, ar, alow, ahigh = a_fc
+    b_calls = {
+        "k": bk,
+        "n": bn,
+        "rate": br,
+        "ci_low": blow,
+        "ci_high": bhigh,
+        "interval_95": [blow, bhigh],
+    }
+    a_calls = {
+        "k": ak,
+        "n": an,
+        "rate": ar,
+        "ci_low": alow,
+        "ci_high": ahigh,
+        "interval_95": [alow, ahigh],
+    }
+    return {
+        "shift": {"name": name, "gain": 1.0, "offset": 0.0, "noise_std": 0.0},
+        "baseline": {"false_calls": b_calls},
+        "adapted": {"false_calls": a_calls},
+    }
+
+
+def _make_fake_site_adaptation_data() -> dict[str, Any]:
+    """Helper creating fake site_adaptation metrics dictionary."""
+    return {
+        "label": "Real (ML-NDT weld, 3 physical cracks; shifts are synthetic perturbations)",
+        "shifts": {
+            "identity": _make_fake_site_adaptation_shift(
+                "identity",
+                (1, 100, 0.01, 0.0002, 0.054),
+                (1, 100, 0.01, 0.0002, 0.054),
+            ),
+            "gain 0.5": _make_fake_site_adaptation_shift(
+                "gain 0.5",
+                (15, 100, 0.15, 0.086, 0.235),
+                (2, 100, 0.02, 0.002, 0.070),
+            ),
+        },
+    }
+
+
+def _make_fake_joint_arm(
+    arm: str,
+    held_out: str,
+    det: tuple[int, int],
+    fc: tuple[int, int],
+) -> dict[str, Any]:
+    """Helper creating a single arm entry for joint training tests."""
+    return {
+        "arm": arm,
+        "held_out": held_out,
+        "detections": {"k": det[0], "n": det[1], "rate": det[0] / det[1]},
+        "false_calls": {"k": fc[0], "n": fc[1], "rate": fc[0] / fc[1]},
+    }
+
+
+def _make_fake_joint_train_data() -> dict[str, Any]:
+    """Helper creating fake joint_train_metrics dictionary."""
+    return {
+        "label": "real metrics on ML-NDT (weld, 3 physical cracks); sim images are Synthetic data",
+        "protocol": "Leave-one-crack-out joint synthetic-real training",
+        "folds": [
+            {
+                "held_out": "crack_1.6",
+                "arms": {
+                    "A": _make_fake_joint_arm("A", "crack_1.6", (45, 50), (1, 50)),
+                    "B": _make_fake_joint_arm("B", "crack_1.6", (48, 50), (0, 50)),
+                },
+            },
+            {
+                "held_out": "crack_4.0",
+                "arms": {"A": _make_fake_joint_arm("A", "crack_4.0", (38, 40), (2, 50))},
+            },
+        ],
+    }
+
+
+def test_site_adaptation_claims_present_with_numbers(tmp_path: Path) -> None:
+    """Verify site adaptation claims are built with exact numbers and scope."""
+    from utriage.report.claims import build_claims
+
+    data = _make_fake_site_adaptation_data()
+    (tmp_path / "site_adaptation.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim_map = {c.id: c for c in claims if c.id.startswith("site_adaptation_")}
+    assert "site_adaptation_identity" in claim_map
+    assert "site_adaptation_gain_0.5" in claim_map
+
+    c_gain = claim_map["site_adaptation_gain_0.5"]
+    assert c_gain.evidence_file == "results/site_adaptation.json"
+    assert c_gain.evidence_path == "shifts.gain 0.5"
+    assert c_gain.scope_limit == "Real data ML-NDT with synthetic perturbations"
+    assert "baseline 15/100" in c_gain.text
+    assert "adapted 2/100" in c_gain.text
+    for val in c_gain.numbers.values():
+        cands = [f"{val:.3f}", f"{val:.2f}", f"{val:.1f}", str(int(val))]
+        assert any(cand in c_gain.text for cand in cands)
+
+
+def test_site_adaptation_missing_file_skipped(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Verify site adaptation claims are skipped with printed notice when missing."""
+    from utriage.report.claims import build_claims
+
+    claims = build_claims(tmp_path)
+    ids = {c.id for c in claims}
+    assert not any(i.startswith("site_adaptation_") for i in ids)
+    captured = capsys.readouterr().err
+    assert "Skipping claims requiring site_adaptation.json: file not found" in captured
+
+
+def test_joint_train_claims_present_with_numbers(tmp_path: Path) -> None:
+    """Verify joint training claims are built with detection and false call counts."""
+    from utriage.report.claims import build_claims
+
+    data = _make_fake_joint_train_data()
+    (tmp_path / "joint_train_metrics.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim_map = {c.id: c for c in claims if c.id.startswith("joint_train_")}
+    assert "joint_train_crack_1.6_a" in claim_map
+    assert "joint_train_crack_1.6_b" in claim_map
+    assert "joint_train_crack_4.0_a" in claim_map
+
+    c_a = claim_map["joint_train_crack_1.6_a"]
+    assert c_a.evidence_file == "results/joint_train_metrics.json"
+    assert c_a.evidence_path == "folds"
+    assert c_a.scope_limit == (
+        "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data"
+    )
+    assert "detection 45/50" in c_a.text
+    assert "false calls 1/50" in c_a.text
+    assert c_a.numbers["detection_k"] == 45.0
+    assert c_a.numbers["detection_n"] == 50.0
+    assert c_a.numbers["false_calls_k"] == 1.0
+    assert c_a.numbers["false_calls_n"] == 50.0
+
+
+def test_joint_train_missing_file_skipped(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Verify joint training claims are skipped with printed notice when missing."""
+    from utriage.report.claims import build_claims
+
+    claims = build_claims(tmp_path)
+    ids = {c.id for c in claims}
+    assert not any(i.startswith("joint_train_") for i in ids)
+    captured = capsys.readouterr().err
+    assert "Skipping claims requiring joint_train_metrics.json: file not found" in captured

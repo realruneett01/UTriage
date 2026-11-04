@@ -918,6 +918,198 @@ def _collect_hybrid_claims(r_dir: Path) -> list[Claim]:
     return [c for c in candidates if c is not None]
 
 
+def _extract_shift_fc(
+    fc_dict: dict[str, Any],
+) -> tuple[int, int, float, float, float] | None:
+    """Extract false call count, scans, rate, and 95% CI bounds."""
+    if not isinstance(fc_dict, dict):
+        return None
+    if any(k not in fc_dict for k in ("k", "n")):
+        return None
+    k = int(fc_dict["k"])
+    n = int(fc_dict["n"])
+    rate = float(fc_dict.get("rate", k / n if n > 0 else 0.0))
+    low = float(fc_dict.get("ci_low", fc_dict.get("interval_95", [0.0, 0.0])[0]))
+    high = float(fc_dict.get("ci_high", fc_dict.get("interval_95", [0.0, 0.0])[1]))
+    return k, n, rate, low, high
+
+
+def _format_shift_text(
+    shift_name: str,
+    b_m: tuple[int, int, float, float, float],
+    a_m: tuple[int, int, float, float, float],
+) -> str:
+    """Format site adaptation claim comparison text."""
+    bk, bn, br, blow, bhigh = b_m
+    ak, an, ar, alow, ahigh = a_m
+    b_s = (
+        f"{bk}/{bn} (rate {_format_rate(br)}, 95% CI [{_format_rate(blow)}, {_format_rate(bhigh)}])"
+    )
+    a_s = (
+        f"{ak}/{an} (rate {_format_rate(ar)}, 95% CI [{_format_rate(alow)}, {_format_rate(ahigh)}])"
+    )
+    return f"Site adaptation shift {shift_name}: false calls baseline {b_s} vs adapted {a_s}."
+
+
+def _build_shift_numbers(
+    b_m: tuple[int, int, float, float, float],
+    a_m: tuple[int, int, float, float, float],
+) -> dict[str, float]:
+    """Construct numbers dictionary for shift baseline and adapted false calls."""
+    bk, bn, br, blow, bhigh = b_m
+    ak, an, ar, alow, ahigh = a_m
+    return {
+        "baseline_k": float(bk),
+        "baseline_n": float(bn),
+        "baseline_rate": br,
+        "baseline_ci_low": blow,
+        "baseline_ci_high": bhigh,
+        "adapted_k": float(ak),
+        "adapted_n": float(an),
+        "adapted_rate": ar,
+        "adapted_ci_low": alow,
+        "adapted_ci_high": ahigh,
+    }
+
+
+def _build_single_site_adaptation_claim(
+    shift_name: str,
+    shift_data: dict[str, Any],
+) -> Claim | None:
+    """Build claim for a single site adaptation shift."""
+    b_fc = shift_data.get("baseline", {}).get("false_calls", {})
+    a_fc = shift_data.get("adapted", {}).get("false_calls", {})
+    b_m = _extract_shift_fc(b_fc)
+    a_m = _extract_shift_fc(a_fc)
+    if b_m is None or a_m is None:
+        return None
+    slug = re.sub(r"[^\w.]+", "_", shift_name.lower()).strip("_")
+    return Claim(
+        id=f"site_adaptation_{slug}",
+        text=_format_shift_text(shift_name, b_m, a_m),
+        evidence_file="results/site_adaptation.json",
+        evidence_path=f"shifts.{shift_name}",
+        scope_limit="Real data ML-NDT with synthetic perturbations",
+        numbers=_build_shift_numbers(b_m, a_m),
+    )
+
+
+def _build_site_adaptation_claims(data_or_dir: dict[str, Any] | Path) -> list[Claim]:
+    """Build site adaptation claims for all shifts in data."""
+    data = (
+        data_or_dir
+        if isinstance(data_or_dir, dict)
+        else _load_json(data_or_dir / "site_adaptation.json")
+    )
+    if data is None:
+        return []
+    shifts = data.get("shifts")
+    if not isinstance(shifts, dict):
+        return []
+    claims: list[Claim] = []
+    for name, shift_info in shifts.items():
+        if isinstance(shift_info, dict):
+            c = _build_single_site_adaptation_claim(name, shift_info)
+            if c is not None:
+                claims.append(c)
+    return claims
+
+
+def _collect_site_adaptation_claims(r_dir: Path) -> list[Claim]:
+    """Collect site adaptation claims from results directory."""
+    return _build_site_adaptation_claims(r_dir)
+
+
+def _extract_joint_arm_counts(
+    arm_data: dict[str, Any],
+) -> tuple[int, int, int, int] | None:
+    """Extract detection and false call counts for a joint training arm."""
+    det = arm_data.get("detections", arm_data.get("detection", {}))
+    fc = arm_data.get("false_calls", {})
+    if not (isinstance(det, dict) and isinstance(fc, dict)):
+        return None
+    det_k = int(det.get("k", det.get("n_hit", 0)))
+    det_n = int(det.get("n", det.get("n_flawed", 0)))
+    fc_k = int(fc.get("k", fc.get("n_false", 0)))
+    fc_n = int(fc.get("n", fc.get("n_unflawed", fc.get("n_scans", 0))))
+    if det_n <= 0 or fc_n <= 0:
+        return None
+    return det_k, det_n, fc_k, fc_n
+
+
+def _build_single_joint_arm_claim(
+    crack_tag: str,
+    arm_name: str,
+    arm_data: dict[str, Any],
+) -> Claim | None:
+    """Build claim for a single crack and arm in joint training."""
+    counts = _extract_joint_arm_counts(arm_data)
+    if counts is None:
+        return None
+    det_k, det_n, fc_k, fc_n = counts
+    text = (
+        f"Joint training {crack_tag} arm {arm_name}: "
+        f"detection {det_k}/{det_n}, false calls {fc_k}/{fc_n}."
+    )
+    scope = "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data"
+    numbers = {
+        "detection_k": float(det_k),
+        "detection_n": float(det_n),
+        "false_calls_k": float(fc_k),
+        "false_calls_n": float(fc_n),
+    }
+    return Claim(
+        id=f"joint_train_{crack_tag}_{arm_name.lower()}",
+        text=text,
+        evidence_file="results/joint_train_metrics.json",
+        evidence_path="folds",
+        scope_limit=scope,
+        numbers=numbers,
+    )
+
+
+def _collect_fold_arm_claims(fold: dict[str, Any]) -> list[Claim]:
+    """Collect joint training claims across all arms of a single fold."""
+    held_out = str(fold.get("held_out", ""))
+    crack_tag = held_out if held_out.startswith("crack_") else f"crack_{held_out}"
+    arms = fold.get("arms")
+    if not isinstance(arms, dict):
+        return []
+    claims: list[Claim] = []
+    for arm_name, arm_data in arms.items():
+        if isinstance(arm_data, dict):
+            c = _build_single_joint_arm_claim(crack_tag, str(arm_name), arm_data)
+            if c is not None:
+                claims.append(c)
+    return claims
+
+
+def _build_joint_train_claims(data_or_dir: dict[str, Any] | Path) -> list[Claim]:
+    """Build joint training claims across all held-out cracks and arms."""
+    data = (
+        data_or_dir
+        if isinstance(data_or_dir, dict)
+        else _load_json(data_or_dir / "joint_train_metrics.json")
+    )
+    if data is None:
+        return []
+    folds = data.get("folds")
+    fold_list: list[dict[str, Any]] = []
+    if isinstance(folds, list):
+        fold_list = [f for f in folds if isinstance(f, dict)]
+    elif isinstance(folds, dict):
+        fold_list = [f for f in folds.values() if isinstance(f, dict)]
+    claims: list[Claim] = []
+    for f in fold_list:
+        claims.extend(_collect_fold_arm_claims(f))
+    return claims
+
+
+def _collect_joint_train_claims(r_dir: Path) -> list[Claim]:
+    """Collect joint training claims from results directory."""
+    return _build_joint_train_claims(r_dir)
+
+
 def build_claims(results_dir: Path | str) -> list[Claim]:
     """Build all verified claims composed only from allowed results files."""
     r_dir = Path(results_dir)
@@ -937,5 +1129,7 @@ def build_claims(results_dir: Path | str) -> list[Claim]:
         claims.append(c_crackval)
 
     claims.extend(_collect_hybrid_claims(r_dir))
+    claims.extend(_collect_site_adaptation_claims(r_dir))
+    claims.extend(_collect_joint_train_claims(r_dir))
     claims.extend(_collect_final_claims(r_dir, mat_dict))
     return claims
