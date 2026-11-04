@@ -167,6 +167,353 @@
     }
   },
   {
+    "id": "loco_crackval",
+    "text": "Leave-one-crack-out with crack-held-out early stopping (train on one crack, early-stop on another): held-out crack_1.6, validation crack_4.0: detections 4012/4014, false calls 753/778; held-out crack_4.0, validation crack_8.6: detections 2449/4078, false calls 0/778; held-out crack_8.6, validation crack_1.6: detections 3925/3925, false calls 11/778. Results swing strongly with the choice of early-stopping crack: false calls exceed half the clean images in fold crack_1.6.",
+    "evidence_file": "results/loco_crackval_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "one weld PAUT public dataset, 3 physical cracks, each fold trains on a single crack",
+    "numbers": {
+      "crack_1.6_k": 4012.0,
+      "crack_1.6_n": 4014.0,
+      "crack_1.6_n_false": 753.0,
+      "crack_1.6_n_unflawed": 778.0,
+      "crack_4.0_k": 2449.0,
+      "crack_4.0_n": 4078.0,
+      "crack_4.0_n_false": 0.0,
+      "crack_4.0_n_unflawed": 778.0,
+      "crack_8.6_k": 3925.0,
+      "crack_8.6_n": 3925.0,
+      "crack_8.6_n_false": 11.0,
+      "crack_8.6_n_unflawed": 778.0
+    }
+  },
+  {
+    "id": "hybrid_h2",
+    "text": "Hybrid H2: crack_1.6: detections range across seeds 3687-3766/4014, false calls 7/778; crack_4.0: detections range across seeds 899-2272/4078, false calls 7/778; crack_8.6: detections range across seeds 3925-3925/3925, false calls 7/778.",
+    "evidence_file": "results/hybrid_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "pre-registered ADR 0010, one weld PAUT public dataset, 3 physical cracks, seed-sensitive",
+    "numbers": {
+      "crack_1.6_min_k": 3687.0,
+      "crack_1.6_max_k": 3766.0,
+      "crack_1.6_n": 4014.0,
+      "crack_1.6_n_false": 7.0,
+      "crack_1.6_n_scans": 778.0,
+      "crack_4.0_min_k": 899.0,
+      "crack_4.0_max_k": 2272.0,
+      "crack_4.0_n": 4078.0,
+      "crack_4.0_n_false": 7.0,
+      "crack_4.0_n_scans": 778.0,
+      "crack_8.6_min_k": 3925.0,
+      "crack_8.6_max_k": 3925.0,
+      "crack_8.6_n": 3925.0,
+      "crack_8.6_n_false": 7.0,
+      "crack_8.6_n_scans": 778.0
+    }
+  },
+  {
+    "id": "physics_h3",
+    "text": "Physics model H3: crack_1.6: detections 2661/4014, false calls 0/778; crack_4.0: detections 2578/4078, false calls 0/778; crack_8.6: detections 3925/3925, false calls 1/778.",
+    "evidence_file": "results/physics_model_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "pre-registered ADR 0010 addendum, coefficients unstable across folds",
+    "numbers": {
+      "crack_1.6_k": 2661.0,
+      "crack_1.6_n": 4014.0,
+      "crack_1.6_n_false": 0.0,
+      "crack_1.6_n_clean": 778.0,
+      "crack_4.0_k": 2578.0,
+      "crack_4.0_n": 4078.0,
+      "crack_4.0_n_false": 0.0,
+      "crack_4.0_n_clean": 778.0,
+      "crack_8.6_k": 3925.0,
+      "crack_8.6_n": 3925.0,
+      "crack_8.6_n_false": 1.0,
+      "crack_8.6_n_clean": 778.0
+    }
+  },
+  {
+    "id": "hybrid_comparison",
+    "text": "H2 strongest on the 1.6 mm crack, H3 strongest on the 4.0 mm crack.",
+    "evidence_file": "results/hybrid_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "pre-registered ADR 0010, one weld PAUT public dataset, 3 physical cracks",
+    "numbers": {
+      "crack_1.6": 1.6,
+      "crack_4.0": 4.0
+    }
+  },
+  {
+    "id": "site_adaptation_identity",
+    "text": "Site adaptation shift identity: false calls baseline 0/43 (rate 0.000, 95% CI [0.000, 0.08]) vs adapted 0/43 (rate 0.000, 95% CI [0.000, 0.08]).",
+    "evidence_file": "results/site_adaptation.json",
+    "evidence_path": "shifts.identity",
+    "scope_limit": "Real data ML-NDT with synthetic perturbations",
+    "numbers": {
+      "baseline_k": 0.0,
+      "baseline_n": 43.0,
+      "baseline_rate": 0.0,
+      "baseline_ci_low": 0.0,
+      "baseline_ci_high": 0.08221112115413848,
+      "adapted_k": 0.0,
+      "adapted_n": 43.0,
+      "adapted_rate": 0.0,
+      "adapted_ci_low": 0.0,
+      "adapted_ci_high": 0.08221112115413848
+    }
+  },
+  {
+    "id": "site_adaptation_gain_0.5",
+    "text": "Site adaptation shift gain 0.5: false calls baseline 0/43 (rate 0.000, 95% CI [0.000, 0.08]) vs adapted 0/43 (rate 0.000, 95% CI [0.000, 0.08]).",
+    "evidence_file": "results/site_adaptation.json",
+    "evidence_path": "shifts.gain 0.5",
+    "scope_limit": "Real data ML-NDT with synthetic perturbations",
+    "numbers": {
+      "baseline_k": 0.0,
+      "baseline_n": 43.0,
+      "baseline_rate": 0.0,
+      "baseline_ci_low": 0.0,
+      "baseline_ci_high": 0.08221112115413848,
+      "adapted_k": 0.0,
+      "adapted_n": 43.0,
+      "adapted_rate": 0.0,
+      "adapted_ci_low": 0.0,
+      "adapted_ci_high": 0.08221112115413848
+    }
+  },
+  {
+    "id": "site_adaptation_gain_2.0",
+    "text": "Site adaptation shift gain 2.0: false calls baseline 43/43 (rate 1.00, 95% CI [0.92, 1.00]) vs adapted 0/43 (rate 0.000, 95% CI [0.000, 0.08]).",
+    "evidence_file": "results/site_adaptation.json",
+    "evidence_path": "shifts.gain 2.0",
+    "scope_limit": "Real data ML-NDT with synthetic perturbations",
+    "numbers": {
+      "baseline_k": 43.0,
+      "baseline_n": 43.0,
+      "baseline_rate": 1.0,
+      "baseline_ci_low": 0.9177888788458616,
+      "baseline_ci_high": 1.0,
+      "adapted_k": 0.0,
+      "adapted_n": 43.0,
+      "adapted_rate": 0.0,
+      "adapted_ci_low": 0.0,
+      "adapted_ci_high": 0.08221112115413848
+    }
+  },
+  {
+    "id": "site_adaptation_offset_0.5",
+    "text": "Site adaptation shift offset +0.5: false calls baseline 4/43 (rate 0.09, 95% CI [0.026, 0.22]) vs adapted 0/43 (rate 0.000, 95% CI [0.000, 0.08]).",
+    "evidence_file": "results/site_adaptation.json",
+    "evidence_path": "shifts.offset +0.5",
+    "scope_limit": "Real data ML-NDT with synthetic perturbations",
+    "numbers": {
+      "baseline_k": 4.0,
+      "baseline_n": 43.0,
+      "baseline_rate": 0.09302325581395349,
+      "baseline_ci_low": 0.025931290266323452,
+      "baseline_ci_high": 0.22135344538138638,
+      "adapted_k": 0.0,
+      "adapted_n": 43.0,
+      "adapted_rate": 0.0,
+      "adapted_ci_low": 0.0,
+      "adapted_ci_high": 0.08221112115413848
+    }
+  },
+  {
+    "id": "site_adaptation_noise_0.2",
+    "text": "Site adaptation shift noise 0.2: false calls baseline 1/43 (rate 0.023, 95% CI [0.001, 0.12]) vs adapted 0/43 (rate 0.000, 95% CI [0.000, 0.08]).",
+    "evidence_file": "results/site_adaptation.json",
+    "evidence_path": "shifts.noise 0.2",
+    "scope_limit": "Real data ML-NDT with synthetic perturbations",
+    "numbers": {
+      "baseline_k": 1.0,
+      "baseline_n": 43.0,
+      "baseline_rate": 0.023255813953488372,
+      "baseline_ci_low": 0.0005886129315931829,
+      "baseline_ci_high": 0.12289048270133966,
+      "adapted_k": 0.0,
+      "adapted_n": 43.0,
+      "adapted_rate": 0.0,
+      "adapted_ci_low": 0.0,
+      "adapted_ci_high": 0.08221112115413848
+    }
+  },
+  {
+    "id": "site_adaptation_combined",
+    "text": "Site adaptation shift combined: false calls baseline 0/43 (rate 0.000, 95% CI [0.000, 0.08]) vs adapted 0/43 (rate 0.000, 95% CI [0.000, 0.08]).",
+    "evidence_file": "results/site_adaptation.json",
+    "evidence_path": "shifts.combined",
+    "scope_limit": "Real data ML-NDT with synthetic perturbations",
+    "numbers": {
+      "baseline_k": 0.0,
+      "baseline_n": 43.0,
+      "baseline_rate": 0.0,
+      "baseline_ci_low": 0.0,
+      "baseline_ci_high": 0.08221112115413848,
+      "adapted_k": 0.0,
+      "adapted_n": 43.0,
+      "adapted_rate": 0.0,
+      "adapted_ci_low": 0.0,
+      "adapted_ci_high": 0.08221112115413848
+    }
+  },
+  {
+    "id": "joint_train_crack_1.6_a",
+    "text": "Joint training crack_1.6 arm A: detection 165/4014, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 165.0,
+      "detection_n": 4014.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_1.6_b",
+    "text": "Joint training crack_1.6 arm B: detection 192/4014, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 192.0,
+      "detection_n": 4014.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_1.6_c",
+    "text": "Joint training crack_1.6 arm C: detection 107/4014, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 107.0,
+      "detection_n": 4014.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_1.6_d",
+    "text": "Joint training crack_1.6 arm D: detection 0/4014, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 0.0,
+      "detection_n": 4014.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_4.0_a",
+    "text": "Joint training crack_4.0 arm A: detection 0/4078, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 0.0,
+      "detection_n": 4078.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_4.0_b",
+    "text": "Joint training crack_4.0 arm B: detection 0/4078, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 0.0,
+      "detection_n": 4078.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_4.0_c",
+    "text": "Joint training crack_4.0 arm C: detection 2306/4078, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 2306.0,
+      "detection_n": 4078.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_4.0_d",
+    "text": "Joint training crack_4.0 arm D: detection 2229/4078, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 2229.0,
+      "detection_n": 4078.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_8.6_a",
+    "text": "Joint training crack_8.6 arm A: detection 3925/3925, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 3925.0,
+      "detection_n": 3925.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_8.6_b",
+    "text": "Joint training crack_8.6 arm B: detection 3925/3925, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 3925.0,
+      "detection_n": 3925.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_8.6_c",
+    "text": "Joint training crack_8.6 arm C: detection 3925/3925, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 3925.0,
+      "detection_n": 3925.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
+    "id": "joint_train_crack_8.6_d",
+    "text": "Joint training crack_8.6 arm D: detection 3925/3925, false calls 0/778.",
+    "evidence_file": "results/joint_train_metrics.json",
+    "evidence_path": "folds",
+    "scope_limit": "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+    "numbers": {
+      "detection_k": 3925.0,
+      "detection_n": 3925.0,
+      "false_calls_k": 0.0,
+      "false_calls_n": 778.0
+    }
+  },
+  {
     "id": "union_property",
     "text": "The union property holds in all 9 synthetic simulator columns with 0 violations (ML adds flags, never removes a rules flag).",
     "evidence_file": "results/generalization_matrix.json",
