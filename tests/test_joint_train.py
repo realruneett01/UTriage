@@ -15,6 +15,7 @@ from experiments.run_joint_train import (
     SimDatasetAdapter,
     assert_no_held_out,
     build_arg_parser,
+    build_experiment_summary,
     calc_detection,
     calc_false_calls,
     eval_pod,
@@ -110,15 +111,17 @@ def test_resolve_sim_count(frac: float, n_real: int, cap: int | None, expected: 
 
 def _assert_detection_fields(det: dict[str, Any]) -> None:
     """Verify keys, interval type, and bounds of detection dictionary."""
-    assert {"k", "n", "rate", "lower95", "upper95", "interval_type"}.issubset(det.keys())
+    assert {"k", "n", "rate", "lower95", "upper95", "interval_type", "method"}.issubset(det.keys())
     assert det["interval_type"] == "two_sided_95"
+    assert det["method"] == "Clopper-Pearson"
     assert 0.0 <= det["lower95"] <= det["upper95"] <= 1.0
 
 
 def _assert_false_call_fields(fc: dict[str, Any]) -> None:
     """Verify keys, interval type, and bounds of false calls dictionary."""
-    assert {"k", "n", "rate", "upper95", "interval_type"}.issubset(fc.keys())
+    assert {"k", "n", "rate", "upper95", "interval_type", "method"}.issubset(fc.keys())
     assert fc["interval_type"] == "one_sided_95_upper"
+    assert fc["method"] == "Clopper-Pearson"
     assert 0.0 <= fc["rate"] <= fc["upper95"] <= 1.0
 
 
@@ -141,6 +144,40 @@ def test_metric_helpers() -> None:
 
     pod = eval_pod(sizes, hits[flawed])
     assert "a90_95" in pod
+    assert "method" in pod
+
+
+def _generate_synthetic_pod_data(max_size: float, seed: int = 0) -> tuple[np.ndarray, np.ndarray]:
+    """Generate log-linear hit/miss data spanning up to max_size."""
+    rng = np.random.default_rng(seed)
+    sizes = np.linspace(0.5, max_size, 100)
+    eta = -2.0 + 4.0 * np.log(sizes)
+    prob = 1.0 / (1.0 + np.exp(-eta))
+    hits = (rng.uniform(size=len(sizes)) < prob).astype(float)
+    return sizes, hits
+
+
+@pytest.mark.parametrize(
+    ("max_size", "should_extrapolate"),
+    [
+        (10.0, False),
+        (2.5, True),
+    ],
+)
+def test_eval_pod_extrapolation_behavior(max_size: float, should_extrapolate: bool) -> None:
+    """eval_pod returns a90_95 <= max_size when valid, or None with reason when extrapolating."""
+    sizes, hits = _generate_synthetic_pod_data(max_size=max_size, seed=0)
+    res = eval_pod(sizes, hits)
+    assert "method" in res
+    if should_extrapolate:
+        assert res["a90_95"] is None
+        assert res["reason"] == "a90_95 extrapolates beyond the largest tested flaw size"
+    else:
+        assert res["reason"] is None
+        a90_95 = res["a90_95"]
+        assert isinstance(a90_95, float)
+        assert np.isfinite(a90_95)
+        assert 0.0 < a90_95 <= float(np.max(sizes))
 
 
 def test_arm_c_pretrain_dataset_has_no_sim(tmp_path: Path) -> None:
@@ -179,6 +216,7 @@ def _assert_arm_record(arm_rec: dict[str, Any], arm_key: str) -> None:
     assert arm_rec["arm"] == arm_key
     _assert_detection_fields(arm_rec["detections"])
     _assert_false_call_fields(arm_rec["false_calls"])
+    assert "method" in arm_rec["pod"]
     assert "model_sha256" in arm_rec
     if arm_key in ("C", "D"):
         assert isinstance(arm_rec["pretrained_encoder_sha256"], str)
@@ -205,6 +243,8 @@ def test_quick_all_arms_and_json(fake_mlndt_root: Path, tmp_path: Path) -> None:
     )
     metrics = run_joint_experiment(cfg)
     assert (out_dir / "joint_train_metrics.json").exists()
+    assert metrics["requested_sim_fraction"] == 0.5
+    assert "actual_sim_fraction" in metrics
 
     fold = metrics["folds"][0]
     assert "actual_sim_fraction" in fold
@@ -228,6 +268,8 @@ def test_actual_sim_fraction_matches_requested(fake_mlndt_root: Path, tmp_path: 
         device="cpu",
     )
     metrics = run_joint_experiment(cfg)
+    assert metrics["requested_sim_fraction"] == 0.2
+    assert "actual_sim_fraction" in metrics
     fold = metrics["folds"][0]
     expected_frac = fold["n_sim_train"] / (fold["n_real_train"] + fold["n_sim_train"])
     assert fold["actual_sim_fraction"] == pytest.approx(0.2, abs=0.05)
@@ -275,6 +317,23 @@ def test_sim_fraction_zero_no_sim_samples(fake_mlndt_root: Path, tmp_path: Path)
     assert fold["n_sim_train"] == 0
     assert fold["actual_sim_fraction"] == 0.0
     assert fold["arms"]["A"]["n_train"] == fold["arms"]["B"]["n_train"]
+
+
+def test_payload_builder_sim_fractions() -> None:
+    """build_experiment_summary includes requested and actual sim fractions without training."""
+    cfg = JointConfig(sim_fraction=0.25, arms=("A",))
+    folds = [
+        {
+            "held_out": "crack_1.6",
+            "n_real_train": 75,
+            "n_sim_train": 25,
+            "sim_fraction_reason": None,
+            "arms": {"A": {"model_sha256": "sha_a"}},
+        }
+    ]
+    summary = build_experiment_summary(cfg, folds, "cpu")
+    assert summary["requested_sim_fraction"] == 0.25
+    assert summary["actual_sim_fraction"] == 0.25
 
 
 def test_cli_parsing(tmp_path: Path) -> None:
