@@ -9,7 +9,7 @@ In ultrasonic testing (UT) of aerospace bars and billets, using an advisory mach
 
 The project owner has no plant data or target defect labels. Collecting and destructively confirming defect labels in practice is infeasible. To maintain reliable advisory performance when transitioning to a new environment, the model must adapt without requiring target defect labels.
 
-To solve this, an unsupervised site adaptation module is planned (`src/utriage/ml/site_adapt.py`, not yet merged) to adjust normalisation statistics and decision thresholds using exclusively unlabelled, inspector-confirmed clean scans.
+To solve this, an unsupervised site adaptation module (`src/utriage/ml/site_adapt.py`), CLI command (`utriage site-calibrate`), and app page exist to adjust normalisation statistics and decision thresholds using exclusively unlabelled, inspector-confirmed clean scans.
 
 ## Decision
 
@@ -60,4 +60,4 @@ The site adaptation module must adhere to non-negotiable safety rules:
 ## Validation Still Required
 
 - **No plant validation exists**: UTriage has no plant validation, has not been tested on plant equipment, and has not been validated on MIDHANI production data or any live industrial line.
-- **Empirical evaluation**: Quantitative metrics and performance figures must come strictly from committed benchmark results (`results/*.json`) once experiments run. No performance figures or constants are invented.
+- **Empirical evaluation**: The site adaptation module, CLI command (`utriage site-calibrate`), app page, and experiment (`results/site_adaptation.json`) exist. Status stays Proposed until the owner approves; validation on real site changes is still required.

@@ -147,7 +147,10 @@ All numbers below are derived directly from the analytical formulas:
 2. Rule of three approximation:
    $$n \approx \frac{3}{0.01} = 300 \quad (\approx 299)$$
 3. One-sided 95% Clopper-Pearson upper bound for $k = 0$ false calls in $n = 299$ scans:
-   $$p_{\text{upper}} = 1 - (1 - c)^{1/n} = 1 - (0.05)^{1/299} \approx 1 - 0.990049 = 0.009951 \le 0.01$$
+   - Exact:
+     $$p_{\text{upper}} = 1 - (1 - c)^{1/n} = 1 - (0.05)^{1/299} \approx 1 - 0.990031 = 0.009969 \le 0.01$$
+   - Rule-of-three approximation ($e^{-3/n}$ with $n = 300$):
+     $$p_{\text{upper}} \approx 1 - e^{-3/n} = 1 - e^{-3/300} \approx 1 - 0.990050 = 0.009950 \le 0.01$$
 
 ### Example 2: Target false-call rate $p = 0.05$ (5%), confidence $c = 0.95$
 1. Exact zero-failure sample size:
@@ -206,12 +209,12 @@ The calibrated parameters and metadata are stored in a persistent JSON file (`Si
 
 ## 8. Limitations and safety boundaries
 
-- **Shifts covered**: Adapts strictly to affine distribution shifts in receiver gain, background acoustic noise, sound velocity, and transducer coupling.
+- **Shifts covered**: Adapts strictly to affine distribution shifts in receiver gain, background acoustic noise, sound velocity, and transducer coupling. Tested shifts are synthetic software perturbations of real ML-NDT weld images, not real plant/site changes.
 - **Cannot learn new flaw types**: Unsupervised adaptation uses only flaw-free clean scans. It does not train on defect indications and cannot learn the acoustic signatures or morphology of novel flaw mechanisms.
 - **Requires inspector-confirmed clean scans**: If calibration scans inadvertently contain unflagged flaws, baseline statistics become distorted and the anomaly threshold is artificially elevated, desensitising the detector.
 - **Rules engine stays in charge**: Safety-first architecture (ADR 0001). ML models can only raise advisory flags; they can never remove or downgrade a conventional rule flag.
 - **No plant validation exists**: UTriage has not been validated or deployed on production plant lines or MIDHANI hardware.
-- **No measured results yet**: Site adaptation routines represent an offline pipeline implementation; empirical site transfer metrics remain to be quantified on plant datasets.
+- **Measured results**: See results/site_adaptation.json and the generated tables in README.md; results are single-seed, on real ML-NDT weld images (site adaptation uses synthetic gain/offset/noise perturbations).
 
 ---
 

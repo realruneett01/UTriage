@@ -37,6 +37,6 @@ Once pretraining finishes, `encoder_state(model)` extracts the encoder weights. 
 - Anomaly scoring model.
 
 ## Current status and limitations
-- **No results measured yet**: Pretraining routines are implemented as an exploratory self-supervised pipeline. Detection rate, POD improvements, and downstream fine-tuning benchmarks have not yet been evaluated on real or synthetic datasets.
+- **Measured results**: See results/joint_train_metrics.json (arms C and D) and the generated tables in README.md; results are single-seed, on real ML-NDT weld images; pretraining gave mixed results with no consistent gain.
 - **Resolution alignment**: Patch size $P$ must match the spatial scale of ultrasonic beam spread and scan index. Very large patches remove too much contextual evidence, while very small patches permit trivial edge smoothing.
 - **Domain limitation**: Pretraining on flaw-free material teaches normal acoustic background; it does not expose the network to rare flaw reflection phase inversions or corner reflections.
