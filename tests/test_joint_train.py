@@ -13,15 +13,18 @@ from experiments.run_joint_train import (
     JointConfig,
     MlNdtAE,
     SimDatasetAdapter,
+    assert_no_held_out,
     build_arg_parser,
     calc_detection,
     calc_false_calls,
     eval_pod,
     parse_cli_args,
+    resolve_pretrain_dataset,
     resolve_sim_count,
     run_joint_experiment,
 )
 
+from utriage.ml.loco import IndexedMlNdtDataset, LocoFold
 from utriage.ml.models import MlNdtNet
 from utriage.ml.pretrain import encoder_state
 from utriage.ml.sim_to_2d import SimBscanConfig, SimBscanDataset
@@ -90,29 +93,32 @@ def test_sim_adapter_yields_three_elements() -> None:
 
 
 @pytest.mark.parametrize(
-    ("frac", "n_sim", "n_real", "expected"),
+    ("frac", "n_real", "cap", "expected"),
     [
-        (0.0, 100, 50, 0),
-        (-0.5, 100, 50, 0),
-        (0.5, 0, 50, 0),
-        (0.5, 10, None, 5),
-        (0.2, 100, 50, 10),
+        (0.0, 50, None, 0),
+        (-0.5, 50, None, 0),
+        (0.5, 0, None, 0),
+        (0.5, 50, None, 50),
+        (0.5, 50, 10, 10),
+        (0.2, 80, None, 20),
     ],
 )
-def test_resolve_sim_count(frac: float, n_sim: int, n_real: int | None, expected: int) -> None:
-    """resolve_sim_count enforces 0 for non-positive fraction and scales otherwise."""
-    assert resolve_sim_count(frac, n_sim, n_real) == expected
+def test_resolve_sim_count(frac: float, n_real: int, cap: int | None, expected: int) -> None:
+    """resolve_sim_count computes fraction correctly and respects optional cap."""
+    assert resolve_sim_count(frac, n_real, cap) == expected
 
 
 def _assert_detection_fields(det: dict[str, Any]) -> None:
-    """Verify keys and bounds of detection dictionary."""
-    assert {"k", "n", "rate", "lower95", "upper95"}.issubset(det.keys())
+    """Verify keys, interval type, and bounds of detection dictionary."""
+    assert {"k", "n", "rate", "lower95", "upper95", "interval_type"}.issubset(det.keys())
+    assert det["interval_type"] == "two_sided_95"
     assert 0.0 <= det["lower95"] <= det["upper95"] <= 1.0
 
 
 def _assert_false_call_fields(fc: dict[str, Any]) -> None:
-    """Verify keys and bounds of false calls dictionary."""
-    assert {"k", "n", "rate", "upper95"}.issubset(fc.keys())
+    """Verify keys, interval type, and bounds of false calls dictionary."""
+    assert {"k", "n", "rate", "upper95", "interval_type"}.issubset(fc.keys())
+    assert fc["interval_type"] == "one_sided_95_upper"
     assert 0.0 <= fc["rate"] <= fc["upper95"] <= 1.0
 
 
@@ -137,23 +143,56 @@ def test_metric_helpers() -> None:
     assert "a90_95" in pod
 
 
-def _assert_quick_metrics(metrics: dict[str, Any], models_dir: Path) -> None:
-    """Verify quick run metrics dictionary and confirm no models on disk."""
-    expected = "real metrics on ML-NDT (weld, 3 physical cracks); sim images are Synthetic data"
-    assert metrics["label"] == expected
-    assert set(metrics["arms"].keys()) == {"A", "B", "C", "D"}
-    assert len(metrics["folds"]) == 1
-    assert len(metrics["model_sha256"]) == 4
-    assert not models_dir.exists() or len(list(models_dir.glob("*.pt"))) == 0
+def test_arm_c_pretrain_dataset_has_no_sim(tmp_path: Path) -> None:
+    """Arm C pretrains only on real images, while arm D includes sim images."""
+    fake_b = tmp_path / "dummy.bins"
+    fake_b.touch()
+    real_ds = IndexedMlNdtDataset([(fake_b, 0), (fake_b, 1)])
+    sim_ds = SimDatasetAdapter(SimBscanDataset(length=2, base_seed=1))
+
+    ds_c = resolve_pretrain_dataset(real_ds, sim_ds, arm="C")
+    ds_d = resolve_pretrain_dataset(real_ds, sim_ds, arm="D")
+
+    assert ds_c is real_ds
+    assert hasattr(ds_d, "datasets")
+    assert sim_ds in ds_d.datasets
+
+
+def test_held_out_assertion_detects_leak(tmp_path: Path) -> None:
+    """assert_no_held_out raises AssertionError when test scan leaks into train."""
+    b_tr = tmp_path / "tr.bins"
+    b_te = tmp_path / "te.bins"
+    b_tr.touch()
+    b_te.touch()
+
+    fold = LocoFold(held_out="crack_1.6", train=[(b_tr, 0)], val=[], test=[(b_te, 0)])
+    ds_valid = IndexedMlNdtDataset([(b_tr, 0)])
+    ds_leaked = IndexedMlNdtDataset([(b_te, 0)])
+
+    assert_no_held_out(ds_valid, fold)
+    with pytest.raises(AssertionError, match="Held-out"):
+        assert_no_held_out(ds_leaked, fold)
+
+
+def _assert_arm_record(arm_rec: dict[str, Any], arm_key: str) -> None:
+    """Verify keys, interval types, and hashes in an arm record."""
+    assert arm_rec["arm"] == arm_key
+    _assert_detection_fields(arm_rec["detections"])
+    _assert_false_call_fields(arm_rec["false_calls"])
+    assert "model_sha256" in arm_rec
+    if arm_key in ("C", "D"):
+        assert isinstance(arm_rec["pretrained_encoder_sha256"], str)
+        assert len(arm_rec["pretrained_encoder_sha256"]) == 64
+    else:
+        assert arm_rec["pretrained_encoder_sha256"] is None
 
 
 def test_quick_all_arms_and_json(fake_mlndt_root: Path, tmp_path: Path) -> None:
-    """Run quick pipeline on 1 fold across all 4 arms and verify JSON schema."""
+    """Run quick pipeline across all 4 arms and verify fold metrics and JSON."""
     out_dir = tmp_path / "results"
-    models_dir = tmp_path / "models"
     cfg = JointConfig(
         sim_fraction=0.5,
-        n_sim=4,
+        n_sim_cap=4,
         pretrain_epochs=1,
         seed=42,
         quick=True,
@@ -161,45 +200,95 @@ def test_quick_all_arms_and_json(fake_mlndt_root: Path, tmp_path: Path) -> None:
         epochs=1,
         arms=("A", "B", "C", "D"),
         data_root=fake_mlndt_root,
-        models_dir=models_dir,
+        models_dir=tmp_path / "models",
         device="cpu",
     )
     metrics = run_joint_experiment(cfg)
     assert (out_dir / "joint_train_metrics.json").exists()
-    _assert_quick_metrics(metrics, models_dir)
+
+    fold = metrics["folds"][0]
+    assert "actual_sim_fraction" in fold
+    assert fold["actual_sim_fraction"] == fold["n_sim_train"] / (
+        fold["n_real_train"] + fold["n_sim_train"]
+    )
+    for arm_key in ("A", "B", "C", "D"):
+        _assert_arm_record(fold["arms"][arm_key], arm_key)
 
 
-def test_sim_fraction_zero_no_sim_samples(fake_mlndt_root: Path, tmp_path: Path) -> None:
-    """Verify sim_fraction=0 yields 0 synthetic samples and preserves dataset size."""
-    out_dir = tmp_path / "zero_results"
+def test_actual_sim_fraction_matches_requested(fake_mlndt_root: Path, tmp_path: Path) -> None:
+    """Verify actual_sim_fraction matches requested fraction without cap."""
     cfg = JointConfig(
-        sim_fraction=0.0,
-        n_sim=10,
+        sim_fraction=0.2,
         pretrain_epochs=1,
-        seed=0,
         quick=True,
-        out_dir=out_dir,
+        out_dir=tmp_path / "frac_results",
         epochs=1,
         arms=("A", "B"),
         data_root=fake_mlndt_root,
         device="cpu",
     )
     metrics = run_joint_experiment(cfg)
-    fold_arms = metrics["folds"][0]["arms"]
-    assert fold_arms["A"]["n_train"] == fold_arms["B"]["n_train"]
+    fold = metrics["folds"][0]
+    expected_frac = fold["n_sim_train"] / (fold["n_real_train"] + fold["n_sim_train"])
+    assert fold["actual_sim_fraction"] == pytest.approx(0.2, abs=0.05)
+    assert fold["actual_sim_fraction"] == expected_frac
+
+
+def test_multi_seeds_produces_per_seed_entries(fake_mlndt_root: Path, tmp_path: Path) -> None:
+    """Configuring multiple seeds produces per-seed results while keeping single-seed keys."""
+    cfg = JointConfig(
+        sim_fraction=0.2,
+        seeds=(0, 1),
+        quick=True,
+        out_dir=tmp_path / "seed_results",
+        epochs=1,
+        arms=("A",),
+        data_root=fake_mlndt_root,
+        device="cpu",
+    )
+    metrics = run_joint_experiment(cfg)
+    assert metrics["seeds"] == [0, 1]
+    arm_a = metrics["folds"][0]["arms"]["A"]
+    assert "seeds" in arm_a
+    assert len(arm_a["seeds"]) == 2
+    assert arm_a["seeds"][0]["seed"] == 0
+    assert arm_a["seeds"][1]["seed"] == 1
+    assert "detections" in arm_a
+
+
+def test_sim_fraction_zero_no_sim_samples(fake_mlndt_root: Path, tmp_path: Path) -> None:
+    """Verify sim_fraction=0 yields 0 synthetic samples and preserves dataset size."""
+    cfg = JointConfig(
+        sim_fraction=0.0,
+        n_sim_cap=10,
+        pretrain_epochs=1,
+        seed=0,
+        quick=True,
+        out_dir=tmp_path / "zero_results",
+        epochs=1,
+        arms=("A", "B"),
+        data_root=fake_mlndt_root,
+        device="cpu",
+    )
+    metrics = run_joint_experiment(cfg)
+    fold = metrics["folds"][0]
+    assert fold["n_sim_train"] == 0
+    assert fold["actual_sim_fraction"] == 0.0
+    assert fold["arms"]["A"]["n_train"] == fold["arms"]["B"]["n_train"]
 
 
 def test_cli_parsing(tmp_path: Path) -> None:
-    """Verify build_arg_parser and parse_cli_args support all specified flags."""
+    """Verify build_arg_parser and parse_cli_args support seeds and n-sim-cap."""
     parser = build_arg_parser()
     argv = [
         "--quick",
         "--sim-fraction",
         "0.25",
-        "--pretrain-epochs",
+        "--n-sim-cap",
+        "50",
+        "--seeds",
         "3",
-        "--seed",
-        "7",
+        "5",
         "--out-dir",
         str(tmp_path),
         "--arms",
@@ -210,7 +299,8 @@ def test_cli_parsing(tmp_path: Path) -> None:
     cfg = parse_cli_args(args)
     assert cfg.quick is True
     assert cfg.sim_fraction == 0.25
-    assert cfg.pretrain_epochs == 3
-    assert cfg.seed == 7
+    assert cfg.n_sim_cap == 50
+    assert cfg.seeds == (3, 5)
+    assert cfg.seed == 3
     assert cfg.out_dir == tmp_path
     assert cfg.arms == ("A", "C")
