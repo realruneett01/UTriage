@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
+import io
 import json
 import subprocess
 import sys
@@ -114,6 +116,7 @@ class SiteAdaptationConfig:
     device: str = "auto"
     seed: int = 0
     quick: bool = False
+    allow_train_overlap: bool = False
 
 
 @dataclass(frozen=True)
@@ -125,6 +128,7 @@ class PartitionResult:
     test_flawed: list[tuple[Path, int]]
     overlaps_model_training: bool
     underpowered: bool
+    test_underpowered: bool
     min_required: int
     fcr_choice_reason: str
 
@@ -201,6 +205,13 @@ def _make_loader(images: Sequence[np.ndarray], batch_size: int = 32) -> list[tor
     return batches
 
 
+def _model_state_sha256(model: nn.Module) -> str:
+    """Compute sha256 hex digest of model state_dict bytes."""
+    buf = io.BytesIO()
+    torch.save(model.state_dict(), buf)
+    return hashlib.sha256(buf.getvalue()).hexdigest()
+
+
 def _eval_baseline(
     model: nn.Module,
     scans: ShiftedTestScans,
@@ -238,9 +249,12 @@ def _eval_adapted(
 
     sc_clean = score_images(ad_model, ad_tc, settings.device, settings.batch_size)
     sc_flawed = score_images(ad_model, ad_tf, settings.device, settings.batch_size)
+    sha256 = _model_state_sha256(ad_model)
     return {
         "threshold": float(calib.threshold),
         "upper95_fcr": float(calib.upper95_fcr),
+        "upper95_fcr_scope": "calibration clean scans",
+        "adapted_model_sha256": sha256,
         "false_calls": _summarize_counts(sc_clean > calib.threshold),
         "detection": _summarize_counts(sc_flawed > calib.threshold),
     }
@@ -271,6 +285,7 @@ def evaluate_shift(
         },
         "baseline": baseline_res,
         "adapted": adapted_res,
+        "adapted_model_sha256": adapted_res["adapted_model_sha256"],
     }
 
 
@@ -336,14 +351,14 @@ def _partition_training_batches(
     return ho_clean, trained_clean, trained_batches
 
 
-def _make_fcr_reason(fcr: float, n_cal: int, min_req: int, underpowered: bool) -> str:
+def _make_fcr_reason(fcr: float, n_cal: int, n_test: int, min_req: int) -> str:
     """Generate explanatory text for target false call rate power status."""
-    if underpowered:
+    if n_cal < min_req or n_test < min_req:
         return (
             f"Target FCR {fcr} requires {min_req} clean scans, "
-            f"but only {n_cal} available (calibration underpowered)"
+            f"cal={n_cal}, test={n_test} (underpowered)"
         )
-    return f"Target FCR {fcr} requires {min_req} clean scans; calibration pool has {n_cal} scans"
+    return f"Target FCR {fcr} requires {min_req} clean scans; cal={n_cal}, test={n_test} scans"
 
 
 def partition_adaptation_data(
@@ -355,33 +370,35 @@ def partition_adaptation_data(
     val_cal, tc, tf = _partition_validation_split(val_batches, cfg.seed)
     ho_clean, tr_clean, trained_b = _partition_training_batches(tr_batches)
 
-    untrained = val_cal + ho_clean
+    untrained = val_cal + tc + ho_clean
     min_req = min_clean_scans(cfg.fcr)
-    candidate_cal = list(untrained) if len(untrained) >= min_req else untrained + tr_clean
+    mid = (len(untrained) + 1) // 2
+    cal_cand = list(untrained[:mid])
+    test_cand = list(untrained[mid:])
+
+    if cfg.allow_train_overlap and len(cal_cand) < min_req:
+        cal_cand.extend(tr_clean)
 
     lim = 16 if cfg.quick else sys.maxsize
-    cal_clean = candidate_cal[:lim]
-    test_clean = tc[:lim]
+    cal_clean = cal_cand[:lim]
+    test_clean = test_cand[:lim]
     test_flawed = tf[:lim]
 
     _assert_disjoint_partitions(cal_clean, test_clean, test_flawed)
     overlaps = any(b.resolve() in trained_b for b, _ in cal_clean)
     underpowered = len(cal_clean) < min_req
-    reason = _make_fcr_reason(cfg.fcr, len(cal_clean), min_req, underpowered)
+    test_underpowered = len(test_clean) < min_req
+    reason = _make_fcr_reason(cfg.fcr, len(cal_clean), len(test_clean), min_req)
     return PartitionResult(
-        cal_clean, test_clean, test_flawed, overlaps, underpowered, min_req, reason
+        cal_clean=cal_clean,
+        test_clean=test_clean,
+        test_flawed=test_flawed,
+        overlaps_model_training=overlaps,
+        underpowered=underpowered,
+        test_underpowered=test_underpowered,
+        min_required=min_req,
+        fcr_choice_reason=reason,
     )
-
-
-def _partition_val_items(
-    batches: list[Path],
-    seed: int,
-    quick: bool,
-) -> tuple[list[tuple[Path, int]], list[tuple[Path, int]], list[tuple[Path, int]]]:
-    """Extract disjoint calibration clean, test clean, and test flawed item indices."""
-    cal_clean, test_clean, test_flawed = _partition_validation_split(batches, seed)
-    lim = 16 if quick else sys.maxsize
-    return cal_clean[:lim], test_clean[:lim], test_flawed[:lim]
 
 
 def _stream_scan_images(items: list[tuple[Path, int]]) -> list[np.ndarray]:
@@ -454,8 +471,10 @@ def _build_payload(
         },
         "shifts": shifts,
         "n_calib_clean": len(inp.data.cal_clean),
+        "n_test_clean": len(inp.data.test_clean),
         "min_clean_required": inp.part.min_required,
         "calibration_underpowered": inp.part.underpowered,
+        "test_underpowered": inp.part.test_underpowered,
         "calib_overlaps_model_training": inp.part.overlaps_model_training,
         "fcr_choice_reason": inp.part.fcr_choice_reason,
     }
@@ -515,6 +534,11 @@ def _parse_args(args: list[str] | None = None) -> SiteAdaptationConfig:
     parser.add_argument("--device", type=str, default="auto", help="Compute device")
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
     parser.add_argument("--quick", action="store_true", help="Quick run with subset of scans")
+    parser.add_argument(
+        "--allow-train-overlap",
+        action="store_true",
+        help="Allow appending model training clean scans to calibration pool if underpowered",
+    )
     ns = parser.parse_args(args)
     return SiteAdaptationConfig(
         root=ns.root,
@@ -525,6 +549,7 @@ def _parse_args(args: list[str] | None = None) -> SiteAdaptationConfig:
         device=ns.device,
         seed=ns.seed,
         quick=ns.quick,
+        allow_train_overlap=ns.allow_train_overlap,
     )
 
 

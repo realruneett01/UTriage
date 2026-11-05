@@ -7,6 +7,7 @@ execution using synthetic fake data in temporary directories.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from experiments.run_site_adaptation import (
     DATASET_LABEL,
     FIXED_SHIFTS,
     LIMITS_TEXT,
+    PartitionResult,
     ShiftEvalSettings,
     ShiftEvaluationData,
     SiteAdaptationConfig,
@@ -123,6 +125,13 @@ def _assert_summary_block(summary: dict[str, Any]) -> None:
     assert 0.0 <= summary["ci_low"] <= summary["ci_high"] <= 1.0
 
 
+def _assert_evaluation_summaries(res: dict[str, Any]) -> None:
+    """Verify summary blocks across baseline and adapted evaluation result."""
+    for section in ("baseline", "adapted"):
+        _assert_summary_block(res[section]["false_calls"])
+        _assert_summary_block(res[section]["detection"])
+
+
 def test_evaluate_shift_tiny_images() -> None:
     """evaluate_shift produces valid baseline and adapted results on tiny arrays."""
     rng = np.random.default_rng(77)
@@ -137,10 +146,10 @@ def test_evaluate_shift_tiny_images() -> None:
 
     result = evaluate_shift(model, shift, data, settings)
     assert result["shift"]["name"] == "combined"
-    _assert_summary_block(result["baseline"]["false_calls"])
-    _assert_summary_block(result["baseline"]["detection"])
-    _assert_summary_block(result["adapted"]["false_calls"])
-    _assert_summary_block(result["adapted"]["detection"])
+    _assert_evaluation_summaries(result)
+    assert result["adapted"]["upper95_fcr_scope"] == "calibration clean scans"
+    assert len(result["adapted"]["adapted_model_sha256"]) == 64
+    assert len(result["adapted_model_sha256"]) == 64
 
 
 def test_fixed_shifts_completeness() -> None:
@@ -150,24 +159,36 @@ def test_fixed_shifts_completeness() -> None:
     assert names == expected
 
 
+@dataclass(frozen=True)
+class ExpectedCliOptions:
+    """Expected configuration parsed from CLI options."""
+
+    quick: bool
+    fcr: float
+    allow_overlap: bool
+
+
 @pytest.mark.parametrize(
-    ("cli_args", "expected_quick", "expected_fcr"),
+    ("cli_args", "expected"),
     [
-        ([], False, 0.01),
-        (["--quick", "--fcr", "0.05"], True, 0.05),
+        ([], ExpectedCliOptions(quick=False, fcr=0.01, allow_overlap=False)),
+        (
+            ["--quick", "--fcr", "0.05", "--allow-train-overlap"],
+            ExpectedCliOptions(quick=True, fcr=0.05, allow_overlap=True),
+        ),
     ],
 )
 def test_parse_args_options(
     cli_args: list[str],
-    expected_quick: bool,
-    expected_fcr: float,
+    expected: ExpectedCliOptions,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Argument parser correctly extracts CLI settings."""
     monkeypatch.setattr("sys.argv", ["run_site_adaptation.py", *cli_args])
     cfg = _parse_args()
-    assert cfg.quick is expected_quick
-    assert pytest.approx(cfg.fcr) == expected_fcr
+    assert cfg.quick is expected.quick
+    assert pytest.approx(cfg.fcr) == expected.fcr
+    assert cfg.allow_train_overlap is expected.allow_overlap
 
 
 def _assert_payload_structure(payload: dict[str, Any], exp_sha: str) -> None:
@@ -179,15 +200,21 @@ def _assert_payload_structure(payload: dict[str, Any], exp_sha: str) -> None:
     assert payload["seed"] == 0
     assert "n_images" in payload
     assert payload["n_calib_clean"] == payload["n_images"]["cal_clean"]
+    assert payload["n_test_clean"] == payload["n_images"]["test_clean"]
     assert payload["min_clean_required"] == min_clean_scans(payload["target_fcr"])
     assert isinstance(payload["calibration_underpowered"], bool)
+    assert isinstance(payload["test_underpowered"], bool)
+    assert payload["test_underpowered"] == (payload["n_test_clean"] < payload["min_clean_required"])
     assert isinstance(payload["calib_overlaps_model_training"], bool)
     assert isinstance(payload["fcr_choice_reason"], str)
     for shift in FIXED_SHIFTS:
         assert shift.name in payload["shifts"]
-        shift_res = payload["shifts"][shift.name]
-        _assert_summary_block(shift_res["baseline"]["false_calls"])
-        _assert_summary_block(shift_res["adapted"]["false_calls"])
+        s_res = payload["shifts"][shift.name]
+        _assert_summary_block(s_res["baseline"]["false_calls"])
+        _assert_summary_block(s_res["adapted"]["false_calls"])
+        assert s_res["adapted"]["upper95_fcr_scope"] == "calibration clean scans"
+        assert len(s_res["adapted"]["adapted_model_sha256"]) == 64
+        assert len(s_res["adapted_model_sha256"]) == 64
 
 
 def test_quick_pipeline_execution(fake_data_root: Path, tmp_path: Path) -> None:
@@ -215,8 +242,39 @@ def test_quick_pipeline_execution(fake_data_root: Path, tmp_path: Path) -> None:
     assert out_file.is_file()
 
     loaded = json.loads(out_file.read_text(encoding="utf-8"))
-    _assert_payload_structure(metrics, exp_sha)
-    _assert_payload_structure(loaded, exp_sha)
+    for item in (metrics, loaded):
+        _assert_payload_structure(item, exp_sha)
+
+
+def _partition_for_root(
+    root: Path,
+    fcr: float = 0.01,
+    allow_train_overlap: bool = False,
+) -> PartitionResult:
+    """Helper to partition dataset for given root."""
+    val_b = list_batches("validation", root=root)
+    tr_b = list_batches("training", root=root)
+    cfg = SiteAdaptationConfig(
+        root=root, fcr=fcr, seed=0, quick=False, allow_train_overlap=allow_train_overlap
+    )
+    return partition_adaptation_data(val_b, tr_b, cfg)
+
+
+def _check_power_status(
+    part: PartitionResult,
+    expected_cal_underpowered: bool,
+    expected_test_underpowered: bool,
+) -> None:
+    """Verify calibration and test underpowered statuses on PartitionResult."""
+    assert part.underpowered is expected_cal_underpowered
+    assert part.test_underpowered is expected_test_underpowered
+    assert part.min_required == 299
+    if expected_cal_underpowered:
+        assert len(part.cal_clean) < 299
+        assert "underpowered" in part.fcr_choice_reason
+    else:
+        assert len(part.cal_clean) >= 299
+        assert "underpowered" not in part.fcr_choice_reason
 
 
 def _make_large_fake_root(tmp_path: Path, n_clean: int, n_flawed: int) -> Path:
@@ -224,22 +282,18 @@ def _make_large_fake_root(tmp_path: Path, n_clean: int, n_flawed: int) -> Path:
     root = tmp_path / "large_fake_mlndt"
     val_dir = root / "validation"
     val_dir.mkdir(parents=True)
-    _write_fake_batch(val_dir / "batch_val_00.bins", [(0.0, 0.0)] * 10 + [(1.0, 1.0)] * 10, 1)
-    _write_fake_batch(val_dir / "batch_val_01.bins", [(0.0, 0.0)] * 10 + [(1.0, 1.0)] * 10, 2)
-    tr_dir = root / "training"
-    tr_dir.mkdir(parents=True)
-    labels = [(0.0, 0.0)] * n_clean + [(1.0, 1.0)] * n_flawed
-    _write_fake_batch(tr_dir / "batch_tr_00.bins", labels, 3)
+    _write_fake_batch(
+        val_dir / "batch_val_00.bins", [(0.0, 0.0)] * n_clean + [(1.0, 1.0)] * n_flawed, 1
+    )
+    _write_fake_batch(
+        val_dir / "batch_val_01.bins", [(0.0, 0.0)] * n_clean + [(1.0, 1.0)] * n_flawed, 2
+    )
     return root
 
 
 def test_partition_disjointness(fake_data_root: Path) -> None:
     """Partitioning guarantees zero index overlap between calibration and test sets."""
-    val_batches = list_batches("validation", root=fake_data_root)
-    tr_batches = list_batches("training", root=fake_data_root)
-    cfg = SiteAdaptationConfig(root=fake_data_root, fcr=0.01, seed=0, quick=False)
-
-    part = partition_adaptation_data(val_batches, tr_batches, cfg)
+    part = _partition_for_root(fake_data_root, fcr=0.01)
     cal_set = set(part.cal_clean)
     test_set = set(part.test_clean) | set(part.test_flawed)
     assert not (cal_set & test_set)
@@ -260,46 +314,37 @@ def test_disjointness_assertion_fails_on_overlap() -> None:
 
 
 def test_underpowered_flag_tiny_pool(fake_data_root: Path) -> None:
-    """Tiny calibration clean pool flags calibration_underpowered true with clear reason."""
-    val_batches = list_batches("validation", root=fake_data_root)
-    tr_batches = list_batches("training", root=fake_data_root)
-    cfg = SiteAdaptationConfig(root=fake_data_root, fcr=0.01, seed=0, quick=False)
-
-    part = partition_adaptation_data(val_batches, tr_batches, cfg)
-    assert part.underpowered is True
-    assert part.min_required == 299
+    """Tiny calibration clean pool flags calibration and test underpowered with clear reason."""
+    part = _partition_for_root(fake_data_root, fcr=0.01)
+    _check_power_status(part, expected_cal_underpowered=True, expected_test_underpowered=True)
     assert len(part.cal_clean) < 299
-    assert "underpowered" in part.fcr_choice_reason
+    assert len(part.test_clean) < 299
 
 
-def test_underpowered_flag_false_large_fake_pool(tmp_path: Path) -> None:
-    """Large calibration clean pool satisfies min_clean_scans and sets underpowered false."""
+def test_split_gives_both_sides_ge_min_when_pool_large(tmp_path: Path) -> None:
+    """Untrained clean pool split gives both cal and test >= min_clean_scans when large."""
     root = _make_large_fake_root(tmp_path, n_clean=320, n_flawed=20)
-    val_batches = list_batches("validation", root=root)
-    tr_batches = list_batches("training", root=root)
-    cfg = SiteAdaptationConfig(root=root, fcr=0.01, seed=0, quick=False)
-
-    part = partition_adaptation_data(val_batches, tr_batches, cfg)
-    assert part.underpowered is False
-    assert part.min_required == 299
-    assert len(part.cal_clean) >= 299
-    assert "underpowered" not in part.fcr_choice_reason
+    part = _partition_for_root(root, fcr=0.01)
+    _check_power_status(part, expected_cal_underpowered=False, expected_test_underpowered=False)
+    assert len(part.cal_clean) >= part.min_required
+    assert len(part.test_clean) >= part.min_required
+    assert part.overlaps_model_training is False
 
 
 @pytest.mark.parametrize(
-    ("n_clean_per_batch", "expected_overlap"),
+    ("allow_overlap", "expected_overlap"),
     [
-        (320, False),
-        (10, True),
+        (False, False),
+        (True, True),
     ],
 )
-def test_calib_overlaps_model_training_flag(
+def test_no_training_images_in_calibration_without_flag(
     tmp_path: Path,
-    n_clean_per_batch: int,
+    allow_overlap: bool,
     expected_overlap: bool,
 ) -> None:
-    """Calibration overlap flag accurately tracks whether model training images were used."""
-    root = tmp_path / f"overlap_test_{n_clean_per_batch}"
+    """Model training clean scans only enter calibration pool when flag is explicitly set."""
+    root = tmp_path / f"overlap_flag_{allow_overlap}"
     val_dir = root / "validation"
     val_dir.mkdir(parents=True)
     _write_fake_batch(val_dir / "batch_val_00.bins", [(0.0, 0.0)] * 5 + [(1.0, 1.0)] * 5, 10)
@@ -308,12 +353,7 @@ def test_calib_overlaps_model_training_flag(
     tr_dir = root / "training"
     tr_dir.mkdir(parents=True)
     for j in range(10):
-        _write_fake_batch(
-            tr_dir / f"batch_tr_{j:02d}.bins", [(0.0, 0.0)] * n_clean_per_batch, 100 + j
-        )
+        _write_fake_batch(tr_dir / f"batch_tr_{j:02d}.bins", [(0.0, 0.0)] * 10, 100 + j)
 
-    val_b = list_batches("validation", root=root)
-    tr_b = list_batches("training", root=root)
-    cfg = SiteAdaptationConfig(root=root, fcr=0.01, seed=0, quick=False)
-    part = partition_adaptation_data(val_b, tr_b, cfg)
+    part = _partition_for_root(root, fcr=0.01, allow_train_overlap=allow_overlap)
     assert part.overlaps_model_training is expected_overlap
