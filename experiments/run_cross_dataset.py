@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -94,7 +95,9 @@ def find_dataset_dir() -> Path:
         cand = parent / "data" / "external" / "NDT_ML_Flaw" / "datasets"
         if cand.exists():
             return cand
-    user_p = Path("C:/Users/realr/utriage-data/external/NDT_ML_Flaw/datasets")
+    env_dir = os.environ.get("UTRIAGE_DATA_DIR")
+    data_root = Path(env_dir) if env_dir else Path.home() / "utriage-data"
+    user_p = data_root / "external" / "NDT_ML_Flaw" / "datasets"
     if user_p.exists():
         return user_p
     return local_p

@@ -294,7 +294,7 @@ def _load_clean_images(clean_dir: Path) -> list[np.ndarray]:
     if not paths:
         typer.secho(f"Error: No .npy files found in {clean_dir}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    return [np.load(p) for p in paths]
+    return [np.load(p, allow_pickle=False) for p in paths]
 
 
 def _load_site_model(model_path: Path, dev: torch.device) -> ConvAE2D:
