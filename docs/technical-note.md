@@ -91,6 +91,60 @@ Models trained on ML-NDT were evaluated directly on 7,000 scans from the indepen
 
 ---
 
+## Hybrid and physics-feature detectors (pre-registered, ADR 0010)
+
+*Dataset: Real data (ML-NDT)*
+
+To address supervised crack memorization without post-hoc tuning on test data, three detector architectures were pre-registered under ADR 0010 and evaluated on leave-one-crack-out (LOCO) folds across the three physical cracks:
+
+1. **H1 (OR-union):** Flags an indication if the supervised probability is $\ge 0.5$ OR the unsupervised reconstruction anomaly score is $\ge T_{\text{anom}}$ (`0.381`), calibrated on clean validation scans at target false-call rate `0.01`.
+2. **H2 (Score fusion):** Computes fused score $s = \frac{1}{2}(p_{\text{sup}} + p_{\text{anom}})$, where $p_{\text{anom}}$ is the empirical cumulative distribution function (CDF) of the anomaly score on clean calibration scans. The decision threshold $T_s$ is the clean-calibrated 0.99 quantile of $s$ on clean calibration scans (`0.495` on crack 1.6 fold, `0.495` on crack 4.0 fold, `0.495` on crack 8.6 fold).
+3. **H3 (Physics features + logistic regression):** Extracts eight hand-crafted physics features (`peak_amplitude`, `robust_noise`, `snr`, `peak_depth`, `echo_duration`, `lateral_extent`, `above_noise_area`, `energy_ratio`), standardized with `StandardScaler` fit strictly on the training fold, and classified via balanced-weight logistic regression at threshold probability $\ge 0.5$.
+
+### Per-Crack Evaluation
+
+- **Held-out `crack_1.6` (1.6 mm crack):**
+  - Supervised (`loco_crack_1.6.pt`): `579` of `4014` (detection rate: `0.144`), false-call rate: `0` (`0` of `778`)
+  - Anomaly: `3649` of `4014` (detection rate: `0.909`), false-call rate: `0.018` (`14` of `778`)
+  - Hybrid H1 (OR-union): `3653` of `4014` (detection rate: `0.91`), false-call rate: `0.018` (`14` of `778`)
+  - Hybrid H2 (Fused score): `3761` of `4014` (detection rate: `0.937`), false-call rate: `0.009` (`7` of `778`)
+  - Physics H3 (Logistic regression): `2661` of `4014` (detection rate: `0.663`), false-call rate: `0` (`0` of `778`)
+- **Held-out `crack_4.0` (4.0 mm crack):**
+  - Supervised (`loco_crack_4.0.pt`): `671` of `4078` (detection rate: `0.165`), false-call rate: `0` (`0` of `778`)
+  - Anomaly: `1306` of `4078` (detection rate: `0.32`), false-call rate: `0.018` (`14` of `778`)
+  - Hybrid H1 (OR-union): `1610` of `4078` (detection rate: `0.395`), false-call rate: `0.018` (`14` of `778`)
+  - Hybrid H2 (Fused score): `2272` of `4078` (detection rate: `0.557`), false-call rate: `0.009` (`7` of `778`)
+  - Physics H3 (Logistic regression): `2578` of `4078` (detection rate: `0.632`), false-call rate: `0` (`0` of `778`)
+- **Held-out `crack_8.6` (8.6 mm crack):**
+  - Supervised (`loco_crack_8.6.pt`): `3925` of `3925` (detection rate: `1`), false-call rate: `0` (`0` of `778`)
+  - Anomaly: `3925` of `3925` (detection rate: `1`), false-call rate: `0.018` (`14` of `778`)
+  - Hybrid H1 (OR-union): `3925` of `3925` (detection rate: `1`), false-call rate: `0.018` (`14` of `778`)
+  - Hybrid H2 (Fused score): `3925` of `3925` (detection rate: `1`), false-call rate: `0.009` (`7` of `778`)
+  - Physics H3 (Logistic regression): `3925` of `3925` (detection rate: `1`), false-call rate: `0.00129` (`1` of `778`)
+
+### Seed Sensitivity
+
+Evaluating H2 across distinct random training seeds shows marked sensitivity on the intermediate crack size (`crack_4.0`), while remaining stable on large and small cracks:
+- **`crack_1.6` Fold:** Seed detection rates range across seeds from `3687` of `4014` (`0.919`) to `3766` of `4014` (`0.938`), with false calls fixed at `7` of `778` (`0.009`).
+- **`crack_4.0` Fold:** Seed detection rates range across seeds from `899` of `4078` (`0.22`) to `2272` of `4078` (`0.557`), with false calls fixed at `7` of `778` (`0.009`).
+- **`crack_8.6` Fold:** Seed detection rates are identical across seeds at `3925` of `3925` (`1`), with false calls at `7` of `778` (`0.009`).
+
+### Complementarity
+
+Comparing the two alternative architectures reveals clear complementarity across flaw sizes: H2 is strongest on the 1.6 mm crack (detection rate `0.937` for H2 vs `0.663` for H3), whereas H3 is strongest on the 4.0 mm crack (detection rate `0.632` for H3 vs `0.557` for H2).
+
+### Coefficient Instability Across Folds
+
+Although the interpretable physics model (H3) achieves zero false calls on the smaller held-out cracks (`0` on `crack_1.6` and `0` on `crack_4.0`), its logistic regression coefficients fluctuate drastically and flip signs across LOCO folds:
+- **`energy_ratio` Coefficient:** `18.9` on fold 0 vs `-13.5` on fold 1 vs `1.32` on fold 2.
+- **`peak_depth` Coefficient:** `4.23` on fold 0 vs `-5.62` on fold 1 vs `0.349` on fold 2.
+- **`peak_amplitude` Coefficient:** `-0.00644` on fold 0 vs `1.59` on fold 1 vs `0.124` on fold 2.
+- **`above_noise_area` Coefficient:** `10.6` on fold 0 vs `12.6` on fold 1 vs `4.29` on fold 2.
+
+This instability underscores that the linear classifier over-fits idiosyncratic feature correlations of the specific two training flaws rather than learning invariant flaw physics across flaw geometries.
+
+---
+
 ## Synthetic Results
 
 All synthetic evaluations are conducted on simulated cylindrical titanium and nickel alloy bars (`src/utriage/physics/simulator.py`).
