@@ -1,6 +1,6 @@
 # UTriage — AI-assisted ultrasonic indication triage for aerospace bar inspection
 
-Advisory, offline decision support for immersion UT of titanium and nickel-alloy bars.
+Advisory, offline decision support for immersion UT of titanium and nickel-alloy bars (evaluated on simulated bars and public weld PAUT datasets).
 **UTriage never accepts or passes a part. Every decision belongs to the inspector.**
 
 > **Status:** Independent unvalidated advisory prototype; no plant data and no plant validation.
@@ -8,7 +8,7 @@ Advisory, offline decision support for immersion UT of titanium and nickel-alloy
 ## Problem Statement
 In automated immersion ultrasonic testing (UT) of titanium and nickel-alloy bars, coarse grain structures generate acoustic background noise that causes false detections and borderline indications. UT Level II/III inspectors must manually evaluate each borderline indication, leading to review queues and avoidable re-scans when data quality degrades.
 
-As an unvalidated advisory prototype, UTriage explores whether software could provide consistent indication measurement, rank indications with calibrated confidence to separate likely grain noise from likely flaws, and perform target real-time data-quality checks before a bar leaves the immersion tank without reducing detection reliability. The prototype is tested only on simulated bar scans and public weld PAUT datasets; there is no plant data and no plant validation.
+As an unvalidated advisory prototype, UTriage explores whether software could provide consistent indication measurement, rank indications with calibrated confidence to separate likely grain noise from likely flaws, and perform near-real-time (latency on the target i5 laptop not yet measured) data-quality checks before a bar leaves the immersion tank without reducing detection reliability. The prototype is tested only on simulated bar scans and public weld PAUT datasets; there is no plant data and no plant validation.
 
 ## Safety Architecture
 UTriage operates under a safety-first architecture:
@@ -16,7 +16,7 @@ UTriage operates under a safety-first architecture:
 - **Union fusion (AI only adds):** Machine learning models can raise candidate indications that conventional gates might miss, but ML can never suppress or remove a rule-generated flag. This invariant is enforced by construction and checked via property-based testing.
 - **Never accepts or passes a part:** UTriage is strictly an advisory decision-support system. It never auto-dispositions material; every accept, reject, or re-scan disposition belongs solely to the inspector.
 - **Offline and advisory:** UTriage runs fully air-gapped with no connection to UT machine controllers, PLCs, or plant networks.
-- **Data-quality watchdog:** Target real-time pre-screening checks for loss of front-wall echo (bubbles, water path drift), loss of back-wall echo, acoustic noise above limits, and missing scan coverage.
+- **Data-quality watchdog:** near-real-time (latency on the target i5 laptop not yet measured) pre-screening checks for loss of front-wall echo (bubbles, water path drift), loss of back-wall echo, acoustic noise above limits, and missing scan coverage.
 
 ### Data Flow
 ```
@@ -123,7 +123,7 @@ UTriage builds upon concepts from published ultrasonic evaluation literature and
 - **US 9,927,404 B2:** "Phased array billet data evaluation software" (United Technologies / RTX).
 - **Virkkunen et al. (2019):** "Augmented Ultrasonic Data for Machine Learning", arXiv:1903.11399.
 
-UTriage is an independent prototype and portfolio project, not a commercial implementation of the patented system. It differs by integrating a rules-in-charge safety architecture with union fusion (ML can only add flags), a target real-time data-quality watchdog, and probability of detection (POD) evaluation.
+UTriage is an independent prototype and portfolio project, not a commercial implementation of the patented system. It differs by integrating a rules-in-charge safety architecture with union fusion (ML can only add flags), a near-real-time (latency on the target i5 laptop not yet measured) data-quality watchdog, and probability of detection (POD) evaluation.
 
 ## Prototype status
 - **Advisory decision support:** UTriage provides offline indication ranking and triage evidence. It does not connect to machine controllers and never accepts or rejects a part.

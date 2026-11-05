@@ -110,7 +110,7 @@ Pre-registered evaluations for candidates H1 (OR-union) and H2 (score fusion) fr
 
 ### Observations and Scope Limits
 
-- **Complementary performance**: H2 is strongest on the 1.6 mm crack (3761/4014 vs H3 2661/4014), whereas H3 is strongest on the 4.0 mm crack (2578/4078 vs H2 2272/4078).
+- results are mixed and seed-sensitive (H2 on the 4.0 mm crack varies across seeds, see results/hybrid_metrics.json; H3 feature weights change sign across folds, see results/physics_model_metrics.json); no ranking is claimed.
 - **H3 coefficient instability**: H3 feature weights swing across LOCO training folds (e.g. `energy_ratio` is +18.91 on crack_1.6 but -13.48 on crack_4.0; `peak_depth` is +4.23 on crack_1.6 but -5.62 on crack_4.0), showing sensitivity to the training crack sample.
 - **Pre-registration boundary**: Combining H2 and H3 is a new candidate that requires a new pre-registration before it is evaluated.
 - **Evidence scope**: Evaluations are restricted to one weld PAUT public dataset across 3 physical cracks.

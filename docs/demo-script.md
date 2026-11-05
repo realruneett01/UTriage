@@ -41,12 +41,12 @@ The main view displays the full helical C-scan. The conventional rules engine ha
   - Dynamically synchronised interface gate at the front-wall echo.
   - Flaw evaluation gate with calibrated Distance-Amplitude Correction (DAC) curve overlaid.
   - Back-wall echo gate.
-- Metrics card displays: Peak Amplitude = 50.0 % DAC (results/bar_domain_metrics.json configs.record_pct, Synthetic data), Local SNR = UNVERIFIED — Ruri to check dB, Depth = UNVERIFIED — Ruri to check mm.
+- Metrics card displays: Configured recording threshold = 50 % DAC (results/bar_domain_metrics.json configs.record_pct, Synthetic data), Local SNR = UNVERIFIED — Ruri to check dB, Depth = UNVERIFIED — Ruri to check mm.
 
 **Narration**:
 "Clicking an indication immediately brings up its raw A-scan waveform. 
 
-Notice how gates are dynamically referenced to the front-wall echo rather than a fixed hardware trigger, compensating for surface runout or water-path variations. The Distance-Amplitude Correction curve normalizes signal amplitude for depth-dependent attenuation and beam spread. This indication reaches 50.0 % DAC (results/bar_domain_metrics.json configs.record_pct, Synthetic data) with a local SNR of UNVERIFIED — Ruri to check dB. The rules engine categorizes it according to baseline thresholds."
+Notice how gates are dynamically referenced to the front-wall echo rather than a fixed hardware trigger, compensating for surface runout or water-path variations. The Distance-Amplitude Correction curve normalizes signal amplitude for depth-dependent attenuation and beam spread. This indication reaches the configured recording threshold of 50 % DAC (results/bar_domain_metrics.json configs.record_pct, Synthetic data) with a local SNR of UNVERIFIED — Ruri to check dB. The rules engine categorizes it according to baseline thresholds."
 
 ---
 
@@ -55,16 +55,16 @@ Notice how gates are dynamically referenced to the front-wall echo rather than a
 - Presenter selects a borderline indication hovering near recording threshold (50.0 % DAC (results/bar_domain_metrics.json configs.record_pct, Synthetic data)).
 - The Triage Evidence panel opens:
   - 1D A-scan window view (waveform window centered on gated echo; kept model ml_1d per results/bar_domain_metrics.json).
-  - ML Grain Noise Probability meter = 0.9458858966827393 (results/bar_domain_metrics.json thresholds.ml_1d.overall, Synthetic data).
+  - ML decision threshold: the score is compared against the decision threshold stored in results/bar_domain_metrics.json (key thresholds.ml_1d.overall, Synthetic data).
   - Evidence text: "Temporal waveform envelope matches grain scattering rather than an isolated reflector."
-  - Conformal Prediction set: "Calibrated Coverage = 0.9285714285714286 (results/triage_metrics.json conformal.coverage, Synthetic data) | Disposition: Inspector review: uncertain".
+  - Conformal Prediction set: "Calibrated Coverage: value from results/triage_metrics.json conformal.coverage (Synthetic data) | Disposition: Inspector review: uncertain".
 - Safety architecture callout highlights: **Union Rule Active (ML can only add flags, never remove rules flags)**.
 - Evidence limits callout: Supervised models mostly miss held-out cracks under group-held-out evaluation, cross-dataset transfer failed on external welds, and anomaly detection on flaw-free scans is the more promising direction across 9 distinct real flaws used in evaluation (see results/claims.md).
 
 **Narration**:
 "Now look at a borderline indication near the recording threshold. Conventional amplitude thresholding leaves the inspector uncertain whether this is a small flaw or a random grain noise spike. 
 
-Here, the kept 1D ML model (ml_1d) examines the gated A-scan window centered on the echo. By evaluating temporal waveform morphology and echo duration against expected grain scattering, the model assesses a 0.9458858966827393 (results/bar_domain_metrics.json thresholds.ml_1d.overall, Synthetic data) probability of grain noise. 
+Here, the kept 1D ML model (ml_1d) examines the gated A-scan window centered on the echo. By evaluating temporal waveform morphology and echo duration against expected grain scattering, the score is compared against the decision threshold stored in results/bar_domain_metrics.json (key thresholds.ml_1d.overall, Synthetic data).
 
 Using conformal prediction, the model outputs a calibrated prediction set targeting a nominal error rate. If confidence is insufficient, it tags the indication as 'inspector review: uncertain'. Under our union safety rule, the ML model can never suppress or remove a conventional rule flag—it only provides evidence to guide inspector attention. We also report Phase 8 evidence limits transparently: across 9 distinct real flaws used in evaluation, held-out cracks are mostly missed by the supervised model, and cross-dataset transfer failed on independent welds. Anomaly detection trained on flaw-free scans represents the more promising direction (all figures in results/claims.md)."
 
