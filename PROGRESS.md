@@ -77,9 +77,9 @@
   - Union property holds in all 9 synthetic simulator columns with 0 violations (ML adds flags, never removes a rules flag).
 - Fit diagnostics (`results/fit_diagnostics.json`): underfitting if train metric < 0.9; overfitting if gap > 0.1; LOCO folds crack_1.6 (train 1.0 vs held-out 0.144, gap 0.856) and crack_4.0 (train 1.0 vs held-out 0.165, gap 0.835) show severe overfitting; crack_8.6 ok (train 1.0 vs held-out 1.0, gap 0.0); synthetic supervised shows underfitting+overfitting across heldout regions.
 - Failure analysis (`results/failure_modes.md`): per-fold top causes:
-  - crack_1.6: 3435 misses (top cause: small_flaw with 1865 cases, 54.3%), 20 false calls (top cause: artefact_like with 20 cases).
-  - crack_4.0: 3407 misses (top cause: unclassified with 1750 cases, 51.4%), 20 false calls (top cause: artefact_like with 20 cases).
-  - crack_8.6: 0 misses (top cause: none with 0 cases, 0.0%), 20 false calls (top cause: artefact_like with 20 cases).
+  - crack_1.6: 3435 misses (top cause: small_flaw with 1865 cases, 54.3%), 0 false calls (top clean scores listed as near misses; see results/failure_modes.md).
+  - crack_4.0: 3407 misses (top cause: unclassified with 1750 cases, 51.4%), 0 false calls (top clean scores listed as near misses; see results/failure_modes.md).
+  - crack_8.6: 0 misses (top cause: none with 0 cases, 0.0%), 0 false calls (top clean scores listed as near misses; see results/failure_modes.md).
 - Generalization matrix + claims (`results/generalization_matrix.json`, `results/claims.md`): verified claims and scope limits.
 - Data registry + inventory (`data/registry.yaml`, `results/data_inventory.md`): Used in evaluation: 9 distinct physical flaws (ML-NDT: 3, NDT_ML_Flaw: 6); 10 distinct physical flaws listed across accepted public datasets.
 - TFM imager (`src/utriage/imaging/tfm.py`): Total Focusing Method imager for Full Matrix Capture (FMC) array data.

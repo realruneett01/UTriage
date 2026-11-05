@@ -209,7 +209,7 @@ The calibrated parameters and metadata are stored in a persistent JSON file (`Si
 
 ## 8. Limitations and safety boundaries
 
-- **Shifts covered**: Adapts strictly to affine distribution shifts in receiver gain, background acoustic noise, sound velocity, and transducer coupling. Tested shifts are synthetic software perturbations of real ML-NDT weld images, not real plant/site changes.
+- **Shifts covered**: only the synthetic receiver gain, DC offset and additive noise perturbations in experiments/run_site_adaptation.py were tested. Sound velocity, coupling, temperature and material changes were not tested. Tested shifts are synthetic software perturbations of real ML-NDT weld images, not real plant/site changes.
 - **Cannot learn new flaw types**: Unsupervised adaptation uses only flaw-free clean scans. It does not train on defect indications and cannot learn the acoustic signatures or morphology of novel flaw mechanisms.
 - **Requires inspector-confirmed clean scans**: If calibration scans inadvertently contain unflagged flaws, baseline statistics become distorted and the anomaly threshold is artificially elevated, desensitising the detector.
 - **Rules engine stays in charge**: Safety-first architecture (ADR 0001). ML models can only raise advisory flags; they can never remove or downgrade a conventional rule flag.
