@@ -21,3 +21,7 @@ htmlcov/
 /.mcp.json
 /.vscode/
 /models/
+
+# ML-NDT scan plots: regenerated locally by experiments, not redistributed (LGPL-3.0 dataset, see LICENSE)
+results/failures/**/*.png
+results/false_calls/*.png
