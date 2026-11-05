@@ -14,7 +14,9 @@ from typing import Any
 import numpy as np
 import pytest
 import torch
+import torch.nn as nn
 from experiments.run_site_adaptation import (
+    ADAPTATION_NOTE_NO_BN,
     DATASET_LABEL,
     FIXED_SHIFTS,
     LIMITS_TEXT,
@@ -26,6 +28,7 @@ from experiments.run_site_adaptation import (
     _assert_disjoint_partitions,
     _parse_args,
     apply_shift,
+    count_batchnorm_layers,
     evaluate_shift,
     partition_adaptation_data,
     run_site_adaptation,
@@ -34,7 +37,12 @@ from experiments.run_site_adaptation import (
 from utriage.integrity import sha256_file
 from utriage.ml.anomaly import ConvAE2D
 from utriage.ml.datasets import list_batches
-from utriage.ml.site_adapt import min_clean_scans
+from utriage.ml.site_adapt import (
+    apply_site_stats,
+    fit_site_stats,
+    min_clean_scans,
+    recalibrate_batchnorm,
+)
 
 
 def _write_fake_batch(
@@ -150,6 +158,78 @@ def test_evaluate_shift_tiny_images() -> None:
     assert result["adapted"]["upper95_fcr_scope"] == "calibration clean scans"
     assert len(result["adapted"]["adapted_model_sha256"]) == 64
     assert len(result["adapted_model_sha256"]) == 64
+    assert count_batchnorm_layers(model) == 0
+    assert result["n_batchnorm_layers"] == 0
+    assert result["adabn_applied"] is False
+    assert result["adaptation_note"] == ADAPTATION_NOTE_NO_BN
+
+
+class _TinyBNModel(nn.Module):
+    """Minimal 2D autoencoder containing BatchNorm2d for testing adaptation."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv = nn.Conv2d(1, 4, kernel_size=1)
+        self.bn = nn.BatchNorm2d(4)
+        self.out = nn.Conv2d(4, 1, kernel_size=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.out(self.bn(self.conv(x)))
+
+
+def _assert_received_scans(
+    received: list[torch.Tensor],
+    data: ShiftEvaluationData,
+    shift: SiteShift,
+    seed: int,
+) -> None:
+    """Assert recalibrate_batchnorm received only shifted calibration scans."""
+    rng = np.random.default_rng(seed)
+    sh_cal = [apply_shift(x, shift, rng) for x in data.cal_clean]
+    stats = fit_site_stats(sh_cal, label="Real")
+    exp_cal = [apply_site_stats(x, stats) for x in sh_cal]
+
+    stacked = torch.cat(received, dim=0).squeeze(1).numpy()
+    assert len(stacked) == len(data.cal_clean)
+    assert np.allclose(stacked, np.stack(exp_cal), atol=1e-5)
+
+    sh_tc = [apply_shift(x, shift, rng) for x in data.test_clean]
+    sh_tf = [apply_shift(x, shift, rng) for x in data.test_flawed]
+    ad_tc = [apply_site_stats(x, stats) for x in sh_tc]
+    ad_tf = [apply_site_stats(x, stats) for x in sh_tf]
+    forbidden = (*data.test_clean, *sh_tc, *ad_tc, *data.test_flawed, *sh_tf, *ad_tf)
+    for img in forbidden:
+        assert not any(np.allclose(s, img, atol=1e-4) for s in stacked)
+
+
+def test_evaluate_shift_batchnorm_adaptation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """recalibrate_batchnorm receives only shifted clean calibration scans."""
+    rng = np.random.default_rng(101)
+    cal_cl = [rng.normal(1.0, 0.2, (16, 16)).astype(np.float32) for _ in range(4)]
+    test_cl = [rng.normal(10.0, 0.2, (16, 16)).astype(np.float32) for _ in range(4)]
+    test_fl = [rng.normal(50.0, 0.2, (16, 16)).astype(np.float32) for _ in range(2)]
+
+    model = _TinyBNModel()
+    data = ShiftEvaluationData(cal_cl, test_cl, test_fl, t_orig=1.0)
+    settings = ShiftEvalSettings(target_fcr=0.05, device=torch.device("cpu"), batch_size=2, seed=42)
+    shift = SiteShift(gain=1.5, offset=0.2, noise_std=0.05, name="combined")
+
+    received: list[torch.Tensor] = []
+
+    def mock_recalibrate(
+        mod: nn.Module, loader: Any, device: torch.device | str = "cpu"
+    ) -> nn.Module:
+        for b in loader:
+            received.append(b.detach().cpu())
+        return recalibrate_batchnorm(mod, loader, device=device)
+
+    monkeypatch.setattr("experiments.run_site_adaptation.recalibrate_batchnorm", mock_recalibrate)
+    result = evaluate_shift(model, shift, data, settings)
+    _assert_received_scans(received, data, shift, settings.seed)
+    assert count_batchnorm_layers(model) > 0
+    assert result["n_batchnorm_layers"] > 0
+    assert result["adabn_applied"] is True
+    assert "adaptation_note" not in result
 
 
 def test_fixed_shifts_completeness() -> None:
@@ -191,6 +271,21 @@ def test_parse_args_options(
     assert cfg.allow_train_overlap is expected.allow_overlap
 
 
+def _assert_payload_shifts(shifts: dict[str, Any]) -> None:
+    """Verify per-shift results inside payload."""
+    for shift in FIXED_SHIFTS:
+        assert shift.name in shifts
+        s_res = shifts[shift.name]
+        _assert_summary_block(s_res["baseline"]["false_calls"])
+        _assert_summary_block(s_res["adapted"]["false_calls"])
+        assert s_res["adapted"]["upper95_fcr_scope"] == "calibration clean scans"
+        assert len(s_res["adapted"]["adapted_model_sha256"]) == 64
+        assert len(s_res["adapted_model_sha256"]) == 64
+        assert s_res["n_batchnorm_layers"] == 0
+        assert s_res["adabn_applied"] is False
+        assert s_res["adaptation_note"] == ADAPTATION_NOTE_NO_BN
+
+
 def _assert_payload_structure(payload: dict[str, Any], exp_sha: str) -> None:
     """Validate structure and provenance metadata of output JSON payload."""
     assert payload["label"] == DATASET_LABEL
@@ -200,21 +295,22 @@ def _assert_payload_structure(payload: dict[str, Any], exp_sha: str) -> None:
     assert payload["seed"] == 0
     assert "n_images" in payload
     assert payload["n_calib_clean"] == payload["n_images"]["cal_clean"]
+    assert payload["n_calib_clean"] == 8
     assert payload["n_test_clean"] == payload["n_images"]["test_clean"]
+    assert payload["n_test_clean"] == 8
     assert payload["min_clean_required"] == min_clean_scans(payload["target_fcr"])
-    assert isinstance(payload["calibration_underpowered"], bool)
-    assert isinstance(payload["test_underpowered"], bool)
-    assert payload["test_underpowered"] == (payload["n_test_clean"] < payload["min_clean_required"])
-    assert isinstance(payload["calib_overlaps_model_training"], bool)
-    assert isinstance(payload["fcr_choice_reason"], str)
-    for shift in FIXED_SHIFTS:
-        assert shift.name in payload["shifts"]
-        s_res = payload["shifts"][shift.name]
-        _assert_summary_block(s_res["baseline"]["false_calls"])
-        _assert_summary_block(s_res["adapted"]["false_calls"])
-        assert s_res["adapted"]["upper95_fcr_scope"] == "calibration clean scans"
-        assert len(s_res["adapted"]["adapted_model_sha256"]) == 64
-        assert len(s_res["adapted_model_sha256"]) == 64
+    assert payload["min_clean_required"] == 59
+    assert payload["calibration_underpowered"] is True
+    assert payload["test_underpowered"] is True
+    assert payload["calib_overlaps_model_training"] is False
+    assert (
+        payload["fcr_choice_reason"]
+        == "Target FCR 0.05 requires 59 clean scans, cal=8, test=8 (underpowered)"
+    )
+    assert payload["n_batchnorm_layers"] == 0
+    assert payload["adabn_applied"] is False
+    assert payload["adaptation_note"] == ADAPTATION_NOTE_NO_BN
+    _assert_payload_shifts(payload["shifts"])
 
 
 def test_quick_pipeline_execution(fake_data_root: Path, tmp_path: Path) -> None:
