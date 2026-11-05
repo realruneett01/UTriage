@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -355,7 +356,7 @@ def test_cross_dataset_high_false_calls(
 
     claims = build_claims(fake_results_dir)
     claim = next(c for c in claims if c.id == "cross_dataset")
-    assert "flagged (nearly) every image" in claim.text
+    assert "flagged 7000/7000 images" in claim.text
     assert "3442/3442" in claim.text
     assert "3558/3558" in claim.text
     assert claim.text.endswith("no cross-dataset transfer under the documented domain mapping.")
@@ -507,7 +508,7 @@ def test_loco_crackval_claim_present_with_numbers(tmp_path: Path) -> None:
     assert claim.evidence_file == "results/loco_crackval_metrics.json"
     assert claim.evidence_path == "folds"
     assert claim.scope_limit == (
-        "one weld PAUT public dataset, 3 physical cracks, each fold trains on a single crack"
+        "ML-NDT (316L weld, 3 physical cracks), each fold trains on a single crack"
     )
     for expected_str in (
         "Leave-one-crack-out with crack-held-out early stopping",
@@ -735,10 +736,12 @@ def _make_fake_site_adaptation_shift(
     name: str,
     b_fc: tuple[int, int, float, float, float],
     a_fc: tuple[int, int, float, float, float],
+    det: tuple[tuple[int, int], tuple[int, int]] = ((40, 50), (45, 50)),
 ) -> dict[str, Any]:
     """Helper creating a single shift entry for fake site_adaptation.json."""
     bk, bn, br, blow, bhigh = b_fc
     ak, an, ar, alow, ahigh = a_fc
+    (bk_det, bn_det), (ak_det, an_det) = det
     b_calls = {
         "k": bk,
         "n": bn,
@@ -757,8 +760,16 @@ def _make_fake_site_adaptation_shift(
     }
     return {
         "shift": {"name": name, "gain": 1.0, "offset": 0.0, "noise_std": 0.0},
-        "baseline": {"false_calls": b_calls},
-        "adapted": {"false_calls": a_calls},
+        "baseline": {
+            "false_calls": b_calls,
+            "detection": {"k": bk_det, "n": bn_det, "rate": bk_det / bn_det},
+        },
+        "adapted": {
+            "false_calls": a_calls,
+            "detection": {"k": ak_det, "n": an_det, "rate": ak_det / an_det},
+        },
+        "test_underpowered": True,
+        "upper95_fcr_scope": 0.05,
     }
 
 
@@ -766,6 +777,7 @@ def _make_fake_site_adaptation_data() -> dict[str, Any]:
     """Helper creating fake site_adaptation metrics dictionary."""
     return {
         "label": "Real (ML-NDT weld, 3 physical cracks; shifts are synthetic perturbations)",
+        "n_images": {"test_clean": 100},
         "shifts": {
             "identity": _make_fake_site_adaptation_shift(
                 "identity",
@@ -831,9 +843,13 @@ def test_site_adaptation_claims_present_with_numbers(tmp_path: Path) -> None:
     c_gain = claim_map["site_adaptation_gain_0.5"]
     assert c_gain.evidence_file == "results/site_adaptation.json"
     assert c_gain.evidence_path == "shifts.gain 0.5"
-    assert c_gain.scope_limit == "Real data ML-NDT with synthetic perturbations"
+    assert c_gain.scope_limit == "Real ML-NDT images with synthetic perturbations; single seed"
     assert "baseline 15/100" in c_gain.text
     assert "adapted 2/100" in c_gain.text
+    assert "detection baseline 40/50 vs adapted 45/50" in c_gain.text
+    assert "n_test_clean 100" in c_gain.text
+    assert "test_underpowered" in c_gain.text
+    assert "upper95_fcr_scope" in c_gain.text
     for val in c_gain.numbers.values():
         cands = [f"{val:.3f}", f"{val:.2f}", f"{val:.1f}", str(int(val))]
         assert any(cand in c_gain.text for cand in cands)
@@ -889,3 +905,155 @@ def test_joint_train_missing_file_skipped(
     assert not any(i.startswith("joint_train_") for i in ids)
     captured = capsys.readouterr().err
     assert "Skipping claims requiring joint_train_metrics.json: file not found" in captured
+
+
+def _make_fake_false_call_analysis_data() -> dict[str, Any]:
+    """Helper creating fake false_call_analysis dictionary."""
+    return {
+        "n_clean": 778,
+        "n_flagged": 14,
+        "agreement_table": {
+            "counts_by_agreement": {"1": 7, "2": 7},
+            "by_detector": {"anomaly": 14, "h2": 7},
+        },
+        "cause_counts": {"high_snr_structure": 14},
+        "protocol_note": "pre-registered thresholds",
+    }
+
+
+def test_false_call_analysis_claim_present(tmp_path: Path) -> None:
+    """Verify false call analysis claim is built with clean, flagged, agreement, causes."""
+    from utriage.report.claims import build_claims
+
+    data = _make_fake_false_call_analysis_data()
+    (tmp_path / "false_call_analysis.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim = next((c for c in claims if c.id == "false_call_analysis"), None)
+    assert claim is not None
+    assert claim.evidence_file == "results/false_call_analysis.json"
+    assert claim.evidence_path == "agreement_table"
+    assert claim.scope_limit == "ML-NDT (316L weld, 3 physical cracks), flaw-free scans"
+    for expected in (
+        "778 clean images evaluated",
+        "14 flagged by any detector",
+        "high_snr_structure: 14",
+    ):
+        assert expected in claim.text
+    assert claim.numbers["clean_images_evaluated"] == 778.0
+    assert claim.numbers["flagged_by_any_detector"] == 14.0
+    assert claim.numbers["cause_high_snr_structure"] == 14.0
+
+
+def test_false_call_analysis_missing_file_skipped(tmp_path: Path) -> None:
+    """Verify false call analysis claim is skipped when file is missing."""
+    from utriage.report.claims import build_claims
+
+    claims = build_claims(tmp_path)
+    assert not any(c.id == "false_call_analysis" for c in claims)
+
+
+def test_joint_train_collector_extra_fields(tmp_path: Path) -> None:
+    """Verify joint training includes actual_sim_fraction, seeds, and interval_type."""
+    from utriage.report.claims import build_claims
+
+    data = _make_fake_joint_train_data()
+    data["actual_sim_fraction"] = 0.42
+    data["seeds"] = [0]
+    data["interval_type"] = "Clopper-Pearson"
+    (tmp_path / "joint_train_metrics.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim = next(c for c in claims if c.id == "joint_train_crack_1.6_a")
+    assert "actual_sim_fraction 0.42" in claim.text
+    assert "seeds [0]" in claim.text
+    assert "interval_type Clopper-Pearson" in claim.text
+    assert claim.numbers["actual_sim_fraction"] == 0.42
+
+
+@pytest.mark.parametrize(
+    ("b_hits", "expect_verdict"),
+    [
+        ((40, 30), True),
+        ((48, 45), False),
+    ],
+)
+def test_joint_train_verdict_only_if_numbers_show_it(
+    tmp_path: Path, b_hits: tuple[int, int], expect_verdict: bool
+) -> None:
+    """Verify 'no arm improves consistently' stated only if numbers show it."""
+    from utriage.report.claims import build_claims
+
+    data = _make_fake_joint_train_data()
+    # In fold 0, arm A has (45, 50). In fold 1, arm A has (38, 40).
+    data["folds"][0]["arms"]["B"] = _make_fake_joint_arm("B", "crack_1.6", (b_hits[0], 50), (0, 50))
+    data["folds"][1]["arms"]["B"] = _make_fake_joint_arm("B", "crack_4.0", (b_hits[1], 40), (0, 50))
+    (tmp_path / "joint_train_metrics.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    summary_claim = next((c for c in claims if c.id == "joint_train_summary"), None)
+    if summary_claim is not None:
+        if expect_verdict:
+            assert "no arm improves consistently" in summary_claim.text
+        else:
+            assert "no arm improves consistently" not in summary_claim.text
+
+
+def test_sim_regions_module_constant_threshold(fake_results_dir: Path) -> None:
+    """Verify sim_regions mentions reporting threshold chosen by project, not a standard."""
+    from utriage.report.claims import HIGH_FCR_THRESHOLD, build_claims
+
+    assert HIGH_FCR_THRESHOLD == 0.3
+    claims = build_claims(fake_results_dir)
+    claim = next(c for c in claims if c.id == "sim_regions")
+    expected = (
+        "reporting threshold 0.3 false calls per window chosen by the project, not a standard"
+    )
+    assert expected in claim.text
+
+
+def test_loco_crack_protocol_text(fake_results_dir: Path) -> None:
+    """Verify loco_crack_* claims include batch-held-out protocol and ML-NDT scope."""
+    from utriage.report.claims import build_claims
+
+    claims = build_claims(fake_results_dir)
+    for crack in ("1.6", "4.0", "8.6"):
+        claim = next(c for c in claims if c.id == f"loco_crack_{crack}")
+        expected_proto = (
+            "early stopping on validation batches that contain the training cracks (batch-held-out)"
+        )
+        assert expected_proto in claim.text
+        assert claim.scope_limit == "ML-NDT (316L weld, 3 physical cracks), not validated on bars"
+
+
+@pytest.mark.parametrize(
+    "forbidden_word",
+    ["verified", "confirming", "establishing", "ensuring", "guarantee", "nearly"],
+)
+def test_forbidden_words_not_in_generated_claims(
+    fake_results_dir: Path, forbidden_word: str
+) -> None:
+    """Verify forbidden words do not appear in any generated claim text."""
+    from utriage.report.claims import build_claims
+
+    (fake_results_dir / "loco_crackval_metrics.json").write_text(
+        json.dumps(_make_crackval_data()), encoding="utf-8"
+    )
+    (fake_results_dir / "hybrid_metrics.json").write_text(
+        json.dumps(_make_fake_hybrid_data()), encoding="utf-8"
+    )
+    (fake_results_dir / "physics_model_metrics.json").write_text(
+        json.dumps(_make_fake_physics_data()), encoding="utf-8"
+    )
+    (fake_results_dir / "site_adaptation.json").write_text(
+        json.dumps(_make_fake_site_adaptation_data()), encoding="utf-8"
+    )
+    (fake_results_dir / "joint_train_metrics.json").write_text(
+        json.dumps(_make_fake_joint_train_data()), encoding="utf-8"
+    )
+    (fake_results_dir / "false_call_analysis.json").write_text(
+        json.dumps(_make_fake_false_call_analysis_data()), encoding="utf-8"
+    )
+    claims = build_claims(fake_results_dir)
+    pattern = rf"\b{re.escape(forbidden_word)}\b"
+    for c in claims:
+        assert not re.search(pattern, c.text, re.IGNORECASE), (
+            f"Forbidden word '{forbidden_word}' in claim {c.id}: '{c.text}'"
+        )

@@ -23,6 +23,8 @@ FORBIDDEN: tuple[str, ...] = (
     "generalizes to all",
 )
 
+HIGH_FCR_THRESHOLD: float = 0.3
+
 
 def check_forbidden(text: str) -> list[str]:
     """Find any forbidden phrases in text, matching case-insensitively."""
@@ -105,7 +107,7 @@ def get_path(data: Any, dotted: str) -> Any:
 def render_markdown(claims: list[Claim]) -> str:
     """Render claims as a markdown table with Claim | Evidence | Scope limit."""
     lines = [
-        "# Verified Claims and Evidence Limits",
+        "# Claims and Evidence Limits",
         "",
         "| Claim | Evidence | Scope limit |",
         "|---|---|---|",
@@ -176,7 +178,7 @@ def _build_leakage_claim(results_dir: Path) -> Claim | None:
         f"The old random batch split shares all {n_shared} physical cracks "
         "between train and test, so earlier test scores are superseded."
     )
-    scope = "one austenitic weld PAUT public dataset (ML-NDT), historical benchmark superseded"
+    scope = "ML-NDT (316L weld, 3 physical cracks), historical benchmark superseded"
     return Claim(
         id="leakage",
         text=text,
@@ -184,6 +186,20 @@ def _build_leakage_claim(results_dir: Path) -> Claim | None:
         evidence_path="shared_cracks_train_test",
         scope_limit=scope,
         numbers={"shared_cracks": float(n_shared)},
+    )
+
+
+def _format_loco_text(crack: str, nums: dict[str, float]) -> str:
+    """Format claim text for leave-one-crack-out detection."""
+    k_int, n_int = int(nums["k"]), int(nums["n"])
+    rate_s = _format_rate(nums["rate"])
+    low_s, high_s = _format_rate(nums["ci_low"]), _format_rate(nums["ci_high"])
+    fc_s = _format_rate(nums["false_call_rate"])
+    return (
+        f"Leave-one-crack-out crack_{crack} "
+        "(early stopping on validation batches that contain the training cracks (batch-held-out)): "
+        f"detection {k_int}/{n_int} (rate {rate_s}, 95% CI [{low_s}, {high_s}]), "
+        f"false calls {fc_s} per scan."
     )
 
 
@@ -198,23 +214,12 @@ def _build_loco_claim(matrix: dict[str, Any], crack: str) -> Claim | None:
     if nums is None:
         print(f"Skipping loco_crack_{crack}: cell {col_id} unavailable", file=sys.stderr)
         return None
-    k_int, n_int = int(nums["k"]), int(nums["n"])
-    rate_s = _format_rate(nums["rate"])
-    low_s = _format_rate(nums["ci_low"])
-    high_s = _format_rate(nums["ci_high"])
-    fc_s = _format_rate(nums["false_call_rate"])
-    text = (
-        f"Leave-one-crack-out crack_{crack}: detection {k_int}/{n_int} "
-        f"(rate {rate_s}, 95% CI [{low_s}, {high_s}]), "
-        f"false calls {fc_s} per scan."
-    )
-    scope = "one austenitic weld PAUT public dataset, 3 physical cracks, not validated on bars"
     return Claim(
         id=f"loco_crack_{crack}",
-        text=text,
+        text=_format_loco_text(crack, nums),
         evidence_file="results/generalization_matrix.json",
         evidence_path=f"rows.supervised.{col_id}",
-        scope_limit=scope,
+        scope_limit="ML-NDT (316L weld, 3 physical cracks), not validated on bars",
         numbers=nums,
     )
 
@@ -245,7 +250,7 @@ def _build_anomaly_claim(matrix: dict[str, Any], crack: str) -> Claim | None:
         text=text,
         evidence_file="results/generalization_matrix.json",
         evidence_path=f"rows.anomaly.{col_id}",
-        scope_limit="trained on flaw-free images only",
+        scope_limit="ML-NDT (316L weld, 3 physical cracks), trained on flaw-free images only",
         numbers=nums,
     )
 
@@ -254,12 +259,16 @@ def _cross_high_fc_claim(nums: dict[str, float], fc: dict[str, Any], col_id: str
     """Format cross-dataset claim when false-call rate is at or above 0.5."""
     k_int, n_int = int(nums["k"]), int(nums["n"])
     n_false, n_scans = int(fc.get("n_false", 0)), int(fc.get("n_scans", 0))
+    n_flagged = k_int + n_false
+    n_total = n_int + n_scans
     text = (
-        "Cross-dataset NDT_ML_Flaw: the model flagged (nearly) every image, "
+        f"Cross-dataset NDT_ML_Flaw: the model flagged {n_flagged}/{n_total} images, "
         f"giving detections {k_int}/{n_int} and false calls {n_false}/{n_scans}; "
         "no cross-dataset transfer under the documented domain mapping."
     )
     claim_nums = {
+        "n_flagged": float(n_flagged),
+        "n_total": float(n_total),
         "k": float(k_int),
         "n": float(n_int),
         "n_false": float(n_false),
@@ -270,7 +279,7 @@ def _cross_high_fc_claim(nums: dict[str, float], fc: dict[str, Any], col_id: str
         text=text,
         evidence_file="results/generalization_matrix.json",
         evidence_path=f"rows.supervised.{col_id}",
-        scope_limit="test only, different weld, domain-mapping assumptions",
+        scope_limit="NDT_ML_Flaw, test only, different weld, domain-mapping assumptions",
         numbers=claim_nums,
     )
 
@@ -291,7 +300,7 @@ def _cross_low_fc_claim(nums: dict[str, float], col_id: str) -> Claim:
         text=text,
         evidence_file="results/generalization_matrix.json",
         evidence_path=f"rows.supervised.{col_id}",
-        scope_limit="test only, different weld, domain-mapping assumptions",
+        scope_limit="NDT_ML_Flaw, test only, different weld, domain-mapping assumptions",
         numbers=nums,
     )
 
@@ -367,7 +376,7 @@ def _format_sim_region(
         f"{name}: ML det {_format_rate(m_det)} vs rules {_format_rate(r_det)}, "
         f"false calls {_format_rate(m_fc)} vs {_format_rate(r_fc)}"
     )
-    is_high = any([m_fc > 0.3, r_fc > 0.3])
+    is_high = any([m_fc > HIGH_FCR_THRESHOLD, r_fc > HIGH_FCR_THRESHOLD])
     nums = {
         f"ml_det_{name}": m_det,
         f"rules_det_{name}": r_det,
@@ -406,8 +415,17 @@ def _build_sim_regions_claim(matrix: dict[str, Any]) -> Claim | None:
     parts, high_fc, numbers = _collect_sim_regions(cols, matrix)
     if not parts:
         return None
-    high_str = f"exceeds 0.3 in: {', '.join(high_fc)}" if high_fc else "none exceed 0.3"
+    thresh_s = f"{HIGH_FCR_THRESHOLD}"
+    note = (
+        f"(reporting threshold {thresh_s} false calls "
+        "per window chosen by the project, not a standard)"
+    )
+    if high_fc:
+        high_str = f"exceeds {thresh_s} {note} in: {', '.join(high_fc)}"
+    else:
+        high_str = f"none exceed {thresh_s} {note}"
     text = f"Simulator held-out regions (ML vs rules): {'; '.join(parts)}; {high_str}."
+    numbers["high_fcr_threshold"] = HIGH_FCR_THRESHOLD
     return Claim(
         id="sim_regions",
         text=text,
@@ -644,7 +662,7 @@ def _build_loco_crackval_claim(results_dir: Path) -> Claim | None:
         "Leave-one-crack-out with crack-held-out early stopping "
         f"(train on one crack, early-stop on another): {'; '.join(parts)}. {swing}"
     )
-    scope = "one weld PAUT public dataset, 3 physical cracks, each fold trains on a single crack"
+    scope = "ML-NDT (316L weld, 3 physical cracks), each fold trains on a single crack"
     return Claim(
         id="loco_crackval",
         text=text,
@@ -655,25 +673,34 @@ def _build_loco_crackval_claim(results_dir: Path) -> Claim | None:
     )
 
 
+def _extract_single_model_seed_vals(
+    m: dict[str, Any],
+) -> tuple[tuple[int, int] | None, tuple[int, int] | None]:
+    """Extract (k, n) and (n_false, n_scans) from a single model dict."""
+    h2 = m.get("methods", {}).get("h2", {})
+    det, fc = h2.get("detection", {}), h2.get("false_calls", {})
+    det_val = (int(det["k"]), int(det["n"])) if ("k" in det and "n" in det) else None
+    fc_val = (
+        (int(fc["n_false"]), int(fc["n_scans"])) if ("n_false" in fc and "n_scans" in fc) else None
+    )
+    return det_val, fc_val
+
+
 def _extract_seed_metrics(models: dict[str, Any]) -> dict[str, Any] | None:
     """Extract detection range and false call counts across seed models."""
     seeds = [m for name, m in models.items() if "_seed" in name]
     targets = seeds if seeds else list(models.values())
     if not targets:
         return None
-    k_vals: list[int] = []
-    n_vals: list[int] = []
-    fc_vals: list[int] = []
-    scans_vals: list[int] = []
+    k_vals, n_vals, fc_vals, scans_vals = [], [], [], []
     for m in targets:
-        h2 = m.get("methods", {}).get("h2", {})
-        det, fc = h2.get("detection", {}), h2.get("false_calls", {})
-        if "k" in det and "n" in det:
-            k_vals.append(int(det["k"]))
-            n_vals.append(int(det["n"]))
-        if "n_false" in fc and "n_scans" in fc:
-            fc_vals.append(int(fc["n_false"]))
-            scans_vals.append(int(fc["n_scans"]))
+        d_val, f_val = _extract_single_model_seed_vals(m)
+        if d_val:
+            k_vals.append(d_val[0])
+            n_vals.append(d_val[1])
+        if f_val:
+            fc_vals.append(f_val[0])
+            scans_vals.append(f_val[1])
     if not k_vals or not fc_vals:
         return None
     return {
@@ -709,6 +736,18 @@ def _format_hybrid_fold(crack: str, fold: dict[str, Any]) -> tuple[str, dict[str
     return part, nums
 
 
+def _collect_hybrid_parts(folds: dict[str, Any]) -> tuple[list[str], dict[str, float]]:
+    """Collect formatted lines and numbers across hybrid folds."""
+    parts: list[str] = []
+    numbers: dict[str, float] = {}
+    for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
+        res = _format_hybrid_fold(crack, folds.get(crack, {}))
+        if res is not None:
+            parts.append(res[0])
+            numbers.update(res[1])
+    return parts, numbers
+
+
 def _build_hybrid_h2_claim(data_or_dir: dict[str, Any] | Path) -> Claim | None:
     """Build claim for hybrid H2 score fusion across seeds."""
     data = (
@@ -722,13 +761,7 @@ def _build_hybrid_h2_claim(data_or_dir: dict[str, Any] | Path) -> Claim | None:
     if not isinstance(folds, dict) or not folds:
         print("Skipping hybrid_h2: folds data missing", file=sys.stderr)
         return None
-    parts: list[str] = []
-    numbers: dict[str, float] = {}
-    for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
-        res = _format_hybrid_fold(crack, folds.get(crack, {}))
-        if res is not None:
-            parts.append(res[0])
-            numbers.update(res[1])
+    parts, numbers = _collect_hybrid_parts(folds)
     if not parts:
         return None
     prefix = "Exploratory: " if data.get("run_label") == "exploratory" else ""
@@ -781,6 +814,18 @@ def _format_physics_fold(crack: str, fold: dict[str, Any]) -> tuple[str, dict[st
     return part, nums
 
 
+def _collect_physics_parts(fold_dict: dict[str, Any]) -> tuple[list[str], dict[str, float]]:
+    """Collect formatted lines and numbers across physics folds."""
+    parts: list[str] = []
+    numbers: dict[str, float] = {}
+    for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
+        res = _format_physics_fold(crack, fold_dict.get(crack, {}))
+        if res is not None:
+            parts.append(res[0])
+            numbers.update(res[1])
+    return parts, numbers
+
+
 def _build_physics_h3_claim(data_or_dir: dict[str, Any] | Path) -> Claim | None:
     """Build claim for physics feature model H3 across cracks."""
     data = (
@@ -794,13 +839,7 @@ def _build_physics_h3_claim(data_or_dir: dict[str, Any] | Path) -> Claim | None:
     if not fold_dict:
         print("Skipping physics_h3: folds data missing", file=sys.stderr)
         return None
-    parts: list[str] = []
-    numbers: dict[str, float] = {}
-    for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
-        res = _format_physics_fold(crack, fold_dict.get(crack, {}))
-        if res is not None:
-            parts.append(res[0])
-            numbers.update(res[1])
+    parts, numbers = _collect_physics_parts(fold_dict)
     if not parts:
         return None
     prefix = "Exploratory: " if data.get("run_label") == "exploratory" else ""
@@ -816,15 +855,23 @@ def _build_physics_h3_claim(data_or_dir: dict[str, Any] | Path) -> Claim | None:
     )
 
 
+def _find_pt_model_rate(models: dict[str, Any]) -> float | None:
+    """Find detection rate for a non-seed .pt model."""
+    for name, m in models.items():
+        if name.endswith(".pt") and "_seed" not in name:
+            det = m.get("methods", {}).get("h2", {}).get("detection", {})
+            if "rate" in det:
+                return float(det["rate"])
+    return None
+
+
 def _get_h2_det_rate(fold: dict[str, Any]) -> float:
     """Retrieve best or mean H2 detection rate for a fold."""
     models = fold.get("models", {})
     if isinstance(models, dict):
-        for name, m in models.items():
-            if name.endswith(".pt") and "_seed" not in name:
-                det = m.get("methods", {}).get("h2", {}).get("detection", {})
-                if "rate" in det:
-                    return float(det["rate"])
+        pt_rate = _find_pt_model_rate(models)
+        if pt_rate is not None:
+            return pt_rate
         seed_rates = [
             float(m.get("methods", {}).get("h2", {}).get("detection", {}).get("rate", 0.0))
             for name, m in models.items()
@@ -846,6 +893,30 @@ def _get_h3_det_rate(fold: dict[str, Any]) -> float:
     return k / n if n > 0 else 0.0
 
 
+def _parse_crack_size(fold_name: str) -> float | None:
+    """Parse numeric crack size in mm from fold name (e.g. crack_1.6 -> 1.6)."""
+    match = re.search(r"(\d+(?:\.\d+)?)", fold_name)
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            return None
+    return None
+
+
+def _determine_stronger_methods(
+    h_folds: dict[str, Any], p_folds: dict[str, Any]
+) -> tuple[str, str]:
+    """Determine stronger method (H2 vs H3) on 1.6 mm and 4.0 mm cracks."""
+    f_1_6_h, f_1_6_p = h_folds.get("crack_1.6", {}), p_folds.get("crack_1.6", {})
+    f_4_0_h, f_4_0_p = h_folds.get("crack_4.0", {}), p_folds.get("crack_4.0", {})
+    h2_1_6, h3_1_6 = _get_h2_det_rate(f_1_6_h), _get_h3_det_rate(f_1_6_p)
+    h2_4_0, h3_4_0 = _get_h2_det_rate(f_4_0_h), _get_h3_det_rate(f_4_0_p)
+    w_1_6 = "H2" if h2_1_6 >= h3_1_6 else "H3"
+    w_4_0 = "H3" if h3_4_0 >= h2_4_0 else "H2"
+    return w_1_6, w_4_0
+
+
 def _build_hybrid_comparison_claim(
     h_input: dict[str, Any] | Path, p_input: dict[str, Any] | None = None
 ) -> Claim | None:
@@ -858,12 +929,7 @@ def _build_hybrid_comparison_claim(
         return None
     h_folds = h_data.get("folds", {})
     p_folds = _get_fold_dict(p_data.get("folds"))
-    f_1_6_h, f_1_6_p = h_folds.get("crack_1.6", {}), p_folds.get("crack_1.6", {})
-    f_4_0_h, f_4_0_p = h_folds.get("crack_4.0", {}), p_folds.get("crack_4.0", {})
-    h2_1_6, h3_1_6 = _get_h2_det_rate(f_1_6_h), _get_h3_det_rate(f_1_6_p)
-    h2_4_0, h3_4_0 = _get_h2_det_rate(f_4_0_h), _get_h3_det_rate(f_4_0_p)
-    w_1_6 = "H2" if h2_1_6 >= h3_1_6 else "H3"
-    w_4_0 = "H3" if h3_4_0 >= h2_4_0 else "H2"
+    w_1_6, w_4_0 = _determine_stronger_methods(h_folds, p_folds)
     is_exp = any(
         [
             h_data.get("run_label") == "exploratory",
@@ -871,7 +937,12 @@ def _build_hybrid_comparison_claim(
         ]
     )
     pfx = "Exploratory: " if is_exp else ""
-    text = f"{pfx}{w_1_6} strongest on the 1.6 mm crack, {w_4_0} strongest on the 4.0 mm crack."
+    sz_1_6 = _parse_crack_size("crack_1.6") or 1.6
+    sz_4_0 = _parse_crack_size("crack_4.0") or 4.0
+    text = (
+        f"{pfx}{w_1_6} strongest on the {sz_1_6:.1f} mm crack, "
+        f"{w_4_0} strongest on the {sz_4_0:.1f} mm crack."
+    )
     scope = "pre-registered ADR 0010, one weld PAUT public dataset, 3 physical cracks"
     return Claim(
         id="hybrid_comparison",
@@ -879,7 +950,7 @@ def _build_hybrid_comparison_claim(
         evidence_file="results/hybrid_metrics.json",
         evidence_path="folds",
         scope_limit=scope,
-        numbers={"crack_1.6": 1.6, "crack_4.0": 4.0},
+        numbers={"crack_1.6": sz_1_6, "crack_4.0": sz_4_0},
     )
 
 
@@ -934,31 +1005,69 @@ def _extract_shift_fc(
     return k, n, rate, low, high
 
 
-def _format_shift_text(
-    shift_name: str,
-    b_m: tuple[int, int, float, float, float],
-    a_m: tuple[int, int, float, float, float],
-) -> str:
+@dataclass(frozen=True)
+class ShiftMetrics:
+    """Encapsulates metrics extracted for a single site adaptation shift."""
+
+    shift_name: str
+    b_fc: tuple[int, int, float, float, float]
+    a_fc: tuple[int, int, float, float, float]
+    det: tuple[int, int, int, int]
+    n_clean: int
+    underpowered: Any = None
+    u95_scope: Any = None
+
+
+def _extract_shift_det(shift_data: dict[str, Any]) -> tuple[int, int, int, int]:
+    """Extract baseline and adapted detection counts."""
+    b_det = shift_data.get("baseline", {}).get("detection", {})
+    a_det = shift_data.get("adapted", {}).get("detection", {})
+    bk_det = int(b_det.get("k", b_det.get("n_hit", 0)))
+    bn_det = int(b_det.get("n", b_det.get("n_flawed", 0)))
+    ak_det = int(a_det.get("k", a_det.get("n_hit", 0)))
+    an_det = int(a_det.get("n", a_det.get("n_flawed", 0)))
+    return bk_det, bn_det, ak_det, an_det
+
+
+def _format_shift_text(m: ShiftMetrics) -> str:
     """Format site adaptation claim comparison text."""
-    bk, bn, br, blow, bhigh = b_m
-    ak, an, ar, alow, ahigh = a_m
+    bk, bn, br, blow, bhigh = m.b_fc
+    ak, an, ar, alow, ahigh = m.a_fc
+    bk_d, bn_d, ak_d, an_d = m.det
     b_s = (
         f"{bk}/{bn} (rate {_format_rate(br)}, 95% CI [{_format_rate(blow)}, {_format_rate(bhigh)}])"
     )
     a_s = (
         f"{ak}/{an} (rate {_format_rate(ar)}, 95% CI [{_format_rate(alow)}, {_format_rate(ahigh)}])"
     )
-    return f"Site adaptation shift {shift_name}: false calls baseline {b_s} vs adapted {a_s}."
+    det_s = f"detection baseline {bk_d}/{bn_d} vs adapted {ak_d}/{an_d}"
+    extras = [f"n_test_clean {m.n_clean}"]
+    if m.underpowered is not None:
+        extras.append(f"test_underpowered {1 if m.underpowered else 0}")
+    if m.u95_scope is not None:
+        u_val = (
+            _format_rate(float(m.u95_scope))
+            if isinstance(m.u95_scope, (int, float))
+            else str(m.u95_scope)
+        )
+        extras.append(f"upper95_fcr_scope {u_val}")
+    extra_str = f", {', '.join(extras)}" if extras else ""
+    return (
+        f"Site adaptation shift {m.shift_name}: {det_s}, "
+        f"false calls baseline {b_s} vs adapted {a_s}{extra_str}."
+    )
 
 
-def _build_shift_numbers(
-    b_m: tuple[int, int, float, float, float],
-    a_m: tuple[int, int, float, float, float],
-) -> dict[str, float]:
+def _build_shift_numbers(m: ShiftMetrics) -> dict[str, float]:
     """Construct numbers dictionary for shift baseline and adapted false calls."""
-    bk, bn, br, blow, bhigh = b_m
-    ak, an, ar, alow, ahigh = a_m
-    return {
+    bk, bn, br, blow, bhigh = m.b_fc
+    ak, an, ar, alow, ahigh = m.a_fc
+    bk_d, bn_d, ak_d, an_d = m.det
+    nums: dict[str, float] = {
+        "baseline_det_k": float(bk_d),
+        "baseline_det_n": float(bn_d),
+        "adapted_det_k": float(ak_d),
+        "adapted_det_n": float(an_d),
         "baseline_k": float(bk),
         "baseline_n": float(bn),
         "baseline_rate": br,
@@ -969,12 +1078,19 @@ def _build_shift_numbers(
         "adapted_rate": ar,
         "adapted_ci_low": alow,
         "adapted_ci_high": ahigh,
+        "n_test_clean": float(m.n_clean),
     }
+    if m.underpowered is not None:
+        nums["test_underpowered"] = 1.0 if m.underpowered else 0.0
+    if isinstance(m.u95_scope, (int, float)):
+        nums["upper95_fcr_scope"] = float(m.u95_scope)
+    return nums
 
 
 def _build_single_site_adaptation_claim(
     shift_name: str,
     shift_data: dict[str, Any],
+    top_data: dict[str, Any] | None = None,
 ) -> Claim | None:
     """Build claim for a single site adaptation shift."""
     b_fc = shift_data.get("baseline", {}).get("false_calls", {})
@@ -983,14 +1099,20 @@ def _build_single_site_adaptation_claim(
     a_m = _extract_shift_fc(a_fc)
     if b_m is None or a_m is None:
         return None
+    det_m = _extract_shift_det(shift_data)
+    top = top_data if isinstance(top_data, dict) else {}
+    n_clean = int(shift_data.get("n_test_clean", top.get("n_images", {}).get("test_clean", b_m[1])))
+    underp = shift_data.get("test_underpowered", top.get("test_underpowered"))
+    u95 = shift_data.get("upper95_fcr_scope", top.get("upper95_fcr_scope"))
+    m = ShiftMetrics(shift_name, b_m, a_m, det_m, n_clean, underp, u95)
     slug = re.sub(r"[^\w.]+", "_", shift_name.lower()).strip("_")
     return Claim(
         id=f"site_adaptation_{slug}",
-        text=_format_shift_text(shift_name, b_m, a_m),
+        text=_format_shift_text(m),
         evidence_file="results/site_adaptation.json",
         evidence_path=f"shifts.{shift_name}",
-        scope_limit="Real data ML-NDT with synthetic perturbations",
-        numbers=_build_shift_numbers(b_m, a_m),
+        scope_limit="Real ML-NDT images with synthetic perturbations; single seed",
+        numbers=_build_shift_numbers(m),
     )
 
 
@@ -1009,7 +1131,7 @@ def _build_site_adaptation_claims(data_or_dir: dict[str, Any] | Path) -> list[Cl
     claims: list[Claim] = []
     for name, shift_info in shifts.items():
         if isinstance(shift_info, dict):
-            c = _build_single_site_adaptation_claim(name, shift_info)
+            c = _build_single_site_adaptation_claim(name, shift_info, data)
             if c is not None:
                 claims.append(c)
     return claims
@@ -1037,19 +1159,42 @@ def _extract_joint_arm_counts(
     return det_k, det_n, fc_k, fc_n
 
 
+def _extract_joint_extras(
+    arm_data: dict[str, Any], top: dict[str, Any]
+) -> tuple[str, dict[str, float]]:
+    """Extract extra joint training parameters and their numeric values."""
+    actual_sim = arm_data.get("actual_sim_fraction", top.get("actual_sim_fraction"))
+    seeds = arm_data.get("seeds", top.get("seeds"))
+    inv_type = arm_data.get("interval_type", top.get("interval_type"))
+    extras: list[str] = []
+    nums: dict[str, float] = {}
+    if actual_sim is not None:
+        extras.append(f"actual_sim_fraction {_format_rate(float(actual_sim))}")
+        nums["actual_sim_fraction"] = float(actual_sim)
+    if seeds is not None:
+        extras.append(f"seeds {seeds}")
+    if inv_type is not None:
+        extras.append(f"interval_type {inv_type}")
+    extra_str = f", {', '.join(extras)}" if extras else ""
+    return extra_str, nums
+
+
 def _build_single_joint_arm_claim(
     crack_tag: str,
     arm_name: str,
     arm_data: dict[str, Any],
+    top_data: dict[str, Any] | None = None,
 ) -> Claim | None:
     """Build claim for a single crack and arm in joint training."""
     counts = _extract_joint_arm_counts(arm_data)
     if counts is None:
         return None
     det_k, det_n, fc_k, fc_n = counts
+    top = top_data if isinstance(top_data, dict) else {}
+    extra_str, extra_nums = _extract_joint_extras(arm_data, top)
     text = (
         f"Joint training {crack_tag} arm {arm_name}: "
-        f"detection {det_k}/{det_n}, false calls {fc_k}/{fc_n}."
+        f"detection {det_k}/{det_n}, false calls {fc_k}/{fc_n}{extra_str}."
     )
     scope = "real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data"
     numbers = {
@@ -1058,6 +1203,7 @@ def _build_single_joint_arm_claim(
         "false_calls_k": float(fc_k),
         "false_calls_n": float(fc_n),
     }
+    numbers.update(extra_nums)
     return Claim(
         id=f"joint_train_{crack_tag}_{arm_name.lower()}",
         text=text,
@@ -1068,7 +1214,9 @@ def _build_single_joint_arm_claim(
     )
 
 
-def _collect_fold_arm_claims(fold: dict[str, Any]) -> list[Claim]:
+def _collect_fold_arm_claims(
+    fold: dict[str, Any], top_data: dict[str, Any] | None = None
+) -> list[Claim]:
     """Collect joint training claims across all arms of a single fold."""
     held_out = str(fold.get("held_out", ""))
     crack_tag = held_out if held_out.startswith("crack_") else f"crack_{held_out}"
@@ -1078,10 +1226,61 @@ def _collect_fold_arm_claims(fold: dict[str, Any]) -> list[Claim]:
     claims: list[Claim] = []
     for arm_name, arm_data in arms.items():
         if isinstance(arm_data, dict):
-            c = _build_single_joint_arm_claim(crack_tag, str(arm_name), arm_data)
+            c = _build_single_joint_arm_claim(crack_tag, str(arm_name), arm_data, top_data)
             if c is not None:
                 claims.append(c)
     return claims
+
+
+def _arm_beats_baseline_on_fold(arm: str, fold: dict[str, Any]) -> bool:
+    """Check if an arm strictly beats baseline arm A on a single fold."""
+    arms = fold.get("arms", {})
+    if arm not in arms or "A" not in arms:
+        return False
+    a_counts = _extract_joint_arm_counts(arms["A"])
+    arm_counts = _extract_joint_arm_counts(arms[arm])
+    if a_counts is None or arm_counts is None:
+        return False
+    a_rate = a_counts[0] / a_counts[1]
+    arm_rate = arm_counts[0] / arm_counts[1]
+    return arm_rate > a_rate
+
+
+def _arm_consistently_improves(folds: list[dict[str, Any]]) -> bool:
+    """Check if any non-A arm strictly beats baseline A across all folds."""
+    non_a = {k for f in folds for k in f.get("arms", {}) if k != "A"}
+    if not non_a:
+        return False
+    for arm in non_a:
+        if all(_arm_beats_baseline_on_fold(arm, f) for f in folds):
+            return True
+    return False
+
+
+def _build_joint_train_summary_claim(
+    folds: list[dict[str, Any]], top: dict[str, Any]
+) -> Claim | None:
+    """Build summary claim across joint training folds without verdict bias."""
+    if len(folds) < 2:
+        return None
+    n_folds = float(len(folds))
+    arms_set = {arm for f in folds for arm in f.get("arms", {})}
+    n_arms = float(len(arms_set))
+    any_improved = _arm_consistently_improves(folds)
+    if not any_improved:
+        verdict = f"across {int(n_folds)} folds: no arm improves consistently over baseline arm A"
+    else:
+        verdict = f"across {int(n_folds)} folds and {int(n_arms)} arms evaluated"
+    text = f"Joint training summary {verdict}."
+    numbers = {"n_folds": n_folds, "n_arms": n_arms}
+    return Claim(
+        id="joint_train_summary",
+        text=text,
+        evidence_file="results/joint_train_metrics.json",
+        evidence_path="folds",
+        scope_limit="real metrics on ML-NDT weld with 3 physical cracks; sim images Synthetic data",
+        numbers=numbers,
+    )
 
 
 def _build_joint_train_claims(data_or_dir: dict[str, Any] | Path) -> list[Claim]:
@@ -1101,13 +1300,87 @@ def _build_joint_train_claims(data_or_dir: dict[str, Any] | Path) -> list[Claim]
         fold_list = [f for f in folds.values() if isinstance(f, dict)]
     claims: list[Claim] = []
     for f in fold_list:
-        claims.extend(_collect_fold_arm_claims(f))
+        claims.extend(_collect_fold_arm_claims(f, data))
+    c_summary = _build_joint_train_summary_claim(fold_list, data)
+    if c_summary is not None:
+        claims.append(c_summary)
     return claims
 
 
 def _collect_joint_train_claims(r_dir: Path) -> list[Claim]:
     """Collect joint training claims from results directory."""
     return _build_joint_train_claims(r_dir)
+
+
+def _format_fca_text(
+    counts: tuple[int, int],
+    agr_str: str,
+    cause_str: str,
+    extra: tuple[str | None, str | None],
+) -> str:
+    """Format false-call analysis text with clean, flagged, agreement, and causes."""
+    n_clean, n_flagged = counts
+    fold_str, note = extra
+    text = (
+        f"False-call analysis on ML-NDT (316L weld, 3 physical cracks): "
+        f"{n_clean} clean images evaluated, {n_flagged} flagged by any detector; "
+        f"agreement counts: {agr_str}; causes: {cause_str}."
+    )
+    if fold_str:
+        text += f" Per-fold: {fold_str}."
+    if note:
+        text += f" Protocol note: {note}."
+    return text
+
+
+def _extract_fca_counts(
+    data: dict[str, Any],
+) -> tuple[str, str, dict[str, float]]:
+    """Extract formatted agreement string, cause string, and count numbers."""
+    agr_tbl = data.get("agreement_table", {})
+    agr_counts = agr_tbl.get("counts_by_agreement", data.get("agreement_counts", {}))
+    agr_parts = [f"{k}: {v}" for k, v in agr_counts.items()]
+    agr_str = ", ".join(agr_parts) if agr_parts else "none"
+    causes = data.get("cause_counts", data.get("causes", {}))
+    cause_parts = [f"{k}: {v}" for k, v in causes.items()]
+    cause_str = ", ".join(cause_parts) if cause_parts else "none"
+    nums: dict[str, float] = {}
+    for k, v in agr_counts.items():
+        nums[f"agreement_{k}"] = float(v)
+    for k, v in causes.items():
+        nums[f"cause_{k}"] = float(v)
+    return agr_str, cause_str, nums
+
+
+def _build_false_call_analysis_claim(data_or_dir: dict[str, Any] | Path) -> Claim | None:
+    """Build claim from results/false_call_analysis.json if available."""
+    data = (
+        data_or_dir
+        if isinstance(data_or_dir, dict)
+        else _load_json(data_or_dir / "false_call_analysis.json")
+    )
+    if data is None:
+        return None
+    n_clean = int(data.get("n_clean", data.get("clean_images_evaluated", 0)))
+    n_flagged = int(data.get("n_flagged", data.get("flagged_by_any_detector", 0)))
+    agr_str, cause_str, nums = _extract_fca_counts(data)
+    per_fold = data.get("per_fold", data.get("folds"))
+    fold_s = str(per_fold) if per_fold else None
+    note = data.get("protocol_note", data.get("protocol"))
+    text = _format_fca_text((n_clean, n_flagged), agr_str, cause_str, (fold_s, note))
+    numbers = {
+        "clean_images_evaluated": float(n_clean),
+        "flagged_by_any_detector": float(n_flagged),
+    }
+    numbers.update(nums)
+    return Claim(
+        id="false_call_analysis",
+        text=text,
+        evidence_file="results/false_call_analysis.json",
+        evidence_path="agreement_table",
+        scope_limit="ML-NDT (316L weld, 3 physical cracks), flaw-free scans",
+        numbers=numbers,
+    )
 
 
 def build_claims(results_dir: Path | str) -> list[Claim]:
@@ -1131,5 +1404,8 @@ def build_claims(results_dir: Path | str) -> list[Claim]:
     claims.extend(_collect_hybrid_claims(r_dir))
     claims.extend(_collect_site_adaptation_claims(r_dir))
     claims.extend(_collect_joint_train_claims(r_dir))
+    c_fca = _build_false_call_analysis_claim(r_dir)
+    if c_fca is not None:
+        claims.append(c_fca)
     claims.extend(_collect_final_claims(r_dir, mat_dict))
     return claims
