@@ -35,6 +35,18 @@ def round_floor(val: float | int | str, decimals: int = 2) -> str:
         return "nan"
 
 
+def round_rate(val: float | int | str | None, decimals: int = 3) -> str:
+    """Format rate rounded half to even via round(x, decimals)."""
+    if val is None:
+        return "n/a"
+    try:
+        rounded = round(float(val), decimals)
+        return f"{rounded:.{decimals}f}"
+    except (ArithmeticError, ValueError, TypeError):
+        # Fallback on invalid numerical representations
+        return "nan"
+
+
 def load_json(path: Path) -> dict | None:
     """Load JSON from path if file exists, else return None."""
     if not path.exists():
@@ -43,15 +55,19 @@ def load_json(path: Path) -> dict | None:
         return json.load(fh)
 
 
-def parse_flaw_count(content: str) -> str:
-    """Parse total distinct real physical flaws from data inventory text."""
-    match = re.search(r"totaling\s+(\d+)\s+distinct physical flaws", content, re.IGNORECASE)
-    if match:
-        return match.group(1)
-    match_fallback = re.search(r"(\d+)\s+distinct(?: real)? physical flaws", content, re.IGNORECASE)
-    if match_fallback:
-        return match_fallback.group(1)
-    return "UNVERIFIED"
+def parse_flaw_counts(content: str) -> tuple[str, str]:
+    """Parse accepted and evaluated flaw counts from data inventory text."""
+    acc_m = re.search(r"totaling\s+(\d+)\s+distinct physical flaws", content, re.IGNORECASE)
+    accepted = acc_m.group(1) if acc_m else "UNVERIFIED"
+    if accepted == "UNVERIFIED":
+        fb = re.search(r"(\d+)\s+distinct(?: real)? physical flaws", content, re.IGNORECASE)
+        accepted = fb.group(1) if fb else "UNVERIFIED"
+
+    used_m = re.search(
+        r"Used in evaluation:\s*(\d+)\s+distinct physical flaws", content, re.IGNORECASE
+    )
+    used = used_m.group(1) if used_m else "UNVERIFIED"
+    return accepted, used
 
 
 def render_evidence_limits(results_dir: Path) -> str:
@@ -60,10 +76,14 @@ def render_evidence_limits(results_dir: Path) -> str:
     if not path.exists():
         return "*data_inventory.md not found.*\n"
     content = path.read_text(encoding="utf-8")
-    flaws = parse_flaw_count(content)
+    acc, used = parse_flaw_counts(content)
+    line_flaws = (
+        f"> - Total distinct real physical flaws: {acc} accepted, "
+        f"{used} used in evaluation (across accepted real-data sources)."
+    )
     lines = [
         "> ### Evidence limits",
-        f"> - Total distinct real physical flaws: {flaws} (across accepted real-data sources).",
+        line_flaws,
         "> - Real data are weld PAUT datasets not bars.",
         "> - Simulator constants are UNVERIFIED - Ruri to check.",
         "> - UTriage is an advisory independent prototype; inspectors make all decisions.",
@@ -102,7 +122,7 @@ def _format_cell(cell_data: dict | None) -> str:
     r_str = round_floor(rate, 2)
     low_str = round_floor(0.0 if ci_low is None else ci_low, 2)
     high_str = round_ceil(0.0 if ci_high is None else ci_high, 2)
-    fcr_str = round_ceil(fc_rate, 3)
+    fcr_str = round_rate(fc_rate, 3)
     return f"{r_str} [{low_str}, {high_str}] {k}/{n}, FCR: {fcr_str}"
 
 
@@ -149,6 +169,103 @@ def render_matrix_section(results_dir: Path) -> str:
     return f"{t1}\n{t2}"
 
 
+def _format_shift_metric(m: dict | None) -> str:
+    """Format single shift metric as k/n (rate)."""
+    if not m:
+        return "n/a"
+    k = m.get("k", 0)
+    n = m.get("n", 0)
+    rate_str = round_rate(m.get("rate"), 3)
+    return f"{k}/{n} ({rate_str})"
+
+
+def render_site_adaptation_table(results_dir: Path) -> str:
+    """Render site adaptation results table if JSON exists."""
+    path = results_dir / "site_adaptation.json"
+    data = load_json(path)
+    if not isinstance(data, dict):
+        return ""
+    shifts = data.get("shifts", {})
+    if not shifts:
+        return ""
+    n_calib = data.get("n_calib_clean", "unknown")
+    tbl_cols = (
+        "| Shift | Baseline False Calls | Baseline Detection | "
+        "Adapted False Calls | Adapted Detection | n_calib_clean |"
+    )
+    lines = [
+        "### Table 3: Site adaptation",
+        "",
+        "*Real ML-NDT weld images with synthetic perturbations, single seed.*",
+        "",
+        tbl_cols,
+        "|---|---|---|---|---|---|",
+    ]
+    for name, s_data in shifts.items():
+        b_fc = _format_shift_metric(s_data.get("baseline", {}).get("false_calls"))
+        b_det = _format_shift_metric(s_data.get("baseline", {}).get("detection"))
+        a_fc = _format_shift_metric(s_data.get("adapted", {}).get("false_calls"))
+        a_det = _format_shift_metric(s_data.get("adapted", {}).get("detection"))
+        lines.append(f"| {name} | {b_fc} | {b_det} | {a_fc} | {a_det} | {n_calib} |")
+    return "\n".join(lines) + "\n"
+
+
+def render_joint_train_table(results_dir: Path) -> str:
+    """Render joint training metrics table if JSON exists."""
+    path = results_dir / "joint_train_metrics.json"
+    data = load_json(path)
+    if not isinstance(data, dict):
+        return ""
+    arms = data.get("arms", {})
+    if not arms:
+        return ""
+    lookup = {
+        (f.get("held_out"), arm_id): f for arm_id, arm in arms.items() for f in arm.get("folds", [])
+    }
+    lines = [
+        "### Table 4: Joint training metrics",
+        "",
+        "*sim images are Synthetic data*",
+        "",
+        "| Held-out Crack | Arm | Detections | False Calls |",
+        "|---|---|---|---|",
+    ]
+    for crack in ("crack_1.6", "crack_4.0", "crack_8.6"):
+        for arm_id in ("A", "B", "C", "D"):
+            fold = lookup.get((crack, arm_id), {})
+            det, fc = fold.get("detections", {}), fold.get("false_calls", {})
+            det_s = f"{det.get('k', 0)}/{det.get('n', 0)}"
+            fc_s = f"{fc.get('k', 0)}/{fc.get('n', 0)}"
+            lines.append(f"| {crack} | {arm_id} | {det_s} | {fc_s} |")
+    return "\n".join(lines) + "\n"
+
+
+def render_false_call_table(results_dir: Path) -> str:
+    """Render false call analysis table if JSON exists."""
+    path = results_dir / "false_call_analysis.json"
+    data = load_json(path)
+    if not isinstance(data, dict):
+        return ""
+    agr = data.get("agreement_table", {})
+    counts = agr.get("counts_by_agreement", {})
+    if not counts:
+        return ""
+    n_clean = data.get("n_clean", "unknown")
+    n_flagged = data.get("n_flagged", agr.get("total_flagged", "unknown"))
+    lines = [
+        "### Table 5: False-call analysis",
+        "",
+        f"- Clean images evaluated: {n_clean}",
+        f"- Flagged by any detector: {n_flagged}",
+        "",
+        "| Agreement Count | Scans Flagged |",
+        "|---|---|",
+    ]
+    for count_key in sorted(counts.keys(), key=lambda x: int(x) if x.isdigit() else 0):
+        lines.append(f"| {count_key} | {counts[count_key]} |")
+    return "\n".join(lines) + "\n"
+
+
 def render_links_line() -> str:
     """Render markdown link line to claims and matrix figure."""
     return (
@@ -164,6 +281,9 @@ def render_all_tables(results_dir: Path) -> str:
         render_evidence_limits(results_dir),
         render_superseded_note(results_dir),
         render_matrix_section(results_dir),
+        render_site_adaptation_table(results_dir),
+        render_joint_train_table(results_dir),
+        render_false_call_table(results_dir),
         render_links_line(),
     ]
     return "\n\n".join(p.strip() for p in parts if p.strip()) + "\n"

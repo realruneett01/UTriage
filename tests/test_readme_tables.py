@@ -16,6 +16,7 @@ from make_readme_tables import (  # noqa: E402
     render_all_tables,
     round_ceil,
     round_floor,
+    round_rate,
     update_readme_file,
     update_readme_text,
 )
@@ -51,6 +52,24 @@ def test_rounding_ceil(val: float, decimals: int, expected: str) -> None:
 def test_rounding_floor(val: float, decimals: int, expected: str) -> None:
     """Verify detection rounding floor never rounds up in project's favour."""
     assert round_floor(val, decimals) == expected
+
+
+@pytest.mark.parametrize(
+    ("val", "decimals", "expected"),
+    [
+        (0.029268, 3, "0.029"),
+        (0.134146, 3, "0.134"),
+        (0.044186, 3, "0.044"),
+        (0.407143, 3, "0.407"),
+        (0.747619, 3, "0.748"),
+        (0.01785, 3, "0.018"),
+        (0.0, 3, "0.000"),
+        (1.0, 3, "1.000"),
+    ],
+)
+def test_rounding_rate_half_to_even(val: float, decimals: int, expected: str) -> None:
+    """Verify rate rounding uses round half to even via round(x, decimals)."""
+    assert round_rate(val, decimals) == expected
 
 
 def _write_json(path: Path, data: dict) -> None:
@@ -102,6 +121,55 @@ def _make_fake_matrix() -> dict:
     return {"columns": cols, "rows": rows}
 
 
+def _make_fake_site_adaptation() -> dict:
+    """Build dummy site adaptation metrics."""
+    return {
+        "n_calib_clean": 824,
+        "shifts": {
+            "identity": {
+                "baseline": {
+                    "false_calls": {"k": 0, "n": 43, "rate": 0.0},
+                    "detection": {"k": 42, "n": 57, "rate": 0.7368},
+                },
+                "adapted": {
+                    "false_calls": {"k": 0, "n": 43, "rate": 0.0},
+                    "detection": {"k": 42, "n": 57, "rate": 0.7368},
+                },
+            }
+        },
+    }
+
+
+def _make_fake_joint_train() -> dict:
+    """Build dummy joint training metrics."""
+    return {
+        "arms": {
+            "A": {
+                "name": "real_only",
+                "folds": [
+                    {
+                        "held_out": "crack_1.6",
+                        "detections": {"k": 165, "n": 4014},
+                        "false_calls": {"k": 0, "n": 778},
+                    }
+                ],
+            }
+        }
+    }
+
+
+def _make_fake_false_call() -> dict:
+    """Build dummy false call analysis metrics."""
+    return {
+        "n_clean": 778,
+        "n_flagged": 14,
+        "agreement_table": {
+            "counts_by_agreement": {"1": 7, "2": 7},
+            "total_flagged": 14,
+        },
+    }
+
+
 def _populate_fake_results(results_dir: Path, leaky: bool = True) -> None:
     """Populate directory with fake Phase 8 result files."""
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -109,6 +177,7 @@ def _populate_fake_results(results_dir: Path, leaky: bool = True) -> None:
     _write_json(results_dir / "leakage_audit.json", {"leakage_by_physical_crack": leaky})
     inv_text = (
         "# Real-data evidence limits\n\n"
+        "Used in evaluation: 9 distinct physical flaws (ML-NDT: 3, NDT_ML_Flaw: 6)\n\n"
         "Across the 6 accepted datasets, 3 datasets have verified counts totaling "
         "10 distinct physical flaws.\n"
     )
@@ -169,10 +238,58 @@ def test_evidence_limits_box(tmp_path: Path) -> None:
     _populate_fake_results(res_dir)
     rendered = render_all_tables(res_dir)
     assert "> ### Evidence limits" in rendered
-    assert "10" in rendered
+    assert "10 accepted, 9 used in evaluation" in rendered
     assert "weld PAUT datasets not bars" in rendered
     assert "UNVERIFIED" in rendered
     assert "advisory independent prototype" in rendered
+
+
+def test_site_adaptation_table_rendered(tmp_path: Path) -> None:
+    """Verify site adaptation table is rendered with caption and shift rows."""
+    res_dir = tmp_path / "results"
+    _populate_fake_results(res_dir)
+    _write_json(res_dir / "site_adaptation.json", _make_fake_site_adaptation())
+    rendered = render_all_tables(res_dir)
+    assert "Table 3: Site adaptation" in rendered
+    assert "Real ML-NDT weld images with synthetic perturbations, single seed" in rendered
+    assert "824" in rendered
+    assert "0/43 (0.000)" in rendered
+    assert "42/57 (0.737)" in rendered
+
+
+def test_joint_train_table_rendered(tmp_path: Path) -> None:
+    """Verify joint training table is rendered with caption and arm/crack rows."""
+    res_dir = tmp_path / "results"
+    _populate_fake_results(res_dir)
+    _write_json(res_dir / "joint_train_metrics.json", _make_fake_joint_train())
+    rendered = render_all_tables(res_dir)
+    assert "Table 4: Joint training metrics" in rendered
+    assert "sim images are Synthetic data" in rendered
+    assert "crack_1.6" in rendered
+    assert "165/4014" in rendered
+    assert "0/778" in rendered
+
+
+def test_false_call_table_rendered(tmp_path: Path) -> None:
+    """Verify false call analysis table is rendered with summary and agreement counts."""
+    res_dir = tmp_path / "results"
+    _populate_fake_results(res_dir)
+    _write_json(res_dir / "false_call_analysis.json", _make_fake_false_call())
+    rendered = render_all_tables(res_dir)
+    assert "Table 5: False-call analysis" in rendered
+    assert "Clean images evaluated: 778" in rendered
+    assert "Flagged by any detector: 14" in rendered
+    assert "| 1 | 7 |" in rendered
+
+
+def test_missing_optional_tables_skipped(tmp_path: Path) -> None:
+    """Verify missing optional files are skipped without errors or placeholders."""
+    res_dir = tmp_path / "results"
+    _populate_fake_results(res_dir)
+    rendered = render_all_tables(res_dir)
+    assert "Table 3: Site adaptation" not in rendered
+    assert "Table 4: Joint training metrics" not in rendered
+    assert "Table 5: False-call analysis" not in rendered
 
 
 def test_links_line(tmp_path: Path) -> None:
