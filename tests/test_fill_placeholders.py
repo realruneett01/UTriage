@@ -90,23 +90,34 @@ def test_missing_key_message(tmp_path: Path, capsys: pytest.CaptureFixture[str])
 @pytest.mark.parametrize(
     ("val", "expected"),
     [
-        (123.456, "123"),
-        (12.3456, "12.3"),
-        (1.23456, "1.23"),
-        (0.123456, "0.123"),
-        (0.017857, "0.0179"),
-        (0.003843, "0.00384"),
+        (123.456, "123.5"),
+        (12.3456, "12.35"),
+        (1.23456, "1.235"),
+        (0.123456, "0.1235"),
+        (0.017857, "0.01786"),
+        (0.003843, "0.003843"),
         (0.8, "0.8"),
         (1.0, "1"),
         (0.0, "0"),
+        (0.9995, "0.9995"),
+        (0.9995017438963627, "0.9995"),
     ],
 )
 def test_format_floats(val: float, expected: str, tmp_path: Path) -> None:
-    """Format floating point numbers to 3 significant digits."""
+    """Format floating point numbers to at least 4 significant digits."""
     assert format_value(val) == expected
     _write_json(tmp_path / "num.json", {"val": val})
     template = "{{num.json: val}}"
     assert render(template, tmp_path) == expected
+
+
+def test_format_rate_four_significant_digits(tmp_path: Path) -> None:
+    """Verify non-integer rates like 0.9995 do not round to 1."""
+    val = 0.9995017438963627
+    assert format_value(val) == "0.9995"
+    _write_json(tmp_path / "rate.json", {"rate": val})
+    template = "Rate: {{rate.json: rate}}"
+    assert render(template, tmp_path) == "Rate: 0.9995"
 
 
 @pytest.mark.parametrize(

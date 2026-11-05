@@ -9,11 +9,11 @@
 
 ## Summary
 
-In automated immersion ultrasonic testing (UT) of aerospace-grade titanium and nickel-base superalloy round bars, coarse alloy microstructures create significant acoustic grain backscatter on RF A-scans. This background noise causes false calls under conventional thresholding, increasing review burden and inspector fatigue.
+The target application is aerospace bar immersion UT, but all real-data evaluations use public weld PAUT datasets and all bar results are Synthetic data. In automated immersion ultrasonic testing (UT) of aerospace-grade titanium and nickel-base superalloy round bars, coarse alloy microstructures create significant acoustic grain backscatter on RF A-scans. This background noise causes false calls under conventional thresholding, increasing review burden and inspector fatigue.
 
 UTriage is an offline, advisory decision-support prototype designed to aid Level II and Level III inspectors. Its architecture enforces three non-negotiable safety principles:
 1. **Conventional rules remain authoritative:** Code-based evaluation (DAC curves, gating, reference reflectors, and SNR thresholds) represents the safety baseline (baseline gate passed: `{{rules_baseline.json: gate.passed}}`).
-2. **The AI can only add candidate flags:** Machine learning models have zero software authority to suppress, clear, or downgrade any rule-flagged indication.
+2. **The AI can only add candidate flags:** Machine learning models have zero software authority to suppress, clear, or downgrade any rule-flagged indication. The union property is enforced in code and property-tested on synthetic simulator columns; the real weld datasets have no rules baseline.
 3. **Inspector authority:** UTriage is an advisory tool and never accepts a part. All final dispositions remain the sole responsibility of the Level II / Level III examiner.
 
 Phase 8 conducted an evidence-driven audit of detection claims. When evaluated on random batch splits, machine learning models exhibit data leakage across physical cracks (leakage present: `{{leakage_audit.json: leakage_by_physical_crack}}`), measuring interpolation within known flaws. Under rigorous group-held-out evaluations across physical cracks, unseen datasets, and simulator parameter regions, supervised models exhibit severe generalization boundaries. Unsupervised anomaly detection trained solely on flaw-free data provides a more resilient alternative.
@@ -76,6 +76,7 @@ In the LOCO evaluation above, early stopping was batch-held-out (validation batc
 - **Held-out `{{loco_crackval_metrics.json: folds.0.held_out}}` (validation crack `{{loco_crackval_metrics.json: folds.0.val_crack}}`):**
   - Detections: `{{loco_crackval_metrics.json: folds.0.detections.n_hit}}` of `{{loco_crackval_metrics.json: folds.0.detections.n_flawed}}` (detection rate: `{{loco_crackval_metrics.json: folds.0.detections.rate}}`)
   - False-call rate on unflawed scans: `{{loco_crackval_metrics.json: folds.0.false_calls.rate}}` (`{{loco_crackval_metrics.json: folds.0.false_calls.n_false}}` of `{{loco_crackval_metrics.json: folds.0.false_calls.n_unflawed}}`)
+  - *Observation:* On `crack_1.6` the detector flagged most clean scans, so the high detection there is not a usable operating point.
 - **Held-out `{{loco_crackval_metrics.json: folds.1.held_out}}` (validation crack `{{loco_crackval_metrics.json: folds.1.val_crack}}`):**
   - Detections: `{{loco_crackval_metrics.json: folds.1.detections.n_hit}}` of `{{loco_crackval_metrics.json: folds.1.detections.n_flawed}}` (detection rate: `{{loco_crackval_metrics.json: folds.1.detections.rate}}`)
   - False-call rate on unflawed scans: `{{loco_crackval_metrics.json: folds.1.false_calls.rate}}` (`{{loco_crackval_metrics.json: folds.1.false_calls.n_false}}` of `{{loco_crackval_metrics.json: folds.1.false_calls.n_unflawed}}`)
@@ -166,8 +167,12 @@ This instability underscores that the linear classifier over-fits idiosyncratic 
 *Dataset: Real data (ML-NDT)*
 
 Evaluation of false calls on clean unflawed scans (`results/false_call_analysis.json`):
-- **Clean images evaluated:** `{{false_call_analysis.json: n_clean}}`
+- **Fold-scan clean evaluations (each distinct clean scan scored by every fold model):** `{{false_call_analysis.json: n_clean}}`
 - **Flagged by any detector:** `{{false_call_analysis.json: n_flagged}}`
+- **Per-fold flags:**
+  - `crack_1.6` fold: `{{false_call_analysis.json: per_fold.crack_1.6.n_flagged}}` of `{{false_call_analysis.json: per_fold.crack_1.6.n_clean}}` clean scans
+  - `crack_4.0` fold: `{{false_call_analysis.json: per_fold.crack_4.0.n_flagged}}` of `{{false_call_analysis.json: per_fold.crack_4.0.n_clean}}` clean scans
+  - `crack_8.6` fold: `{{false_call_analysis.json: per_fold.crack_8.6.n_flagged}}` of `{{false_call_analysis.json: per_fold.crack_8.6.n_clean}}` clean scans
 - **Agreement counts:**
   - Single detector only: `{{false_call_analysis.json: agreement_table.counts_by_agreement.1}}`
   - Two detectors: `{{false_call_analysis.json: agreement_table.counts_by_agreement.2}}`
@@ -188,7 +193,9 @@ Evaluation of false calls on clean unflawed scans (`results/false_call_analysis.
 
 Limits: `{{site_adaptation.json: limits}}`
 
-Threshold calibration uses `{{site_adaptation.json: n_calib_clean}}` clean scans (`n_calib_clean`). Performance across synthetic perturbation shifts compares baseline versus adapted models (`results/site_adaptation.json`):
+The evaluated ConvAE2D model has no BatchNorm layers, so AdaBN made no change in this experiment (adapted model hash identical across shifts); measured changes come from per-site normalisation and threshold recalibration.
+
+Calibration clean scans: `{{site_adaptation.json: n_calib_clean}}` (`n_calib_clean`); test clean scans: `{{site_adaptation.json: n_test_clean}}` (`n_test_clean`). The `upper95_fcr` is computed on calibration clean scans, not the test set. Performance across synthetic perturbation shifts compares baseline versus adapted models (`results/site_adaptation.json`):
 - **Shift `identity`:**
   - False calls: baseline `{{site_adaptation.json: shifts.identity.baseline.false_calls.k}}` of `{{site_adaptation.json: shifts.identity.baseline.false_calls.n}}` (rate `{{site_adaptation.json: shifts.identity.baseline.false_calls.rate}}`) vs adapted `{{site_adaptation.json: shifts.identity.adapted.false_calls.k}}` of `{{site_adaptation.json: shifts.identity.adapted.false_calls.n}}` (rate `{{site_adaptation.json: shifts.identity.adapted.false_calls.rate}}`)
   - Detection: baseline `{{site_adaptation.json: shifts.identity.baseline.detection.k}}` of `{{site_adaptation.json: shifts.identity.baseline.detection.n}}` (rate `{{site_adaptation.json: shifts.identity.baseline.detection.rate}}`) vs adapted `{{site_adaptation.json: shifts.identity.adapted.detection.k}}` of `{{site_adaptation.json: shifts.identity.adapted.detection.n}}` (rate `{{site_adaptation.json: shifts.identity.adapted.detection.rate}}`)

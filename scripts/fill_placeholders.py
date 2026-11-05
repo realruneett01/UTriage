@@ -73,7 +73,9 @@ def format_value(val: Any) -> str:
     if isinstance(val, bool):
         return "yes" if val else "no"
     if isinstance(val, float):
-        return f"{val:.3g}"
+        if val.is_integer():
+            return str(int(val))
+        return f"{val:.4g}"
     return str(val)
 
 
