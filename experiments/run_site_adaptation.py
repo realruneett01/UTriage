@@ -54,6 +54,15 @@ LIMITS_TEXT: str = (
     "pipe weld; all inspection environment shifts (gain, offset, noise) are synthetic "
     "perturbations applied in software. Advisory only: UTriage never accepts or passes a part."
 )
+ADAPTATION_NOTE_NO_BN: str = (
+    "AdaBN not applied: model has no BatchNorm layers; "
+    "changes come from per-site normalisation and threshold recalibration"
+)
+
+
+def count_batchnorm_layers(model: nn.Module) -> int:
+    """Count number of BatchNorm modules present in the model."""
+    return sum(1 for m in model.modules() if isinstance(m, nn.modules.batchnorm._BatchNorm))
 
 
 @dataclass(frozen=True)
@@ -141,6 +150,7 @@ class ExperimentPayloadInput:
     data: ShiftEvaluationData
     part: PartitionResult
     model_sha: str
+    n_batchnorm_layers: int = 0
 
 
 def apply_shift(
@@ -260,6 +270,16 @@ def _eval_adapted(
     }
 
 
+def _shift_info(shift: SiteShift) -> dict[str, Any]:
+    """Extract serializable parameter dictionary from SiteShift instance."""
+    return {
+        "name": shift.name,
+        "gain": shift.gain,
+        "offset": shift.offset,
+        "noise_std": shift.noise_std,
+    }
+
+
 def evaluate_shift(
     model: nn.Module,
     shift: SiteShift,
@@ -275,18 +295,18 @@ def evaluate_shift(
     scans = ShiftedTestScans(clean=shifted_tc, flawed=shifted_tf)
     baseline_res = _eval_baseline(model, scans, data.t_orig, settings.device)
     adapted_res = _eval_adapted(model, shifted_cal, scans, settings)
-
-    return {
-        "shift": {
-            "name": shift.name,
-            "gain": shift.gain,
-            "offset": shift.offset,
-            "noise_std": shift.noise_std,
-        },
+    n_bn = count_batchnorm_layers(model)
+    res: dict[str, Any] = {
+        "shift": _shift_info(shift),
         "baseline": baseline_res,
         "adapted": adapted_res,
         "adapted_model_sha256": adapted_res["adapted_model_sha256"],
+        "n_batchnorm_layers": n_bn,
+        "adabn_applied": n_bn > 0,
     }
+    if n_bn == 0:
+        res["adaptation_note"] = ADAPTATION_NOTE_NO_BN
+    return res
 
 
 def _assert_disjoint_partitions(
@@ -450,12 +470,24 @@ def _load_model(path: Path, dev: torch.device) -> ConvAE2D:
     return model
 
 
+def _image_counts(data: ShiftEvaluationData) -> dict[str, int]:
+    """Compute item counts for calibration clean and test partitions."""
+    n_cal, n_tc, n_tf = len(data.cal_clean), len(data.test_clean), len(data.test_flawed)
+    return {
+        "cal_clean": n_cal,
+        "test_clean": n_tc,
+        "test_flawed": n_tf,
+        "total": n_cal + n_tc + n_tf,
+    }
+
+
 def _build_payload(
     inp: ExperimentPayloadInput,
     shifts: dict[str, Any],
 ) -> dict[str, Any]:
     """Construct complete JSON payload with limits and provenance information."""
-    return {
+    adabn = inp.n_batchnorm_layers > 0
+    payload: dict[str, Any] = {
         "label": DATASET_LABEL,
         "dataset_label": DATASET_LABEL,
         "limits": LIMITS_TEXT,
@@ -463,12 +495,7 @@ def _build_payload(
         "seed": inp.cfg.seed,
         "target_fcr": inp.cfg.fcr,
         "original_threshold": float(inp.data.t_orig),
-        "n_images": {
-            "cal_clean": len(inp.data.cal_clean),
-            "test_clean": len(inp.data.test_clean),
-            "test_flawed": len(inp.data.test_flawed),
-            "total": len(inp.data.cal_clean) + len(inp.data.test_clean) + len(inp.data.test_flawed),
-        },
+        "n_images": _image_counts(inp.data),
         "shifts": shifts,
         "n_calib_clean": len(inp.data.cal_clean),
         "n_test_clean": len(inp.data.test_clean),
@@ -477,7 +504,12 @@ def _build_payload(
         "test_underpowered": inp.part.test_underpowered,
         "calib_overlaps_model_training": inp.part.overlaps_model_training,
         "fcr_choice_reason": inp.part.fcr_choice_reason,
+        "n_batchnorm_layers": inp.n_batchnorm_layers,
+        "adabn_applied": adabn,
     }
+    if not adabn:
+        payload["adaptation_note"] = ADAPTATION_NOTE_NO_BN
+    return payload
 
 
 def _print_underpowered_warning(n_cal: int, min_req: int, fcr: float) -> None:
@@ -516,9 +548,11 @@ def run_site_adaptation(cfg: SiteAdaptationConfig) -> dict[str, Any]:
     settings = ShiftEvalSettings(cfg.fcr, dev, batch_size=32, seed=cfg.seed)
     shifts = {s.name: evaluate_shift(model, s, data, settings) for s in FIXED_SHIFTS}
 
-    payload = _build_payload(
-        ExperimentPayloadInput(cfg, data, part, sha256_file(model_path)), shifts
+    n_bn = count_batchnorm_layers(model)
+    payload_input = ExperimentPayloadInput(
+        cfg, data, part, sha256_file(model_path), n_batchnorm_layers=n_bn
     )
+    payload = _build_payload(payload_input, shifts)
     _write_site_payload(cfg.out_dir, payload)
     return payload
 
