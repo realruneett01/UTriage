@@ -68,6 +68,26 @@ def test_min_clean_scans_invalid_rate(bad_fcr: float) -> None:
         min_clean_scans(bad_fcr)
 
 
+@pytest.mark.parametrize("bad_conf", [-0.1, 0.0, 1.0, 1.5])
+def test_min_clean_scans_invalid_confidence(bad_conf: float) -> None:
+    """min_clean_scans raises ValueError for confidence outside (0, 1)."""
+    with pytest.raises(ValueError, match="confidence"):
+        min_clean_scans(0.01, confidence=bad_conf)
+
+
+def test_calibrate_site_threshold_empty_array_raises() -> None:
+    """calibrate_site_threshold raises ValueError for empty clean_scores."""
+    with pytest.raises(ValueError, match="clean_scores cannot be empty"):
+        calibrate_site_threshold(np.array([]), false_call_rate=0.01)
+
+
+@pytest.mark.parametrize("bad_fcr", [0.0, 1.0, -0.1])
+def test_calibrate_site_threshold_invalid_fcr(bad_fcr: float) -> None:
+    """calibrate_site_threshold raises ValueError for false_call_rate outside (0, 1)."""
+    with pytest.raises(ValueError, match="false_call_rate"):
+        calibrate_site_threshold(np.array([0.1, 0.2, 0.3]), false_call_rate=bad_fcr)
+
+
 def test_calibrate_site_threshold_warns_when_too_few_scans() -> None:
     """calibrate_site_threshold raises UserWarning when n_clean < min_clean_scans."""
     rng = np.random.default_rng(123)

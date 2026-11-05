@@ -116,10 +116,14 @@ def test_pretrain_epoch_handles_loader_formats(with_labels: bool) -> None:
     model = ConvAE2D()
     cfg = PretrainConfig(patch=16)
     opt = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    params_before = [p.detach().clone() for p in model.parameters()]
 
     loss = pretrain_epoch(model, loader, opt, cfg, device="cpu")
     assert isinstance(loss, float)
     assert loss > 0.0
+    assert any(
+        not torch.equal(b, a) for b, a in zip(params_before, model.parameters(), strict=True)
+    )
 
 
 def test_pretrain_three_epochs_reduce_loss() -> None:

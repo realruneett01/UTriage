@@ -68,7 +68,11 @@ def test_site_calibrate_success(site_env: tuple[Path, Path, Path]) -> None:
     assert res.exit_code == 0
     assert out_json.is_file()
     data = json.loads(out_json.read_text(encoding="utf-8"))
-    assert "threshold" in data["calib"]
+    thresh = data["calib"]["threshold"]
+    assert isinstance(thresh, float) and np.isfinite(thresh)
+    n_clean = len(list(clean_dir.glob("*.npy")))
+    assert data["stats"]["n_scans"] == n_clean
+    assert data["calib"]["n_clean"] == n_clean
     assert data["label"] == "Synthetic"
     assert "WARNING:" in res.output
     assert "n_clean: 3" in res.output
@@ -131,6 +135,25 @@ def test_site_calibrate_missing_dir(site_env: tuple[Path, Path, Path], tmp_path:
             str(tmp_path / "missing_dir"),
             "--model",
             str(model_path),
+            "--label",
+            "Synthetic",
+            "--out",
+            str(out_json),
+        ]
+    )
+    assert res.exit_code != 0
+
+
+def test_site_calibrate_missing_model(site_env: tuple[Path, Path, Path], tmp_path: Path) -> None:
+    """Non-existent model path causes command to exit non-zero."""
+    clean_dir, _, out_json = site_env
+    res = _run_cli(
+        [
+            "site-calibrate",
+            "--clean-dir",
+            str(clean_dir),
+            "--model",
+            str(tmp_path / "missing_model.pt"),
             "--label",
             "Synthetic",
             "--out",
