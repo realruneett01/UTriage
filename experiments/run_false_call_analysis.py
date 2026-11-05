@@ -114,6 +114,14 @@ class CleanInspectionContext:
     cases_dir: Path
 
 
+PROTOCOL_NOTE: str = (
+    "Scoring protocol: Clean scans are scored with every LOCO fold model. "
+    "Trade-off curves and false-call counts are computed per fold (each fold evaluates "
+    "its own clean scores against its own held-out flawed scores). Totals and pooled summaries "
+    "pool (fold, scan) pairs across all folds at pre-registered operating thresholds."
+)
+
+
 @dataclass(frozen=True)
 class FoldScoringContext:
     """Context and models needed for fold scoring."""
@@ -122,44 +130,41 @@ class FoldScoringContext:
     anom_model: nn.Module
     dev: torch.device
     cfg: FalseCallConfig
-    t_fcr: float
+    thresholds: ThresholdConfig
+    t_anom: float
 
 
-@dataclass
-class ScoreAccumulator:
-    """Accumulator for flawed and unique clean detection scores."""
+@dataclass(frozen=True)
+class FoldResult:
+    """Evaluation results for a single LOCO fold."""
 
-    flawed: dict[str, list[float]]
-    clean: dict[str, list[float]]
-    clean_seen: set[tuple[Path, int]]
+    held_out: str
     clean_items: list[tuple[Path, int]]
+    flawed_items: list[tuple[Path, int]]
+    clean_scores: dict[str, np.ndarray]
+    flawed_scores: dict[str, np.ndarray]
+    thresholds: dict[str, float]
+    t_s: float
 
-    def add_items(
-        self,
-        test_items: list[tuple[Path, int]],
-        scores: dict[str, np.ndarray],
-        y_test: np.ndarray,
-    ) -> None:
-        """Categorize and append fold test scores."""
-        for i, item in enumerate(test_items):
-            if y_test[i] == 1:
-                for d in scores:
-                    self.flawed[d].append(float(scores[d][i]))
-            elif item not in self.clean_seen:
-                self.clean_seen.add(item)
-                self.clean_items.append(item)
-                for d in scores:
-                    self.clean[d].append(float(scores[d][i]))
+
+@dataclass(frozen=True)
+class PooledMetrics:
+    """Aggregated metrics across all evaluated LOCO folds."""
+
+    all_flagged: list[dict[str, Any]]
+    total_clean_pairs: int
+    causes_cnt: dict[str, int]
+    agr_table: dict[str, Any]
 
 
 @dataclass(frozen=True)
 class PayloadContext:
     """Context metadata for final payload assembly."""
 
-    clean_items: list[tuple[Path, int]]
-    flagged: list[dict[str, Any]]
+    per_fold: dict[str, dict[str, Any]]
+    pooled_curves: dict[str, Any]
+    pooled_ops: dict[str, Any]
     threshs: dict[str, float]
-    curves: dict[str, Any]
     fp: dict[str, Any]
     run_label: str
 
@@ -235,6 +240,18 @@ def _load_threshold_config(det_cfg: DetectorConfig) -> ThresholdConfig:
     )
 
 
+def _read_metric_threshold(path: Path, target_fcr: float) -> float | None:
+    """Read threshold from metrics file if it exists and matches target FCR."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        real_block = data.get("real", {})
+        file_fcr = float(real_block.get("target_fcr", 0.01))
+        match = "threshold" in real_block and abs(file_fcr - target_fcr) < 1e-6
+        return float(real_block["threshold"]) if match else None
+    except (json.JSONDecodeError, KeyError, OSError):  # corrupted or invalid metrics json file
+        return None
+
+
 def _load_or_fit_t_anom(
     path: Path,
     cal_scores: np.ndarray,
@@ -242,15 +259,9 @@ def _load_or_fit_t_anom(
 ) -> float:
     """Load real threshold from anomaly_metrics.json or fit on calibration scores."""
     if path.exists():
-        try:
-            with open(path, encoding="utf-8") as f:
-                data = json.load(f)
-            real_block = data.get("real", {})
-            file_fcr = float(real_block.get("target_fcr", 0.01))
-            if "threshold" in real_block and abs(file_fcr - target_fcr) < 1e-6:
-                return float(real_block["threshold"])
-        except (json.JSONDecodeError, KeyError, OSError):  # corrupted or invalid metrics json file
-            pass
+        val = _read_metric_threshold(path, target_fcr)
+        if val is not None:
+            return val
     return float(quantile_threshold(cal_scores, target_fcr))
 
 
@@ -420,84 +431,197 @@ def _build_clean_record(
 
 
 def _evaluate_clean_images(
-    clean_items: list[tuple[Path, int]],
-    scores_dict: dict[str, np.ndarray],
-    threshs: dict[str, float],
+    fold_res: FoldResult,
     ctx: CleanInspectionContext,
 ) -> list[dict[str, Any]]:
-    """Identify and record all clean images flagged by any detector."""
+    """Identify and record all clean images flagged by any detector in fold."""
     flagged_records: list[dict[str, Any]] = []
-    for i, item in enumerate(clean_items):
-        scores = {d: float(scores_dict[d][i]) for d in ("supervised", "anomaly", "h2", "h3")}
+    threshs = fold_res.thresholds
+    for i, item in enumerate(fold_res.clean_items):
+        scores = {
+            d: float(fold_res.clean_scores[d][i]) for d in ("supervised", "anomaly", "h2", "h3")
+        }
         is_hit = any(scores[d] >= threshs[d] for d in scores)
         if is_hit:
             rec = _build_clean_record(item, scores, threshs, ctx)
+            rec["fold"] = fold_res.held_out
             flagged_records.append(rec)
     return flagged_records
 
 
-def _generate_tradeoff_curves(
-    flawed_scores: dict[str, list[float]],
-    clean_scores: dict[str, list[float]],
+def _compute_fold_curves(fold_res: FoldResult) -> dict[str, Any]:
+    """Compute detection vs false call curves for a single fold."""
+    curves: dict[str, Any] = {}
+    for det in ("supervised", "anomaly", "h2", "h3"):
+        f_arr = np.array(fold_res.flawed_scores[det], dtype=np.float32)
+        c_arr = np.array(fold_res.clean_scores[det], dtype=np.float32)
+        y_true = np.concatenate([np.ones(len(f_arr), dtype=int), np.zeros(len(c_arr), dtype=int)])
+        all_s = np.concatenate([f_arr, c_arr])
+        curve = compute_tradeoff_curve(y_true, all_s, operating_threshold=fold_res.thresholds[det])
+        curve["operating_point"]["flaw_hits"] = int(np.sum(f_arr >= fold_res.thresholds[det]))
+        curve["operating_point"]["clean_hits"] = int(np.sum(c_arr >= fold_res.thresholds[det]))
+        curves[det] = curve
+    return curves
+
+
+def _assemble_fold_entry(
+    fold_res: FoldResult,
+    flagged: list[dict[str, Any]],
+    curves: dict[str, Any],
+) -> dict[str, Any]:
+    """Assemble dictionary of metrics, curves, and causes for one fold."""
+    causes_cnt: dict[str, int] = {}
+    for rec in flagged:
+        c = rec["cause"]
+        causes_cnt[c] = causes_cnt.get(c, 0) + 1
+    agr_table = build_agreement_table(flagged)
+    agr_table["total_pairs_counted"] = len(fold_res.clean_items)
+    agr_table["scan_pairs_evaluated"] = len(fold_res.clean_items)
+    return {
+        "held_out": fold_res.held_out,
+        "n_clean": len(fold_res.clean_items),
+        "n_flawed": len(fold_res.flawed_items),
+        "n_flagged": len(flagged),
+        "thresholds": fold_res.thresholds,
+        "cause_counts": causes_cnt,
+        "agreement_table": agr_table,
+        "tradeoff_curves": curves,
+        "operating_points": {d: curves[d]["operating_point"] for d in curves},
+        "flagged_cases": flagged,
+        "clean_scores": {
+            d: [float(s) for s in fold_res.clean_scores[d]] for d in fold_res.clean_scores
+        },
+    }
+
+
+def _calibrate_fold_h2(sup_model: nn.Module, ctx: FoldScoringContext) -> float:
+    """Calibrate h2 fused score threshold on validation items."""
+    p_sup_cal = _score_supervised(sup_model, ctx.cal_ctx.items, ctx.dev)
+    s_calib = fused_score(p_sup_cal, ctx.cal_ctx.p_anom_calib)
+    return float(quantile_threshold(s_calib, ctx.thresholds.h2_fcr))
+
+
+def _score_fold_detectors(
+    fold: LocoFold,
+    sup_model: nn.Module,
+    items: list[tuple[Path, int]],
+    ctx: FoldScoringContext,
+) -> dict[str, np.ndarray]:
+    """Score test items using supervised, anomaly, h2, and physics detectors."""
+    a_test = _score_anomaly(ctx.anom_model, items, ctx.dev)
+    p_sup = _score_supervised(sup_model, items, ctx.dev)
+    s_test = fused_score(p_sup, ctx.cal_ctx.ecdf_fn(a_test))
+    p_phys = _score_physics_classifier(fold, items)
+    return {"supervised": p_sup, "anomaly": a_test, "h2": s_test, "h3": p_phys}
+
+
+def _run_fold_scoring(
+    fold: LocoFold,
+    ctx: FoldScoringContext,
+) -> FoldResult:
+    """Evaluate detector candidates on fold test partition."""
+    weights_path = _resolve_model_path(f"loco_{fold.held_out}.pt", ctx.cfg.models_dir)
+    sup_model, _ = load_model(weights_path, device=str(ctx.dev))
+    t_s = _calibrate_fold_h2(sup_model, ctx)
+
+    test_items = _prepare_test_items(fold.test, ctx.cfg.quick)
+    ds = IndexedMlNdtDataset(test_items)
+    y_test = ds.get_labels()[0] if test_items else np.empty(0)
+    scores = _score_fold_detectors(fold, sup_model, test_items, ctx)
+
+    flaw_idx, clean_idx = np.where(y_test == 1.0)[0], np.where(y_test == 0.0)[0]
+    threshs = {
+        "supervised": ctx.thresholds.supervised,
+        "anomaly": ctx.t_anom,
+        "h2": t_s,
+        "h3": ctx.thresholds.physics,
+    }
+    return FoldResult(
+        held_out=fold.held_out,
+        clean_items=[test_items[i] for i in clean_idx],
+        flawed_items=[test_items[i] for i in flaw_idx],
+        clean_scores={d: scores[d][clean_idx] for d in scores},
+        flawed_scores={d: scores[d][flaw_idx] for d in scores},
+        thresholds=threshs,
+        t_s=t_s,
+    )
+
+
+def _evaluate_all_folds(
+    folds: list[LocoFold],
+    ctx: FoldScoringContext,
+) -> tuple[dict[str, FoldResult], float]:
+    """Score all LOCO folds with their respective models."""
+    results: dict[str, FoldResult] = {}
+    t_s_folds: list[float] = []
+    for fold in folds:
+        res = _run_fold_scoring(fold, ctx)
+        results[fold.held_out] = res
+        t_s_folds.append(res.t_s)
+    mean_ts = float(np.mean(t_s_folds)) if t_s_folds else 0.5
+    return results, mean_ts
+
+
+def _process_per_fold_results(
+    fold_results: dict[str, FoldResult],
+    insp_ctx: CleanInspectionContext,
+) -> dict[str, dict[str, Any]]:
+    """Evaluate clean false calls and tradeoff curves for each fold."""
+    per_fold: dict[str, dict[str, Any]] = {}
+    for fold_name, fold_res in fold_results.items():
+        flagged = _evaluate_clean_images(fold_res, insp_ctx)
+        curves = _compute_fold_curves(fold_res)
+        per_fold[fold_name] = _assemble_fold_entry(fold_res, flagged, curves)
+    return per_fold
+
+
+def _pool_operating_points(
+    fold_entries: dict[str, dict[str, Any]],
+    threshs: dict[str, float],
+) -> dict[str, Any]:
+    """Pool operating points across folds and compute micro and macro averages."""
+    detectors = ("supervised", "anomaly", "h2", "h3")
+    total_flawed = sum(e["n_flawed"] for e in fold_entries.values())
+    total_clean = sum(e["n_clean"] for e in fold_entries.values())
+    pooled_ops: dict[str, Any] = {}
+    for det in detectors:
+        ops = [e["operating_points"][det] for e in fold_entries.values()]
+        mean_dr = float(np.mean([op["detection_rate"] for op in ops]))
+        mean_fcr = float(np.mean([op["false_call_rate"] for op in ops]))
+        flaw_hits = sum(int(op.get("flaw_hits", 0)) for op in ops)
+        clean_hits = sum(int(op.get("clean_hits", 0)) for op in ops)
+        pooled_dr = float(flaw_hits / total_flawed) if total_flawed > 0 else 0.0
+        pooled_fcr = float(clean_hits / total_clean) if total_clean > 0 else 0.0
+        pooled_ops[det] = {
+            "threshold": threshs[det],
+            "detection_rate": pooled_dr,
+            "false_call_rate": pooled_fcr,
+            "mean_detection_rate": mean_dr,
+            "mean_false_call_rate": mean_fcr,
+            "pooled_detection_rate": pooled_dr,
+            "pooled_false_call_rate": pooled_fcr,
+            "flaw_hits": flaw_hits,
+            "clean_hits": clean_hits,
+        }
+    return pooled_ops
+
+
+def _generate_pooled_tradeoff_curves(
+    fold_results: dict[str, FoldResult],
     threshs: dict[str, float],
     figures_dir: Path,
 ) -> dict[str, Any]:
-    """Compute detection vs false call curves and render tradeoff figures."""
+    """Compute pooled tradeoff curves and render plot figures."""
     curves: dict[str, Any] = {}
     for det in ("supervised", "anomaly", "h2", "h3"):
-        f_arr = np.array(flawed_scores[det], dtype=np.float32)
-        c_arr = np.array(clean_scores[det], dtype=np.float32)
+        f_arr = np.concatenate([res.flawed_scores[det] for res in fold_results.values()])
+        c_arr = np.concatenate([res.clean_scores[det] for res in fold_results.values()])
         y_true = np.concatenate([np.ones(len(f_arr), dtype=int), np.zeros(len(c_arr), dtype=int)])
         all_s = np.concatenate([f_arr, c_arr])
         curve = compute_tradeoff_curve(y_true, all_s, operating_threshold=threshs[det])
         curves[det] = curve
         plot_tradeoff_curve(curve, det, figures_dir / f"tradeoff_{det}.png")
     return curves
-
-
-def _run_fold_scoring(
-    fold: LocoFold,
-    ctx: FoldScoringContext,
-) -> tuple[dict[str, np.ndarray], np.ndarray, float, list[tuple[Path, int]]]:
-    """Evaluate detector candidates on fold test partition."""
-    weights_path = _resolve_model_path(f"loco_{fold.held_out}.pt", ctx.cfg.models_dir)
-    sup_model, _ = load_model(weights_path, device=str(ctx.dev))
-    p_sup_calib = _score_supervised(sup_model, ctx.cal_ctx.items, ctx.dev)
-    s_calib = fused_score(p_sup_calib, ctx.cal_ctx.p_anom_calib)
-    t_s = float(quantile_threshold(s_calib, ctx.t_fcr))
-
-    test_items = _prepare_test_items(fold.test, ctx.cfg.quick)
-    ds = IndexedMlNdtDataset(test_items)
-    y_test = ds.get_labels()[0] if test_items else np.empty(0)
-    a_score_test = _score_anomaly(ctx.anom_model, test_items, ctx.dev)
-    p_anom_test = ctx.cal_ctx.ecdf_fn(a_score_test)
-    p_sup_test = _score_supervised(sup_model, test_items, ctx.dev)
-    s_test = fused_score(p_sup_test, p_anom_test)
-    p_phys_test = _score_physics_classifier(fold, test_items)
-
-    scores = {"supervised": p_sup_test, "anomaly": a_score_test, "h2": s_test, "h3": p_phys_test}
-    return scores, y_test, t_s, test_items
-
-
-def _collect_fold_scores(
-    folds: list[LocoFold],
-    ctx: FoldScoringContext,
-) -> tuple[dict[str, list[float]], dict[str, list[float]], list[tuple[Path, int]], float]:
-    """Accumulate flawed and unique clean scores across all LOCO folds."""
-    acc = ScoreAccumulator(
-        flawed={d: [] for d in ("supervised", "anomaly", "h2", "h3")},
-        clean={d: [] for d in ("supervised", "anomaly", "h2", "h3")},
-        clean_seen=set(),
-        clean_items=[],
-    )
-    t_s_folds: list[float] = []
-    for fold in folds:
-        scores, y_test, t_s, test_items = _run_fold_scoring(fold, ctx)
-        t_s_folds.append(t_s)
-        acc.add_items(test_items, scores, y_test)
-
-    mean_ts = float(np.mean(t_s_folds)) if t_s_folds else 0.5
-    return acc.flawed, acc.clean, acc.clean_items, mean_ts
 
 
 def _setup_analysis_context(
@@ -526,27 +650,78 @@ def _setup_analysis_context(
     return dev, thresholds, anom_model, cal_ctx, float(t_anom), folds
 
 
-def _assemble_payload(ctx: PayloadContext) -> dict[str, Any]:
-    """Assemble final analysis dictionary for JSON and Markdown persistence."""
+def _aggregate_pooled_metrics(
+    per_fold: dict[str, dict[str, Any]],
+) -> PooledMetrics:
+    """Aggregate flagged records, cause counts, and agreement across folds."""
+    all_flagged: list[dict[str, Any]] = []
+    for entry in per_fold.values():
+        all_flagged.extend(entry["flagged_cases"])
+
+    total_clean_pairs = sum(e["n_clean"] for e in per_fold.values())
     causes_cnt: dict[str, int] = {}
-    for rec in ctx.flagged:
+    for rec in all_flagged:
         c = rec["cause"]
         causes_cnt[c] = causes_cnt.get(c, 0) + 1
 
+    agr_table = build_agreement_table(all_flagged)
+    agr_table["total_pairs_counted"] = total_clean_pairs
+    agr_table["scan_pairs_evaluated"] = total_clean_pairs
+    return PooledMetrics(
+        all_flagged=all_flagged,
+        total_clean_pairs=total_clean_pairs,
+        causes_cnt=causes_cnt,
+        agr_table=agr_table,
+    )
+
+
+def _build_pooled_summary(
+    metrics: PooledMetrics,
+    pooled_ops: dict[str, Any],
+) -> dict[str, Any]:
+    """Build pooled summary block recording operating points and evaluated pairs."""
+    return {
+        "description": "Pooled across all LOCO folds; pools per-fold operating points.",
+        "total_scan_pairs_counted": metrics.total_clean_pairs,
+        "total_scan_pairs_evaluated": metrics.total_clean_pairs,
+        "total_flagged_pairs": len(metrics.all_flagged),
+        "operating_points": pooled_ops,
+        "cause_counts": metrics.causes_cnt,
+        "cause_counts_totals": {
+            "total_pairs_counted": metrics.total_clean_pairs,
+            "total_flagged": len(metrics.all_flagged),
+            "counts": metrics.causes_cnt,
+        },
+        "agreement_table": metrics.agr_table,
+    }
+
+
+def _assemble_payload(
+    ctx: PayloadContext,
+    metrics: PooledMetrics,
+) -> dict[str, Any]:
+    """Assemble final analysis dictionary for JSON and Markdown persistence."""
+    pooled_summary = _build_pooled_summary(metrics, ctx.pooled_ops)
     return {
         "label": "Real data (ML-NDT)",
         "run_label": ctx.run_label,
         "detector_config": ctx.fp,
         "config_fingerprint": ctx.fp,
         "protocol": "Pre-registered threshold false call analysis and trade-off curves.",
-        "n_clean": len(ctx.clean_items),
-        "n_flagged": len(ctx.flagged),
+        "protocol_note": PROTOCOL_NOTE,
+        "n_clean": metrics.total_clean_pairs,
+        "n_clean_pairs": metrics.total_clean_pairs,
+        "n_flagged": len(metrics.all_flagged),
+        "total_scan_pairs_counted": metrics.total_clean_pairs,
         "thresholds": ctx.threshs,
-        "cause_counts": causes_cnt,
-        "agreement_table": build_agreement_table(ctx.flagged),
-        "flagged_cases": ctx.flagged,
-        "tradeoff_curves": ctx.curves,
-        "operating_points": {d: ctx.curves[d]["operating_point"] for d in ctx.curves},
+        "cause_counts": metrics.causes_cnt,
+        "cause_counts_totals": pooled_summary["cause_counts_totals"],
+        "agreement_table": metrics.agr_table,
+        "flagged_cases": metrics.all_flagged,
+        "tradeoff_curves": ctx.pooled_curves,
+        "operating_points": {d: ctx.pooled_ops[d] for d in ctx.pooled_ops},
+        "per_fold": ctx.per_fold,
+        "pooled_summary": pooled_summary,
     }
 
 
@@ -557,8 +732,8 @@ def run_false_call_analysis(cfg: FalseCallConfig) -> dict[str, Any]:
     run_label = "pre-registered" if fp["is_default"] else "exploratory"
 
     dev, thresholds, anom_model, cal_ctx, t_anom, folds = _setup_analysis_context(cfg, det_cfg)
-    fold_ctx = FoldScoringContext(cal_ctx, anom_model, dev, cfg, thresholds.h2_fcr)
-    flawed_scores, clean_scores_acc, clean_items, t_s_mean = _collect_fold_scores(folds, fold_ctx)
+    fold_ctx = FoldScoringContext(cal_ctx, anom_model, dev, cfg, thresholds, t_anom)
+    fold_results, t_s_mean = _evaluate_all_folds(folds, fold_ctx)
 
     threshs = {
         "supervised": thresholds.supervised,
@@ -566,13 +741,14 @@ def run_false_call_analysis(cfg: FalseCallConfig) -> dict[str, Any]:
         "h2": t_s_mean,
         "h3": thresholds.physics,
     }
-    clean_scores = {d: np.array(clean_scores_acc[d], dtype=np.float32) for d in clean_scores_acc}
     insp_ctx = CleanInspectionContext(anom_model, dev, cfg.cases_dir)
-    flagged = _evaluate_clean_images(clean_items, clean_scores, threshs, insp_ctx)
+    per_fold = _process_per_fold_results(fold_results, insp_ctx)
+    pooled_ops = _pool_operating_points(per_fold, threshs)
+    pooled_curves = _generate_pooled_tradeoff_curves(fold_results, threshs, cfg.figures_dir)
 
-    curves = _generate_tradeoff_curves(flawed_scores, clean_scores_acc, threshs, cfg.figures_dir)
-    p_ctx = PayloadContext(clean_items, flagged, threshs, curves, fp, run_label)
-    payload = _assemble_payload(p_ctx)
+    metrics = _aggregate_pooled_metrics(per_fold)
+    p_ctx = PayloadContext(per_fold, pooled_curves, pooled_ops, threshs, fp, run_label)
+    payload = _assemble_payload(p_ctx, metrics)
     save_false_call_analysis(payload, cfg.out_json, cfg.out_md)
     return payload
 

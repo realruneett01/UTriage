@@ -367,3 +367,61 @@ def test_score_physics_classifier_predictions(tmp_path: Path, empty_test: bool) 
     if not empty_test:
         assert all(0.0 <= float(s) <= 1.0 for s in scores)
     assert score_physics_fold is score_physics_classifier
+
+
+def _setup_stubs_different_models(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
+    """Generate fake ML-NDT dataset and stub checkpoints with varying weights."""
+    root, models_dir, out_json, out_md = _setup_stubs(tmp_path)
+    biases = {"crack_1.6": -2.0, "crack_4.0": 0.0, "crack_8.6": 2.0}
+    for crack, bias in biases.items():
+        m = MlNdtNet(width=4)
+        with torch.no_grad():
+            m.head.bias.data[0] = bias
+        save_model(m, models_dir / f"loco_{crack}.pt", {"width": 4})
+    return root, models_dir, out_json, out_md
+
+
+def _verify_per_fold_results(per_fold: dict[str, Any]) -> None:
+    """Verify fold separation and clean score diversity across fold models."""
+    assert set(per_fold.keys()) == {"crack_1.6", "crack_4.0", "crack_8.6"}
+    s1 = per_fold["crack_1.6"]["clean_scores"]["supervised"]
+    s2 = per_fold["crack_4.0"]["clean_scores"]["supervised"]
+    s3 = per_fold["crack_8.6"]["clean_scores"]["supervised"]
+    assert len(s1) > 0 and len(s2) > 0 and len(s3) > 0
+    assert not np.allclose(s1, s2)
+    assert not np.allclose(s2, s3)
+    for _crack, f_data in per_fold.items():
+        assert "tradeoff_curves" in f_data
+        assert "operating_points" in f_data
+        assert "agreement_table" in f_data
+        assert f_data["agreement_table"]["total_pairs_counted"] == f_data["n_clean"]
+
+
+def test_per_fold_clean_scoring_different_models(tmp_path: Path) -> None:
+    """Verify each fold model scores clean scans and per-fold curves exist."""
+    from experiments.run_false_call_analysis import (
+        FalseCallConfig,
+        run_false_call_analysis,
+    )
+
+    root, models_dir, out_json, out_md = _setup_stubs_different_models(tmp_path)
+    cfg = FalseCallConfig(
+        root=root,
+        models_dir=models_dir,
+        out_json=out_json,
+        out_md=out_md,
+        figures_dir=tmp_path / "figures",
+        cases_dir=tmp_path / "cases",
+        quick=True,
+        device="cpu",
+    )
+    result = run_false_call_analysis(cfg)
+
+    assert "per_fold" in result
+    assert "protocol_note" in result
+    assert "pooled_summary" in result
+    assert "pools per-fold operating points" in result["pooled_summary"]["description"].lower()
+    assert result["agreement_table"]["total_pairs_counted"] == sum(
+        result["per_fold"][f]["n_clean"] for f in result["per_fold"]
+    )
+    _verify_per_fold_results(result["per_fold"])
