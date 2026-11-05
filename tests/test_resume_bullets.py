@@ -148,27 +148,27 @@ def _make_loco_batch_claims() -> list[dict[str, Any]]:
     return [
         {
             "id": "loco_crack_1.6",
-            "text": "LOCO crack_1.6: detection 579/4014.",
+            "text": "LOCO crack_1.6: detection 579/4014, false calls 0/778.",
             "evidence_file": "results/generalization_matrix.json",
             "evidence_path": "rows.supervised.mlndt_loco_crack_1.6",
             "scope_limit": "leave-one-crack-out",
-            "numbers": {"k": 579.0, "n": 4014.0},
+            "numbers": {"k": 579.0, "n": 4014.0, "n_false": 0.0, "n_unflawed": 778.0},
         },
         {
             "id": "loco_crack_4.0",
-            "text": "LOCO crack_4.0: detection 671/4078.",
+            "text": "LOCO crack_4.0: detection 671/4078, false calls 0/778.",
             "evidence_file": "results/generalization_matrix.json",
             "evidence_path": "rows.supervised.mlndt_loco_crack_4.0",
             "scope_limit": "leave-one-crack-out",
-            "numbers": {"k": 671.0, "n": 4078.0},
+            "numbers": {"k": 671.0, "n": 4078.0, "n_false": 0.0, "n_unflawed": 778.0},
         },
         {
             "id": "loco_crack_8.6",
-            "text": "LOCO crack_8.6: detection 3925/3925.",
+            "text": "LOCO crack_8.6: detection 3925/3925, false calls 0/778.",
             "evidence_file": "results/generalization_matrix.json",
             "evidence_path": "rows.supervised.mlndt_loco_crack_8.6",
             "scope_limit": "leave-one-crack-out",
-            "numbers": {"k": 3925.0, "n": 3925.0},
+            "numbers": {"k": 3925.0, "n": 3925.0, "n_false": 0.0, "n_unflawed": 778.0},
         },
     ]
 
@@ -177,17 +177,27 @@ def _make_loco_crackval_claim() -> dict[str, Any]:
     """Build fake leave-one-crack-out claim for crack validation."""
     return {
         "id": "loco_crackval",
-        "text": "LOCO crackval: crack_1.6 4012/4014, crack_4.0 2449/4078, crack_8.6 3925/3925.",
+        "text": (
+            "LOCO crackval: crack_1.6 4012/4014, false calls 753/778; "
+            "crack_4.0 2449/4078, false calls 0/778; "
+            "crack_8.6 3925/3925, false calls 11/778."
+        ),
         "evidence_file": "results/loco_crackval_metrics.json",
         "evidence_path": "folds",
         "scope_limit": "leave-one-crack-out",
         "numbers": {
             "crack_1.6_k": 4012.0,
             "crack_1.6_n": 4014.0,
+            "crack_1.6_n_false": 753.0,
+            "crack_1.6_n_unflawed": 778.0,
             "crack_4.0_k": 2449.0,
             "crack_4.0_n": 4078.0,
+            "crack_4.0_n_false": 0.0,
+            "crack_4.0_n_unflawed": 778.0,
             "crack_8.6_k": 3925.0,
             "crack_8.6_n": 3925.0,
+            "crack_8.6_n_false": 11.0,
+            "crack_8.6_n_unflawed": 778.0,
         },
     }
 
@@ -341,6 +351,19 @@ def _make_fake_joint_training() -> dict[str, Any]:
     }
 
 
+def _make_fake_false_call_analysis() -> dict[str, Any]:
+    """Build representative fake false call analysis metrics data."""
+    return {
+        "n_flagged": 43,
+        "cause_counts": {"high_snr_structure": 43},
+        "per_fold": {
+            "crack_1.6": {"held_out": "crack_1.6", "n_clean": 778},
+            "crack_4.0": {"held_out": "crack_4.0", "n_clean": 778},
+            "crack_8.6": {"held_out": "crack_8.6", "n_clean": 778},
+        },
+    }
+
+
 def _val_matches(val: Any, num_str: str) -> bool:
     """Check if claim numeric value matches string representation."""
     formatted = (str(val), f"{float(val):.3f}", f"{float(val):.1f}")
@@ -382,7 +405,7 @@ def test_story_order_and_verbs(tmp_path: Path) -> None:
     expected = [
         ("Built", "(advisory)."),
         ("Audited", "(public dataset)."),
-        ("Detected", "(leave-one-crack-out)."),
+        ("Detected", "(leave-one-crack-out, 3 physical cracks, one public weld dataset)."),
         ("Trained", "(held-out cracks, trained on clean scans only)."),
         ("Observed", "(simulated)."),
         ("Evaluated", "(NDT_ML_Flaw, real weld data)."),
@@ -487,7 +510,7 @@ def test_real_results() -> None:
     if not claims_path.exists():
         pytest.skip(f"{claims_path} does not exist yet")
     bullets = build_bullets(results_dir)
-    assert len(bullets) == 10
+    assert len(bullets) == 11
     for bullet in bullets:
         assert bullet.endswith(").")
 
@@ -516,6 +539,7 @@ def test_hybrid_bullet_word_limit_and_structure(tmp_path: Path) -> None:
     assert len(words) <= 40, f"Hybrid bullet exceeds 40 words ({len(words)}): {hybrid_b}"
     assert hybrid_b.count(". ") == 0, f"Hybrid bullet contains multiple sentences: {hybrid_b}"
     assert hybrid_b.startswith("Pre-registered ")
+    assert "3925/3925 vs 3925/3925 on 8.6 mm" in hybrid_b
     assert hybrid_b.endswith("(public dataset, pre-registered).")
     assert "confirming" not in hybrid_b
     assert "vary across seeds" in hybrid_b
@@ -537,12 +561,53 @@ def test_site_adaptation_bullet(tmp_path: Path) -> None:
     _write_json(tmp_path / "site_adaptation.json", _make_fake_site_adaptation(underpowered=True))
     bullets = build_bullets(tmp_path)
     site_b = [b for b in bullets if b.startswith("Adapted ")][0]
-    assert "gain 2.0" in site_b
-    assert "gain 0.5" in site_b
+    assert "gain 2.0: detection 57/57 to 42/57, false calls 43/43 to 0/43" in site_b
+    assert "gain 0.5: detection 19/57 to 42/57, false calls 0/43 to 0/43" in site_b
     assert "small test set" in site_b
     assert site_b.endswith(
-        "(real weld images, synthetic gain/offset/noise shifts, single seed, small test set)."
+        "(single seed; shifts are synthetic perturbations of real weld images, small test set)."
     )
+
+
+def test_crack_held_out_bullet_contains_false_calls(tmp_path: Path) -> None:
+    """Verify crack-held-out bullet contains the false-call count."""
+    claims = _make_fake_claims()
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    loco_b = [b for b in bullets if b.startswith("Detected ")][0]
+    assert "8.6 mm 3925/3925" in loco_b
+    assert "1.6 mm 4012/4014" in loco_b
+    assert "4.0 mm 2449/4078" in loco_b
+    assert "753/778" in loco_b
+    assert "11/778" in loco_b
+    assert "0/778" in loco_b
+
+
+def test_site_bullet_false_call_transition(tmp_path: Path) -> None:
+    """Verify site adaptation bullet shows false-call transition for each shift."""
+    claims = _make_fake_claims()
+    _write_claims(tmp_path / "claims.json", claims)
+    _write_json(tmp_path / "site_adaptation.json", _make_fake_site_adaptation())
+    bullets = build_bullets(tmp_path)
+    site_b = [b for b in bullets if b.startswith("Adapted ")][0]
+    assert "false calls 43/43 to 0/43" in site_b
+    assert "false calls 0/43 to 0/43" in site_b
+
+
+def test_false_call_analysis_bullet_and_skip(tmp_path: Path) -> None:
+    """Verify false call bullet is skipped when missing and generated when present."""
+    claims = _make_fake_claims()
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets_without = build_bullets(tmp_path)
+    assert not any("Analyzed false calls" in b for b in bullets_without)
+
+    _write_json(tmp_path / "false_call_analysis.json", _make_fake_false_call_analysis())
+    bullets_with = build_bullets(tmp_path)
+    fc_b = [b for b in bullets_with if b.startswith("Analyzed ")][0]
+    assert "2334" in fc_b
+    assert "43" in fc_b
+    assert "high_snr_structure" in fc_b
+    assert fc_b.endswith("(public dataset, pre-registered).")
 
 
 def test_joint_training_bullet(tmp_path: Path) -> None:

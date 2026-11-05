@@ -7,6 +7,7 @@ import json
 import re
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from pathlib import Path
 from typing import Any
@@ -52,7 +53,7 @@ def _build_framing_bullet() -> str:
     text = (
         "Built an independent prototype for advisory, offline ultrasonic indication triage "
         "for ultrasonic inspection; simulated bar scans and public weld PAUT data, "
-        "designed so ML can only add flags to a rules engine (property-tested)"
+        "designed so ML can only add flags to a rules engine (property-tested on simulator columns)"
     )
     return _ensure_scope(text, "advisory")
 
@@ -89,100 +90,130 @@ def _get_k_n(claim: dict[str, Any]) -> tuple[int, int] | None:
     return None
 
 
-def _fold_kn(fold: dict[str, Any]) -> tuple[str, int, int] | None:
-    """Extract held_out name and k, n detection counts from a fold dict."""
+@dataclass(frozen=True)
+class FoldCounts:
+    """Detection and false-call counts for a fold."""
+
+    det_k: int
+    det_n: int
+    fc_k: int | None = None
+    fc_n: int | None = None
+
+
+def _parse_fold_counts(fold: dict[str, Any]) -> tuple[str, FoldCounts] | None:
+    """Extract held_out name and detection/false-call counts from fold dict."""
     held = fold.get("held_out")
     det = fold.get("detections", {})
     k = det.get("n_hit", det.get("k"))
     n = det.get("n_flawed", det.get("n"))
-    if not all((held, k is not None, n is not None)):
+    if any((held is None, k is None, n is None)):
         return None
-    return str(held), int(k), int(n)
+    fc = fold.get("false_calls", {})
+    fc_k = fc.get("n_false", fc.get("k"))
+    fc_n = fc.get("n_unflawed", fc.get("n", fc.get("n_clean")))
+    f_k = int(fc_k) if fc_k is not None else None
+    f_n = int(fc_n) if fc_n is not None else None
+    return str(held), FoldCounts(int(k), int(n), f_k, f_n)
 
 
-def _extract_loco_from_file(path: Path) -> dict[str, tuple[int, int]] | None:
-    """Extract fold detection counts from a LOCO metrics JSON file."""
+def _extract_loco_from_file(path: Path) -> dict[str, FoldCounts] | None:
+    """Extract fold counts from a LOCO metrics JSON file."""
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
-    res: dict[str, tuple[int, int]] = {}
+    res: dict[str, FoldCounts] = {}
     for fold in data.get("folds", []):
-        parsed = _fold_kn(fold)
+        parsed = _parse_fold_counts(fold)
         if parsed:
-            res[parsed[0]] = (parsed[1], parsed[2])
+            res[parsed[0]] = parsed[1]
     if len(res) < 3:
         return None
     return res
 
 
+def _extract_loco_batch_claims(
+    claims: dict[str, dict[str, Any]],
+) -> dict[str, FoldCounts] | None:
+    """Extract batch LOCO detection counts from individual claims."""
+    keys = {
+        "crack_8.6": "loco_crack_8.6",
+        "crack_1.6": "loco_crack_1.6",
+        "crack_4.0": "loco_crack_4.0",
+    }
+    res: dict[str, FoldCounts] = {}
+    for crack, claim_id in keys.items():
+        c = claims.get(claim_id)
+        if c is None:
+            return None
+        kn = _get_k_n(c)
+        if kn is None:
+            return None
+        nums = c.get("numbers", {})
+        fc_k = nums.get("n_false", nums.get("fc_k"))
+        fc_n = nums.get("n_unflawed", nums.get("fc_n"))
+        f_k = int(fc_k) if fc_k is not None else None
+        f_n = int(fc_n) if fc_n is not None else None
+        res[crack] = FoldCounts(kn[0], kn[1], f_k, f_n)
+    return res
+
+
 def _extract_loco_batch_counts(
     claims: dict[str, dict[str, Any]], results_dir: Path
-) -> tuple[int, int, int, int, int, int] | None:
-    """Extract batch-held-out LOCO detection counts."""
+) -> dict[str, FoldCounts] | None:
+    """Extract batch-held-out LOCO counts."""
     fc = _extract_loco_from_file(results_dir / "loco_metrics.json")
     if fc:
-        return (
-            fc["crack_8.6"][0],
-            fc["crack_8.6"][1],
-            fc["crack_1.6"][0],
-            fc["crack_1.6"][1],
-            fc["crack_4.0"][0],
-            fc["crack_4.0"][1],
-        )
-    keys = ("loco_crack_8.6", "loco_crack_1.6", "loco_crack_4.0")
-    if not all(k in claims for k in keys):
-        return None
-    k8n = _get_k_n(claims["loco_crack_8.6"])
-    k1n = _get_k_n(claims["loco_crack_1.6"])
-    k4n = _get_k_n(claims["loco_crack_4.0"])
-    if not all((k8n, k1n, k4n)):
-        return None
-    return k8n[0], k8n[1], k1n[0], k1n[1], k4n[0], k4n[1]  # type: ignore[index]
+        return fc
+    return _extract_loco_batch_claims(claims)
 
 
-def _extract_loco_claim_counts(
+def _extract_loco_crackval_claim(
     nums: dict[str, Any],
-) -> tuple[int, int, int, int, int, int] | None:
-    """Extract crack-held-out LOCO detection counts from numbers dict."""
-    keys = (
-        "crack_8.6_k",
-        "crack_8.6_n",
-        "crack_1.6_k",
-        "crack_1.6_n",
-        "crack_4.0_k",
-        "crack_4.0_n",
-    )
-    if not all(k in nums for k in keys):
-        return None
-    return (
-        int(nums["crack_8.6_k"]),
-        int(nums["crack_8.6_n"]),
-        int(nums["crack_1.6_k"]),
-        int(nums["crack_1.6_n"]),
-        int(nums["crack_4.0_k"]),
-        int(nums["crack_4.0_n"]),
-    )
+) -> dict[str, FoldCounts] | None:
+    """Extract crack-held-out LOCO counts from claim numbers dict."""
+    keys = ("crack_8.6", "crack_1.6", "crack_4.0")
+    res: dict[str, FoldCounts] = {}
+    for crack in keys:
+        k = nums.get(f"{crack}_k")
+        n = nums.get(f"{crack}_n")
+        if k is None or n is None:
+            return None
+        fc_k = nums.get(f"{crack}_n_false", nums.get(f"{crack}_fc_k"))
+        fc_n = nums.get(f"{crack}_n_unflawed", nums.get(f"{crack}_fc_n"))
+        f_k = int(fc_k) if fc_k is not None else None
+        f_n = int(fc_n) if fc_n is not None else None
+        res[crack] = FoldCounts(int(k), int(n), f_k, f_n)
+    return res
 
 
 def _extract_loco_crackval_counts(
     claims: dict[str, dict[str, Any]], results_dir: Path
-) -> tuple[int, int, int, int, int, int] | None:
-    """Extract crack-held-out LOCO detection counts."""
+) -> dict[str, FoldCounts] | None:
+    """Extract crack-held-out LOCO counts."""
     fc = _extract_loco_from_file(results_dir / "loco_crackval_metrics.json")
     if fc:
-        return (
-            fc["crack_8.6"][0],
-            fc["crack_8.6"][1],
-            fc["crack_1.6"][0],
-            fc["crack_1.6"][1],
-            fc["crack_4.0"][0],
-            fc["crack_4.0"][1],
-        )
+        return fc
     cv = claims.get("loco_crackval")
     if cv is None:
         return None
-    return _extract_loco_claim_counts(cv.get("numbers", {}))
+    return _extract_loco_crackval_claim(cv.get("numbers", {}))
+
+
+def _format_fold_tuple(
+    f8: FoldCounts, f1: FoldCounts, f4: FoldCounts, *, include_fc: bool = True
+) -> str:
+    """Format 3-fold detections and optional false calls."""
+    det_str = (
+        f"8.6 mm {f8.det_k}/{f8.det_n}, 1.6 mm {f1.det_k}/{f1.det_n}, 4.0 mm {f4.det_k}/{f4.det_n}"
+    )
+    if not include_fc:
+        return f"({det_str})"
+    fc_vals = (f8.fc_k, f8.fc_n, f1.fc_k, f1.fc_n, f4.fc_k, f4.fc_n)
+    if any(v is None for v in fc_vals):
+        return f"({det_str})"
+    fc_str = f"false calls {f8.fc_k}/{f8.fc_n}, {f1.fc_k}/{f1.fc_n}, {f4.fc_k}/{f4.fc_n}"
+    return f"({det_str}; {fc_str})"
 
 
 def _build_loco_bullet(claims: dict[str, dict[str, Any]], results_dir: Path) -> str | None:
@@ -192,15 +223,15 @@ def _build_loco_bullet(claims: dict[str, dict[str, Any]], results_dir: Path) -> 
     if b_counts is None or c_counts is None:
         sys.stderr.write("Warning: missing LOCO counts; skipping bullet.\n")
         return None
-    k8_b, n8_b, k1_b, n1_b, k4_b, n4_b = b_counts
-    k8_c, n8_c, k1_c, n1_c, k4_c, n4_c = c_counts
-    text = (
-        f"Detected held-out cracks under batch-held-out early stopping "
-        f"(8.6 mm {k8_b}/{n8_b}, 1.6 mm {k1_b}/{n1_b}, 4.0 mm {k4_b}/{n4_b}) vs "
-        f"crack-held-out early stopping ({k8_c}/{n8_c}, {k1_c}/{n1_c}, {k4_c}/{n4_c}) "
-        "on 3 physical cracks in one public weld dataset"
+    b_has_fc = (results_dir / "loco_metrics.json").exists()
+    b_tup = _format_fold_tuple(
+        b_counts["crack_8.6"], b_counts["crack_1.6"], b_counts["crack_4.0"], include_fc=b_has_fc
     )
-    return _ensure_scope(text, "leave-one-crack-out")
+    c_tup = _format_fold_tuple(
+        c_counts["crack_8.6"], c_counts["crack_1.6"], c_counts["crack_4.0"], include_fc=True
+    )
+    text = f"Detected held-out cracks: batch early stopping {b_tup} vs crack-held-out {c_tup}"
+    return _ensure_scope(text, "leave-one-crack-out, 3 physical cracks, one public weld dataset")
 
 
 def _get_fcr(claim: dict[str, Any]) -> str | None:
@@ -332,9 +363,10 @@ def _build_hybrid_bullet(claims: dict[str, dict[str, Any]], results_dir: Path) -
     h2_1, h3_1 = _extract_crack_det(h2_c, "1.6"), _extract_crack_det(h3_c, "1.6")
     h2_4, h3_4 = _extract_crack_det(h2_c, "4.0"), _extract_crack_det(h3_c, "4.0")
     h2_8 = _extract_crack_det(h2_c, "8.6")
+    h3_8 = _extract_crack_det(h3_c, "8.6")
     h2_fc = _extract_false_calls_h2(h2_c)
     h3_fc = _extract_false_calls_h3(h3_c, results_dir)
-    if not all((h2_1, h3_1, h2_4, h3_4, h2_8, h2_fc, h3_fc)):
+    if not all((h2_1, h3_1, h2_4, h3_4, h2_8, h3_8, h2_fc, h3_fc)):
         sys.stderr.write("Warning: missing hybrid detection numbers; skipping bullet.\n")
         return None
     h2_nums = h2_c.get("numbers", {})
@@ -344,7 +376,33 @@ def _build_hybrid_bullet(claims: dict[str, dict[str, Any]], results_dir: Path) -
     text = (
         f"Pre-registered a supervised+anomaly hybrid and a physics-feature detector, "
         f"reaching {h2_1} vs {h3_1} on 1.6 mm, {h2_4} vs {h3_4} on 4.0 mm, "
-        f"{h2_8} on 8.6 mm, false calls {h2_fc} vs {h3_fc}{seed_note}"
+        f"{h2_8} vs {h3_8} on 8.6 mm, false calls {h2_fc} vs {h3_fc}{seed_note}"
+    )
+    return _ensure_scope(text, "public dataset, pre-registered")
+
+
+def _build_false_call_bullet(results_dir: Path) -> str | None:
+    """Build false-call analysis bullet from results/false_call_analysis.json."""
+    path = results_dir / "false_call_analysis.json"
+    if not path.exists():
+        return None
+    with path.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    per_fold = data.get("per_fold", {})
+    if not per_fold:
+        sys.stderr.write("Warning: missing per_fold in false_call_analysis; skipping bullet.\n")
+        return None
+    n_evals = sum(int(f.get("n_clean", 0)) for f in per_fold.values())
+    n_flagged = data.get("n_flagged")
+    cause_counts = data.get("cause_counts", {})
+    if any((n_flagged is None, not cause_counts, n_evals == 0)):
+        sys.stderr.write("Warning: missing metrics in false_call_analysis; skipping bullet.\n")
+        return None
+    dom_cause = max(cause_counts, key=lambda k: cause_counts[k])
+    text = (
+        f"Analyzed false calls across {n_evals} fold-scan clean evaluations "
+        f"(each distinct clean scan scored by every fold model), finding {n_flagged} "
+        f"flagged with dominant cause {dom_cause}"
     )
     return _ensure_scope(text, "public dataset, pre-registered")
 
@@ -356,7 +414,8 @@ def _build_sim_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
         return None
     thresh = c_sim.get("numbers", {}).get("threshold", 0.3)
     text = (
-        f"Observed false calls exceeding the {thresh:.1f} project reporting threshold "
+        f"Observed false-call rate above {thresh:.1f} per window "
+        "(project-chosen reporting threshold, not a standard) "
         "at an unseen frequency and above-range noise for both rules and ML in held-out regions"
     )
     return _ensure_scope(text, "simulated")
@@ -380,25 +439,30 @@ def _build_cross_dataset_bullet(claims: dict[str, dict[str, Any]]) -> str | None
     return _ensure_scope(text, "NDT_ML_Flaw, real weld data")
 
 
+def _format_shift_metrics(shift: dict[str, Any]) -> tuple[str, str]:
+    """Format baseline to adapted detection and false-call transitions."""
+    base_det = f"{shift['baseline']['detection']['k']}/{shift['baseline']['detection']['n']}"
+    adapt_det = f"{shift['adapted']['detection']['k']}/{shift['adapted']['detection']['n']}"
+    base_fc = f"{shift['baseline']['false_calls']['k']}/{shift['baseline']['false_calls']['n']}"
+    adapt_fc = f"{shift['adapted']['false_calls']['k']}/{shift['adapted']['false_calls']['n']}"
+    return f"detection {base_det} to {adapt_det}", f"false calls {base_fc} to {adapt_fc}"
+
+
 def _format_site_adaptation(
     data: dict[str, Any], g2: dict[str, Any], g05: dict[str, Any], n_calib: int
 ) -> str | None:
     """Format site adaptation bullet text and scope."""
-    g2_fc = f"{g2['baseline']['false_calls']['k']}/{g2['baseline']['false_calls']['n']}"
-    g2_afc = f"{g2['adapted']['false_calls']['k']}/{g2['adapted']['false_calls']['n']}"
-    g2_det = f"{g2['baseline']['detection']['k']}/{g2['baseline']['detection']['n']}"
-    g2_adet = f"{g2['adapted']['detection']['k']}/{g2['adapted']['detection']['n']}"
-    g05_det = f"{g05['baseline']['detection']['k']}/{g05['baseline']['detection']['n']}"
-    g05_adet = f"{g05['adapted']['detection']['k']}/{g05['adapted']['detection']['n']}"
-    g05_afc = f"{g05['adapted']['false_calls']['k']}/{g05['adapted']['false_calls']['n']}"
+    g2_det, g2_fc = _format_shift_metrics(g2)
+    g05_det, g05_fc = _format_shift_metrics(g05)
     n_test = data.get("n_test_clean", data.get("n_images", {}).get("test_clean"))
-    clean_desc = f"{n_calib} clean scans ({n_test} test)" if n_test else f"{n_calib} clean scans"
+    if n_test is None:
+        sys.stderr.write("Warning: missing n_test_clean; skipping bullet.\n")
+        return None
     text = (
-        f"Adapted on {clean_desc}: gain 2.0 false calls {g2_fc} to {g2_afc} "
-        f"(detection {g2_det} to {g2_adet}); gain 0.5 detection {g05_det} to {g05_adet} "
-        f"(false calls {g05_afc})"
+        f"Adapted ({n_calib} calibration, {n_test} test clean scans): "
+        f"gain 2.0: {g2_det}, {g2_fc}; gain 0.5: {g05_det}, {g05_fc}"
     )
-    scope = "real weld images, synthetic gain/offset/noise shifts, single seed"
+    scope = "single seed; shifts are synthetic perturbations of real weld images"
     if data.get("test_underpowered"):
         scope += ", small test set"
     return _ensure_scope(text, scope)
@@ -569,6 +633,7 @@ def build_bullets(results_dir: Path) -> list[str]:
     builders: list[tuple[Callable[..., str | None], tuple[Any, ...]]] = [
         (_build_leakage_bullet, (claims,)),
         (_build_loco_bullet, (claims, results_dir)),
+        (_build_false_call_bullet, (results_dir,)),
         (_build_anomaly_bullet, (claims,)),
         (_build_hybrid_bullet, (claims, results_dir)),
         (_build_sim_bullet, (claims,)),
