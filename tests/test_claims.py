@@ -286,7 +286,7 @@ def test_numbers_formatted_in_claim_text_match_evidence(fake_results_dir: Path) 
         assert len(c.numbers) > 0
         for key, val in c.numbers.items():
             candidates = [f"{val:.3f}", f"{val:.2f}", f"{val:.1f}", str(int(val))]
-            assert any(cand in c.text for cand in candidates), (
+            assert any(re.search(rf"\b{re.escape(cand)}\b", c.text) for cand in candidates), (
                 f"Value {val} ({key}) not found in claim text: '{c.text}'"
             )
 
@@ -777,7 +777,8 @@ def _make_fake_site_adaptation_data() -> dict[str, Any]:
     """Helper creating fake site_adaptation metrics dictionary."""
     return {
         "label": "Real (ML-NDT weld, 3 physical cracks; shifts are synthetic perturbations)",
-        "n_images": {"test_clean": 100},
+        "n_calib_clean": 100,
+        "n_images": {"cal_clean": 100, "test_clean": 100},
         "shifts": {
             "identity": _make_fake_site_adaptation_shift(
                 "identity",
@@ -847,12 +848,14 @@ def test_site_adaptation_claims_present_with_numbers(tmp_path: Path) -> None:
     assert "baseline 15/100" in c_gain.text
     assert "adapted 2/100" in c_gain.text
     assert "detection baseline 40/50 vs adapted 45/50" in c_gain.text
+    assert "n_calib_clean 100" in c_gain.text
     assert "n_test_clean 100" in c_gain.text
     assert "test_underpowered" in c_gain.text
     assert "upper95_fcr_scope" in c_gain.text
+    assert c_gain.numbers["n_calib_clean"] == 100.0
     for val in c_gain.numbers.values():
         cands = [f"{val:.3f}", f"{val:.2f}", f"{val:.1f}", str(int(val))]
-        assert any(cand in c_gain.text for cand in cands)
+        assert any(re.search(rf"\b{re.escape(cand)}\b", c_gain.text) for cand in cands)
 
 
 def test_site_adaptation_missing_file_skipped(
@@ -911,6 +914,7 @@ def _make_fake_false_call_analysis_data() -> dict[str, Any]:
     """Helper creating fake false_call_analysis dictionary."""
     return {
         "n_clean": 778,
+        "n_clean_pairs": 778,
         "n_flagged": 14,
         "agreement_table": {
             "counts_by_agreement": {"1": 7, "2": 7},
@@ -918,6 +922,11 @@ def _make_fake_false_call_analysis_data() -> dict[str, Any]:
         },
         "cause_counts": {"high_snr_structure": 14},
         "protocol_note": "pre-registered thresholds",
+        "per_fold": {
+            "crack_1.6": {"held_out": "crack_1.6", "n_clean": 778, "n_flagged": 14},
+            "crack_4.0": {"held_out": "crack_4.0", "n_clean": 778, "n_flagged": 14},
+            "crack_8.6": {"held_out": "crack_8.6", "n_clean": 778, "n_flagged": 15},
+        },
     }
 
 
@@ -934,14 +943,33 @@ def test_false_call_analysis_claim_present(tmp_path: Path) -> None:
     assert claim.evidence_path == "agreement_table"
     assert claim.scope_limit == "ML-NDT (316L weld, 3 physical cracks), flaw-free scans"
     for expected in (
-        "778 clean images evaluated",
+        "778 fold-scan clean evaluations (each clean scan scored by every fold model)",
         "14 flagged by any detector",
         "high_snr_structure: 14",
+        "crack_1.6: 14 flagged / 778",
     ):
         assert expected in claim.text
     assert claim.numbers["clean_images_evaluated"] == 778.0
     assert claim.numbers["flagged_by_any_detector"] == 14.0
     assert claim.numbers["cause_high_snr_structure"] == 14.0
+
+
+def test_false_call_analysis_no_dict_dump_under_2000_chars(tmp_path: Path) -> None:
+    """Verify false call analysis claim has compact per-fold summary and stays under 2000 chars."""
+    from utriage.report.claims import build_claims
+
+    data = _make_fake_false_call_analysis_data()
+    data["per_fold"]["crack_1.6"]["scores"] = [0.1] * 50000
+    (tmp_path / "false_call_analysis.json").write_text(json.dumps(data), encoding="utf-8")
+    claims = build_claims(tmp_path)
+    claim = next((c for c in claims if c.id == "false_call_analysis"), None)
+    assert claim is not None
+    assert len(claim.text) < 2000
+    assert "{" not in claim.text
+    assert (
+        "crack_1.6: 14 flagged / 778; crack_4.0: 14 flagged / 778; crack_8.6: 15 flagged / 778"
+        in claim.text
+    )
 
 
 def test_false_call_analysis_missing_file_skipped(tmp_path: Path) -> None:
@@ -1057,3 +1085,50 @@ def test_forbidden_words_not_in_generated_claims(
         assert not re.search(pattern, c.text, re.IGNORECASE), (
             f"Forbidden word '{forbidden_word}' in claim {c.id}: '{c.text}'"
         )
+
+
+@pytest.mark.parametrize(
+    "word",
+    ["verified", "confirming", "establishing", "ensuring", "guarantee", "nearly"],
+)
+def test_claim_forbidden_word_in_text_raises(word: str) -> None:
+    """Verify Claim raises ValueError when text contains a forbidden word."""
+    with pytest.raises(ValueError, match="Forbidden"):
+        Claim(
+            id="test_claim",
+            text=f"Model performance is {word}.",
+            evidence_file="results/test.json",
+            evidence_path="path",
+            scope_limit="advisory",
+            numbers={"val": 1.0},
+        )
+
+
+@pytest.mark.parametrize(
+    "word",
+    ["verified", "confirming", "establishing", "ensuring", "guarantee", "nearly"],
+)
+def test_claim_forbidden_word_in_scope_raises(word: str) -> None:
+    """Verify Claim raises ValueError when scope_limit contains a forbidden word."""
+    with pytest.raises(ValueError, match="Forbidden"):
+        Claim(
+            id="test_claim",
+            text="Model advisory output.",
+            evidence_file="results/test.json",
+            evidence_path="path",
+            scope_limit=f"Scope {word} only",
+            numbers={"val": 1.0},
+        )
+
+
+def test_claim_unverified_allowed() -> None:
+    """Verify Claim allows UNVERIFIED in text and scope_limit without raising."""
+    claim = Claim(
+        id="test_claim",
+        text="UNVERIFIED - Ruri to check",
+        evidence_file="results/test.json",
+        evidence_path="path",
+        scope_limit="Synthetic data, UNVERIFIED constants",
+        numbers={"val": 1.0},
+    )
+    assert claim.id == "test_claim"

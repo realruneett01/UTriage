@@ -23,6 +23,15 @@ FORBIDDEN: tuple[str, ...] = (
     "generalizes to all",
 )
 
+FORBIDDEN_WORDS: tuple[str, ...] = (
+    "verified",
+    "confirming",
+    "establishing",
+    "ensuring",
+    "guarantee",
+    "nearly",
+)
+
 HIGH_FCR_THRESHOLD: float = 0.3
 
 
@@ -30,6 +39,11 @@ def check_forbidden(text: str) -> list[str]:
     """Find any forbidden phrases in text, matching case-insensitively."""
     lower_text = text.lower()
     return [p for p in FORBIDDEN if p.lower() in lower_text]
+
+
+def check_forbidden_words(text: str) -> list[str]:
+    """Find any forbidden whole words in text, matching case-insensitively."""
+    return [w for w in FORBIDDEN_WORDS if re.search(rf"\b{re.escape(w)}\b", text, re.IGNORECASE)]
 
 
 def _format_rate(rate: float) -> str:
@@ -51,13 +65,19 @@ class Claim:
     numbers: dict[str, float]
 
     def __post_init__(self) -> None:
-        """Validate that text and scope_limit do not contain forbidden phrases."""
+        """Validate that text and scope_limit do not contain forbidden phrases or words."""
         bad_text = check_forbidden(self.text)
         if bad_text:
             raise ValueError(f"Forbidden phrase in claim text: {bad_text}")
+        bad_words_text = check_forbidden_words(self.text)
+        if bad_words_text:
+            raise ValueError(f"Forbidden word in claim text: {bad_words_text}")
         bad_scope = check_forbidden(self.scope_limit)
         if bad_scope:
             raise ValueError(f"Forbidden phrase in scope limit: {bad_scope}")
+        bad_words_scope = check_forbidden_words(self.scope_limit)
+        if bad_words_scope:
+            raise ValueError(f"Forbidden word in scope limit: {bad_words_scope}")
 
 
 def _matching_keys(mapping: dict[str, Any], path: str) -> list[str]:
@@ -1014,6 +1034,7 @@ class ShiftMetrics:
     a_fc: tuple[int, int, float, float, float]
     det: tuple[int, int, int, int]
     n_clean: int
+    n_calib_clean: int = 0
     underpowered: Any = None
     u95_scope: Any = None
 
@@ -1041,7 +1062,7 @@ def _format_shift_text(m: ShiftMetrics) -> str:
         f"{ak}/{an} (rate {_format_rate(ar)}, 95% CI [{_format_rate(alow)}, {_format_rate(ahigh)}])"
     )
     det_s = f"detection baseline {bk_d}/{bn_d} vs adapted {ak_d}/{an_d}"
-    extras = [f"n_test_clean {m.n_clean}"]
+    extras = [f"n_calib_clean {m.n_calib_clean}", f"n_test_clean {m.n_clean}"]
     if m.underpowered is not None:
         extras.append(f"test_underpowered {1 if m.underpowered else 0}")
     if m.u95_scope is not None:
@@ -1078,6 +1099,7 @@ def _build_shift_numbers(m: ShiftMetrics) -> dict[str, float]:
         "adapted_rate": ar,
         "adapted_ci_low": alow,
         "adapted_ci_high": ahigh,
+        "n_calib_clean": float(m.n_calib_clean),
         "n_test_clean": float(m.n_clean),
     }
     if m.underpowered is not None:
@@ -1093,18 +1115,20 @@ def _build_single_site_adaptation_claim(
     top_data: dict[str, Any] | None = None,
 ) -> Claim | None:
     """Build claim for a single site adaptation shift."""
-    b_fc = shift_data.get("baseline", {}).get("false_calls", {})
-    a_fc = shift_data.get("adapted", {}).get("false_calls", {})
-    b_m = _extract_shift_fc(b_fc)
-    a_m = _extract_shift_fc(a_fc)
+    b_m = _extract_shift_fc(shift_data.get("baseline", {}).get("false_calls", {}))
+    a_m = _extract_shift_fc(shift_data.get("adapted", {}).get("false_calls", {}))
     if b_m is None or a_m is None:
         return None
     det_m = _extract_shift_det(shift_data)
     top = top_data if isinstance(top_data, dict) else {}
-    n_clean = int(shift_data.get("n_test_clean", top.get("n_images", {}).get("test_clean", b_m[1])))
+    n_img = top.get("n_images", {})
+    n_clean = int(shift_data.get("n_test_clean", n_img.get("test_clean", b_m[1])))
+    n_calib = int(
+        shift_data.get("n_calib_clean", top.get("n_calib_clean", n_img.get("cal_clean", 0)))
+    )
     underp = shift_data.get("test_underpowered", top.get("test_underpowered"))
     u95 = shift_data.get("upper95_fcr_scope", top.get("upper95_fcr_scope"))
-    m = ShiftMetrics(shift_name, b_m, a_m, det_m, n_clean, underp, u95)
+    m = ShiftMetrics(shift_name, b_m, a_m, det_m, n_clean, n_calib, underp, u95)
     slug = re.sub(r"[^\w.]+", "_", shift_name.lower()).strip("_")
     return Claim(
         id=f"site_adaptation_{slug}",
@@ -1312,6 +1336,19 @@ def _collect_joint_train_claims(r_dir: Path) -> list[Claim]:
     return _build_joint_train_claims(r_dir)
 
 
+def _format_fca_per_fold(per_fold: Any) -> str | None:
+    """Build compact per-fold summary '<fold>: <n_flagged> flagged / <n_clean>'."""
+    if not isinstance(per_fold, dict) or not per_fold:
+        return None
+    parts: list[str] = []
+    for fold, f_data in per_fold.items():
+        if isinstance(f_data, dict):
+            n_fl = f_data.get("n_flagged", 0)
+            n_cl = f_data.get("n_clean", 0)
+            parts.append(f"{fold}: {n_fl} flagged / {n_cl}")
+    return "; ".join(parts) if parts else None
+
+
 def _format_fca_text(
     counts: tuple[int, int],
     agr_str: str,
@@ -1323,7 +1360,8 @@ def _format_fca_text(
     fold_str, note = extra
     text = (
         f"False-call analysis on ML-NDT (316L weld, 3 physical cracks): "
-        f"{n_clean} clean images evaluated, {n_flagged} flagged by any detector; "
+        f"{n_clean} fold-scan clean evaluations (each clean scan scored by every fold model), "
+        f"{n_flagged} flagged by any detector; "
         f"agreement counts: {agr_str}; causes: {cause_str}."
     )
     if fold_str:
@@ -1354,25 +1392,26 @@ def _extract_fca_counts(
 
 def _build_false_call_analysis_claim(data_or_dir: dict[str, Any] | Path) -> Claim | None:
     """Build claim from results/false_call_analysis.json if available."""
-    data = (
-        data_or_dir
-        if isinstance(data_or_dir, dict)
-        else _load_json(data_or_dir / "false_call_analysis.json")
-    )
+    if not isinstance(data_or_dir, dict):
+        data = _load_json(data_or_dir / "false_call_analysis.json")
+    else:
+        data = data_or_dir
     if data is None:
         return None
-    n_clean = int(data.get("n_clean", data.get("clean_images_evaluated", 0)))
-    n_flagged = int(data.get("n_flagged", data.get("flagged_by_any_detector", 0)))
+    n_cl = int(
+        data.get("n_clean_pairs", data.get("n_clean", data.get("clean_images_evaluated", 0)))
+    )
+    n_fl = int(data.get("n_flagged", data.get("flagged_by_any_detector", 0)))
     agr_str, cause_str, nums = _extract_fca_counts(data)
-    per_fold = data.get("per_fold", data.get("folds"))
-    fold_s = str(per_fold) if per_fold else None
-    note = data.get("protocol_note", data.get("protocol"))
-    text = _format_fca_text((n_clean, n_flagged), agr_str, cause_str, (fold_s, note))
+    fold_s = _format_fca_per_fold(data.get("per_fold", data.get("folds")))
+    proto = data.get("protocol_note", data.get("protocol"))
+    text = _format_fca_text((n_cl, n_fl), agr_str, cause_str, (fold_s, proto))
     numbers = {
-        "clean_images_evaluated": float(n_clean),
-        "flagged_by_any_detector": float(n_flagged),
+        "clean_images_evaluated": float(n_cl),
+        "n_clean_pairs": float(n_cl),
+        "flagged_by_any_detector": float(n_fl),
+        **nums,
     }
-    numbers.update(nums)
     return Claim(
         id="false_call_analysis",
         text=text,
