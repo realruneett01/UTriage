@@ -5,10 +5,10 @@
   "model_sha256": "3af3f00987ebc4319aaee27a1066d2fada91089ec5288fcfe3e4b6b88eb2ef5b",
   "seed": 0,
   "target_fcr": 0.01,
-  "original_threshold": 0.41128002673387526,
+  "original_threshold": 0.3797205728292466,
   "n_images": {
-    "cal_clean": 824,
-    "test_clean": 43,
+    "cal_clean": 434,
+    "test_clean": 433,
     "test_flawed": 57,
     "total": 924
   },
@@ -21,60 +21,63 @@
         "noise_std": 0.0
       },
       "baseline": {
-        "threshold": 0.41128002673387526,
+        "threshold": 0.3797205728292466,
         "false_calls": {
-          "k": 0,
-          "n": 43,
-          "rate": 0.0,
-          "ci_low": 0.0,
-          "ci_high": 0.08221112115413848,
+          "k": 11,
+          "n": 433,
+          "rate": 0.025404157043879907,
+          "ci_low": 0.012748366693079343,
+          "ci_high": 0.04499970561909345,
           "interval_95": [
-            0.0,
-            0.08221112115413848
+            0.012748366693079343,
+            0.04499970561909345
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
         "detection": {
-          "k": 42,
+          "k": 43,
           "n": 57,
-          "rate": 0.7368421052631579,
-          "ci_low": 0.6033725372107366,
-          "ci_high": 0.844615249637035,
+          "rate": 0.7543859649122807,
+          "ci_low": 0.6223896951980543,
+          "ci_high": 0.85873142226404,
           "interval_95": [
-            0.6033725372107366,
-            0.844615249637035
+            0.6223896951980543,
+            0.85873142226404
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
       },
       "adapted": {
-        "threshold": 0.41122193217277525,
-        "upper95_fcr": 0.01898219951694971,
+        "threshold": 0.37975773900747306,
+        "upper95_fcr": 0.02406998920033965,
+        "upper95_fcr_scope": "calibration clean scans",
+        "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93",
         "false_calls": {
-          "k": 0,
-          "n": 43,
-          "rate": 0.0,
-          "ci_low": 0.0,
-          "ci_high": 0.08221112115413848,
+          "k": 11,
+          "n": 433,
+          "rate": 0.025404157043879907,
+          "ci_low": 0.012748366693079343,
+          "ci_high": 0.04499970561909345,
           "interval_95": [
-            0.0,
-            0.08221112115413848
+            0.012748366693079343,
+            0.04499970561909345
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
         "detection": {
-          "k": 42,
+          "k": 43,
           "n": 57,
-          "rate": 0.7368421052631579,
-          "ci_low": 0.6033725372107366,
-          "ci_high": 0.844615249637035,
+          "rate": 0.7543859649122807,
+          "ci_low": 0.6223896951980543,
+          "ci_high": 0.85873142226404,
           "interval_95": [
-            0.6033725372107366,
-            0.844615249637035
+            0.6223896951980543,
+            0.85873142226404
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
-      }
+      },
+      "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93"
     },
     "gain 0.5": {
       "shift": {
@@ -84,16 +87,16 @@
         "noise_std": 0.0
       },
       "baseline": {
-        "threshold": 0.41128002673387526,
+        "threshold": 0.3797205728292466,
         "false_calls": {
           "k": 0,
-          "n": 43,
+          "n": 433,
           "rate": 0.0,
           "ci_low": 0.0,
-          "ci_high": 0.08221112115413848,
+          "ci_high": 0.008483165243760096,
           "interval_95": [
             0.0,
-            0.08221112115413848
+            0.008483165243760096
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
@@ -111,33 +114,36 @@
         }
       },
       "adapted": {
-        "threshold": 0.4112567093968391,
-        "upper95_fcr": 0.01898219951694971,
+        "threshold": 0.37970691531896594,
+        "upper95_fcr": 0.02406998920033965,
+        "upper95_fcr_scope": "calibration clean scans",
+        "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93",
         "false_calls": {
-          "k": 0,
-          "n": 43,
-          "rate": 0.0,
-          "ci_low": 0.0,
-          "ci_high": 0.08221112115413848,
+          "k": 11,
+          "n": 433,
+          "rate": 0.025404157043879907,
+          "ci_low": 0.012748366693079343,
+          "ci_high": 0.04499970561909345,
           "interval_95": [
-            0.0,
-            0.08221112115413848
+            0.012748366693079343,
+            0.04499970561909345
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
         "detection": {
-          "k": 42,
+          "k": 43,
           "n": 57,
-          "rate": 0.7368421052631579,
-          "ci_low": 0.6033725372107366,
-          "ci_high": 0.844615249637035,
+          "rate": 0.7543859649122807,
+          "ci_low": 0.6223896951980543,
+          "ci_high": 0.85873142226404,
           "interval_95": [
-            0.6033725372107366,
-            0.844615249637035
+            0.6223896951980543,
+            0.85873142226404
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
-      }
+      },
+      "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93"
     },
     "gain 2.0": {
       "shift": {
@@ -147,15 +153,15 @@
         "noise_std": 0.0
       },
       "baseline": {
-        "threshold": 0.41128002673387526,
+        "threshold": 0.3797205728292466,
         "false_calls": {
-          "k": 43,
-          "n": 43,
+          "k": 433,
+          "n": 433,
           "rate": 1.0,
-          "ci_low": 0.9177888788458616,
+          "ci_low": 0.9915168347562399,
           "ci_high": 1.0,
           "interval_95": [
-            0.9177888788458616,
+            0.9915168347562399,
             1.0
           ],
           "method": "Clopper-Pearson two-sided 95"
@@ -174,33 +180,36 @@
         }
       },
       "adapted": {
-        "threshold": 0.41125203162431717,
-        "upper95_fcr": 0.01898219951694971,
+        "threshold": 0.3796963539719582,
+        "upper95_fcr": 0.02406998920033965,
+        "upper95_fcr_scope": "calibration clean scans",
+        "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93",
         "false_calls": {
-          "k": 0,
-          "n": 43,
-          "rate": 0.0,
-          "ci_low": 0.0,
-          "ci_high": 0.08221112115413848,
+          "k": 11,
+          "n": 433,
+          "rate": 0.025404157043879907,
+          "ci_low": 0.012748366693079343,
+          "ci_high": 0.04499970561909345,
           "interval_95": [
-            0.0,
-            0.08221112115413848
+            0.012748366693079343,
+            0.04499970561909345
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
         "detection": {
-          "k": 42,
+          "k": 43,
           "n": 57,
-          "rate": 0.7368421052631579,
-          "ci_low": 0.6033725372107366,
-          "ci_high": 0.844615249637035,
+          "rate": 0.7543859649122807,
+          "ci_low": 0.6223896951980543,
+          "ci_high": 0.85873142226404,
           "interval_95": [
-            0.6033725372107366,
-            0.844615249637035
+            0.6223896951980543,
+            0.85873142226404
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
-      }
+      },
+      "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93"
     },
     "offset +0.5": {
       "shift": {
@@ -210,60 +219,63 @@
         "noise_std": 0.0
       },
       "baseline": {
-        "threshold": 0.41128002673387526,
+        "threshold": 0.3797205728292466,
         "false_calls": {
-          "k": 4,
-          "n": 43,
-          "rate": 0.09302325581395349,
-          "ci_low": 0.025931290266323452,
-          "ci_high": 0.22135344538138638,
+          "k": 226,
+          "n": 433,
+          "rate": 0.5219399538106235,
+          "ci_low": 0.4737236310732499,
+          "ci_high": 0.5698545629352347,
           "interval_95": [
-            0.025931290266323452,
-            0.22135344538138638
+            0.4737236310732499,
+            0.5698545629352347
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
         "detection": {
-          "k": 44,
+          "k": 48,
           "n": 57,
-          "rate": 0.7719298245614035,
-          "ci_low": 0.6416365591692864,
-          "ci_high": 0.8726028923918511,
+          "rate": 0.8421052631578947,
+          "ci_low": 0.7213173699312707,
+          "ci_high": 0.9251688307994875,
           "interval_95": [
-            0.6416365591692864,
-            0.8726028923918511
+            0.7213173699312707,
+            0.9251688307994875
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
       },
       "adapted": {
-        "threshold": 0.4112219253182411,
-        "upper95_fcr": 0.01898219951694971,
+        "threshold": 0.37975778877735145,
+        "upper95_fcr": 0.02406998920033965,
+        "upper95_fcr_scope": "calibration clean scans",
+        "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93",
         "false_calls": {
-          "k": 0,
-          "n": 43,
-          "rate": 0.0,
-          "ci_low": 0.0,
-          "ci_high": 0.08221112115413848,
+          "k": 11,
+          "n": 433,
+          "rate": 0.025404157043879907,
+          "ci_low": 0.012748366693079343,
+          "ci_high": 0.04499970561909345,
           "interval_95": [
-            0.0,
-            0.08221112115413848
+            0.012748366693079343,
+            0.04499970561909345
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
         "detection": {
-          "k": 42,
+          "k": 43,
           "n": 57,
-          "rate": 0.7368421052631579,
-          "ci_low": 0.6033725372107366,
-          "ci_high": 0.844615249637035,
+          "rate": 0.7543859649122807,
+          "ci_low": 0.6223896951980543,
+          "ci_high": 0.85873142226404,
           "interval_95": [
-            0.6033725372107366,
-            0.844615249637035
+            0.6223896951980543,
+            0.85873142226404
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
-      }
+      },
+      "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93"
     },
     "noise 0.2": {
       "shift": {
@@ -273,60 +285,63 @@
         "noise_std": 0.2
       },
       "baseline": {
-        "threshold": 0.41128002673387526,
+        "threshold": 0.3797205728292466,
         "false_calls": {
-          "k": 1,
-          "n": 43,
-          "rate": 0.023255813953488372,
-          "ci_low": 0.0005886129315931829,
-          "ci_high": 0.12289048270133966,
+          "k": 30,
+          "n": 433,
+          "rate": 0.06928406466512702,
+          "ci_low": 0.04723062141444904,
+          "ci_high": 0.09743224197071375,
           "interval_95": [
-            0.0005886129315931829,
-            0.12289048270133966
+            0.04723062141444904,
+            0.09743224197071375
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
         "detection": {
-          "k": 45,
+          "k": 49,
           "n": 57,
-          "rate": 0.7894736842105263,
-          "ci_low": 0.6611299420734733,
-          "ci_high": 0.8862097756836405,
+          "rate": 0.8596491228070176,
+          "ci_low": 0.7420546161318785,
+          "ci_high": 0.937405109882715,
           "interval_95": [
-            0.6611299420734733,
-            0.8862097756836405
+            0.7420546161318785,
+            0.937405109882715
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
       },
       "adapted": {
-        "threshold": 0.45986141175031636,
-        "upper95_fcr": 0.01898219951694971,
+        "threshold": 0.4281662186980249,
+        "upper95_fcr": 0.02406998920033965,
+        "upper95_fcr_scope": "calibration clean scans",
+        "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93",
         "false_calls": {
-          "k": 0,
-          "n": 43,
-          "rate": 0.0,
-          "ci_low": 0.0,
-          "ci_high": 0.08221112115413848,
+          "k": 8,
+          "n": 433,
+          "rate": 0.018475750577367205,
+          "ci_low": 0.008009429022888235,
+          "ci_high": 0.03607881450248318,
           "interval_95": [
-            0.0,
-            0.08221112115413848
+            0.008009429022888235,
+            0.03607881450248318
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
         "detection": {
-          "k": 41,
+          "k": 43,
           "n": 57,
-          "rate": 0.7192982456140351,
-          "ci_low": 0.5845710818499819,
-          "ci_high": 0.8302708245625608,
+          "rate": 0.7543859649122807,
+          "ci_low": 0.6223896951980543,
+          "ci_high": 0.85873142226404,
           "interval_95": [
-            0.5845710818499819,
-            0.8302708245625608
+            0.6223896951980543,
+            0.85873142226404
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
-      }
+      },
+      "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93"
     },
     "combined": {
       "shift": {
@@ -336,44 +351,46 @@
         "noise_std": 0.2
       },
       "baseline": {
-        "threshold": 0.41128002673387526,
+        "threshold": 0.3797205728292466,
         "false_calls": {
           "k": 0,
-          "n": 43,
+          "n": 433,
           "rate": 0.0,
           "ci_low": 0.0,
-          "ci_high": 0.08221112115413848,
+          "ci_high": 0.008483165243760096,
           "interval_95": [
             0.0,
-            0.08221112115413848
+            0.008483165243760096
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
         "detection": {
-          "k": 19,
+          "k": 21,
           "n": 57,
-          "rate": 0.3333333333333333,
-          "ci_low": 0.21400530673067275,
-          "ci_high": 0.4706475575190316,
+          "rate": 0.3684210526315789,
+          "ci_low": 0.24446400552581182,
+          "ci_high": 0.5065529668646327,
           "interval_95": [
-            0.21400530673067275,
-            0.4706475575190316
+            0.24446400552581182,
+            0.5065529668646327
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
       },
       "adapted": {
-        "threshold": 0.5904966390132903,
-        "upper95_fcr": 0.01898219951694971,
+        "threshold": 0.603501781821251,
+        "upper95_fcr": 0.02406998920033965,
+        "upper95_fcr_scope": "calibration clean scans",
+        "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93",
         "false_calls": {
-          "k": 0,
-          "n": 43,
-          "rate": 0.0,
-          "ci_low": 0.0,
-          "ci_high": 0.08221112115413848,
+          "k": 7,
+          "n": 433,
+          "rate": 0.016166281755196306,
+          "ci_low": 0.0065237533727961206,
+          "ci_high": 0.03302379982259676,
           "interval_95": [
-            0.0,
-            0.08221112115413848
+            0.0065237533727961206,
+            0.03302379982259676
           ],
           "method": "Clopper-Pearson two-sided 95"
         },
@@ -389,12 +406,15 @@
           ],
           "method": "Clopper-Pearson two-sided 95"
         }
-      }
+      },
+      "adapted_model_sha256": "7ef337fae81074ce9e35e2dbfc3ef03b3728c3db4a92b83905ca1b2f276c3e93"
     }
   },
-  "n_calib_clean": 824,
+  "n_calib_clean": 434,
+  "n_test_clean": 433,
   "min_clean_required": 299,
   "calibration_underpowered": false,
+  "test_underpowered": false,
   "calib_overlaps_model_training": false,
-  "fcr_choice_reason": "Target FCR 0.01 requires 299 clean scans; calibration pool has 824 scans"
+  "fcr_choice_reason": "Target FCR 0.01 requires 299 clean scans; cal=434, test=433 scans"
 }

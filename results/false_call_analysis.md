@@ -7,15 +7,15 @@
 
 ## Summary Statistics
 
-- Clean test images evaluated: 778
-- Total clean images flagged by any detector: 14
+- Clean test images evaluated: 2334
+- Total clean images flagged by any detector: 43
 
 ## Agreement Across Detectors
 
 | Agreement Count | Scans Flagged |
 |---|---|
-| 1 | 7 |
-| 2 | 7 |
+| 1 | 22 |
+| 2 | 21 |
 | 3 | 0 |
 | 4 | 0 |
 
@@ -23,4 +23,4 @@
 
 | Cause | Count | Percentage |
 |---|---|---|
-| `high_snr_structure` | 14 | 100.0% |
+| `high_snr_structure` | 43 | 100.0% |
