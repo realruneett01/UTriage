@@ -31,12 +31,9 @@ Ultrasonic data is governed by wave propagation physics:
 To infill a zeroed patch, the convolutional encoder cannot rely on trivial local interpolation. It must capture the underlying wavefield structure, velocity profile, and grain noise distribution from surrounding patches. This forces the encoder to learn robust acoustic representations before fine-tuning on downstream tasks.
 
 ## Downstream fine-tuning
-Once pretraining finishes, `encoder_state(model)` extracts the encoder weights. The decoder is discarded, and the pretrained encoder is transferred to downstream models:
-- Supervised indication classifier (flaw vs. grain noise).
-- Equivalent flaw sizing head.
-- Anomaly scoring model.
+Once pretraining finishes, `encoder_state(model)` extracts the encoder weights. The decoder is discarded; only supervised MlNdtNet classifier fine-tuning was run and evaluated.
 
 ## Current status and limitations
-- **Measured results**: See results/joint_train_metrics.json (arms C and D) and the generated tables in README.md; results are single-seed, on real ML-NDT weld images; pretraining gave mixed results with no consistent gain.
+- **Measured results**: See results/joint_train_metrics.json (arms C and D) and the generated tables in README.md; results are single-seed. Arm D pretraining and fine-tuning include Synthetic data (SimBscanDataset); evaluation is on real ML-NDT weld images only; pretraining gave mixed results with no consistent gain.
 - **Resolution alignment**: Patch size $P$ must match the spatial scale of ultrasonic beam spread and scan index. Very large patches remove too much contextual evidence, while very small patches permit trivial edge smoothing.
 - **Domain limitation**: Pretraining on flaw-free material teaches normal acoustic background; it does not expose the network to rare flaw reflection phase inversions or corner reflections.

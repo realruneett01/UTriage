@@ -57,6 +57,9 @@ In AdaBN (`recalibrate_batchnorm`):
 
 This aligns latent representations to the target site's acoustic characteristics without modifying trained feature representations.
 
+> [!NOTE]
+> In `experiments/run_site_adaptation.py` the evaluated model (`ConvAE2D`) has no BatchNorm layers, so `recalibrate_batchnorm` made no change (the adapted model sha256 in `results/site_adaptation.json` is identical across shifts). The measured improvements come from per-site z-score normalisation and quantile threshold recalibration only. AdaBN is implemented and unit-tested but not evaluated in this experiment.
+
 ---
 
 ## 3. Quantile threshold for a target false-call rate
@@ -97,7 +100,7 @@ Using the relationship between the cumulative binomial distribution and the inco
 
 $$p_{\text{upper}} = \begin{cases} I^{-1}_{0.95}(k + 1, n - k) = \text{BetaQuantile}(0.95;\, k + 1,\, n - k), & \text{if } k < n \\ 1.0, & \text{if } k \ge n \end{cases}$$
 
-This provides a 95% statistical upper bound ($p_{\text{upper}}$) on the true false-call rate in practice under the independent Bernoulli assumption on the supplied clean scans.
+This provides a 95% statistical upper bound ($p_{\text{upper}}$) on the true false-call rate in practice under the independent Bernoulli assumption on the supplied clean scans. Note that upper95_fcr is computed on calibration clean scans; test-set false calls are reported separately.
 
 ---
 
@@ -203,13 +206,14 @@ The calibrated parameters and metadata are stored in a persistent JSON file (`Si
 - `calib.threshold`: Empirical $(1 - \alpha)$ quantile decision threshold $\theta$.
 - `calib.false_call_rate`: Target false-call rate budget $\alpha$.
 - `calib.n_clean`: Number of clean calibration scans evaluated.
-- `calib.upper95_fcr`: One-sided 95% Clopper-Pearson upper confidence limit on the site false-call rate.
+- `calib.upper95_fcr`: One-sided 95% Clopper-Pearson upper confidence limit on the site false-call rate (computed on calibration clean scans; test-set false calls are reported separately).
 
 ---
 
 ## 8. Limitations and safety boundaries
 
 - **Shifts covered**: only the synthetic receiver gain, DC offset and additive noise perturbations in experiments/run_site_adaptation.py were tested. Sound velocity, coupling, temperature and material changes were not tested. Tested shifts are synthetic software perturbations of real ML-NDT weld images, not real plant/site changes.
+- **Model architecture and AdaBN**: in experiments/run_site_adaptation.py the evaluated model (ConvAE2D) has no BatchNorm layers, so recalibrate_batchnorm made no change (the adapted model sha256 in results/site_adaptation.json is identical across shifts). The measured improvements come from per-site z-score normalisation and quantile threshold recalibration only. AdaBN is implemented and unit-tested but not evaluated in this experiment.
 - **Cannot learn new flaw types**: Unsupervised adaptation uses only flaw-free clean scans. It does not train on defect indications and cannot learn the acoustic signatures or morphology of novel flaw mechanisms.
 - **Requires inspector-confirmed clean scans**: If calibration scans inadvertently contain unflagged flaws, baseline statistics become distorted and the anomaly threshold is artificially elevated, desensitising the detector.
 - **Rules engine stays in charge**: Safety-first architecture (ADR 0001). ML models can only raise advisory flags; they can never remove or downgrade a conventional rule flag.
