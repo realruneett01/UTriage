@@ -11,12 +11,12 @@
 
 In automated immersion ultrasonic testing (UT) of aerospace-grade titanium and nickel-base superalloy round bars, coarse alloy microstructures create significant acoustic grain backscatter on RF A-scans. This background noise causes false calls under conventional thresholding, increasing review burden and inspector fatigue.
 
-UTriage is an offline, advisory decision-support prototype designed to aid certified Level II and Level III inspectors. Its architecture enforces three non-negotiable safety principles:
-1. **Conventional rules remain authoritative:** Code-based evaluation (DAC curves, gating, reference reflectors, and SNR thresholds) represents the safety baseline (`True`).
+UTriage is an offline, advisory decision-support prototype designed to aid Level II and Level III inspectors. Its architecture enforces three non-negotiable safety principles:
+1. **Conventional rules remain authoritative:** Code-based evaluation (DAC curves, gating, reference reflectors, and SNR thresholds) represents the safety baseline (baseline gate passed: `yes`).
 2. **The AI can only add candidate flags:** Machine learning models have zero software authority to suppress, clear, or downgrade any rule-flagged indication.
-3. **Certified inspector authority:** UTriage is an advisory tool and never accepts a part. All final dispositions remain the sole responsibility of the certified inspector.
+3. **Inspector authority:** UTriage is an advisory tool and never accepts a part. All final dispositions remain the sole responsibility of the Level II / Level III examiner.
 
-Phase 8 established an evidence-driven audit of detection claims. When evaluated on random batch splits, machine learning models exhibit data leakage across physical cracks (`True`), measuring interpolation within known flaws. Under rigorous group-held-out evaluations across physical cracks, unseen datasets, and simulator parameter regions, supervised models exhibit severe generalization boundaries. Unsupervised anomaly detection trained solely on flaw-free data provides a more resilient alternative.
+Phase 8 conducted an evidence-driven audit of detection claims. When evaluated on random batch splits, machine learning models exhibit data leakage across physical cracks (leakage present: `yes`), measuring interpolation within known flaws. Under rigorous group-held-out evaluations across physical cracks, unseen datasets, and simulator parameter regions, supervised models exhibit severe generalization boundaries. Unsupervised anomaly detection trained solely on flaw-free data provides a more resilient alternative.
 
 ---
 
@@ -39,7 +39,7 @@ All real-data claims are now evaluated strictly under group-held-out protocols.
 
 ## Evaluation Protocol
 
-To prevent leakage and establish valid performance boundaries, all evaluations in Phase 8 use group-held-out splits:
+To prevent leakage and define valid performance boundaries, all evaluations in Phase 8 use group-held-out splits:
 
 1. **By Physical Crack (LOCO):** Leave-one-crack-out cross-validation across the three physical cracks in the ML-NDT dataset. Each fold trains on two physical cracks and clean background scans, and is tested strictly on the third held-out physical crack and held-out clean scans.
 2. **By Dataset (External Test):** Direct evaluation on the independent NDT_ML_Flaw dataset containing `6` distinct physical flaws in dissimilar metal weld PAUT data without fine-tuning.
@@ -72,6 +72,17 @@ Supervised convolutional networks trained on two cracks and tested on the held-o
   - False-call rate on unflawed scans: `0`
   - Clopper-Pearson 95% lower bound: `0.999`
 
+In the LOCO evaluation above, early stopping was batch-held-out (validation batches contain the training cracks, ADR 0009). When early stopping uses a strictly held-out physical crack for validation (`results/loco_crackval_metrics.json`), results swing strongly with the validation crack choice:
+- **Held-out `crack_1.6` (validation crack `crack_4.0`):**
+  - Detections: `4012` of `4014` (detection rate: `1`)
+  - False-call rate on unflawed scans: `0.968` (`753` of `778`)
+- **Held-out `crack_4.0` (validation crack `crack_8.6`):**
+  - Detections: `2449` of `4078` (detection rate: `0.601`)
+  - False-call rate on unflawed scans: `0` (`0` of `778`)
+- **Held-out `crack_8.6` (validation crack `crack_1.6`):**
+  - Detections: `3925` of `3925` (detection rate: `1`)
+  - False-call rate on unflawed scans: `0.0141` (`11` of `778`)
+
 ### Unsupervised Anomaly Detection
 *Dataset: Real data (ML-NDT)*
 
@@ -83,7 +94,7 @@ An unsupervised convolutional autoencoder (`ConvAE2D`) was trained exclusively o
 ### Cross-Dataset External Evaluation
 *Dataset: Real data (NDT_ML_Flaw)*
 
-Models trained on ML-NDT were evaluated directly on 7,000 scans from the independent NDT_ML_Flaw dataset (dissimilar metal weld PAUT) under the documented spatial-temporal mapping:
+Models trained on ML-NDT were evaluated directly on `7000` scans from the independent NDT_ML_Flaw dataset (dissimilar metal weld PAUT) under the documented spatial-temporal mapping:
 - Supervised model (`mlndt_best.pt`): Detection rate `1`, false-call rate `1`
 - Anomaly detector (`anomaly_2d.pt`): Detection rate `1`, false-call rate `1`
 
@@ -129,9 +140,14 @@ Evaluating H2 across distinct random training seeds shows marked sensitivity on 
 - **`crack_4.0` Fold:** Seed detection rates range across seeds from `899` of `4078` (`0.22`) to `2272` of `4078` (`0.557`), with false calls fixed at `7` of `778` (`0.009`).
 - **`crack_8.6` Fold:** Seed detection rates are identical across seeds at `3925` of `3925` (`1`), with false calls at `7` of `778` (`0.009`).
 
-### Complementarity
+### Comparison Across Architectures
 
-Comparing the two alternative architectures reveals clear complementarity across flaw sizes: H2 is strongest on the 1.6 mm crack (detection rate `0.937` for H2 vs `0.663` for H3), whereas H3 is strongest on the 4.0 mm crack (detection rate `0.632` for H3 vs `0.557` for H2).
+Comparing the two alternative architectures per crack:
+- On `crack_1.6`: H2 detection rate `0.937` (`3761` of `4014`) vs H3 detection rate `0.663` (`2661` of `4014`).
+- On `crack_4.0`: H2 detection rate `0.557` (`2272` of `4078`) vs H3 detection rate `0.632` (`2578` of `4078`).
+- On `crack_8.6`: H2 detection rate `1` (`3925` of `3925`) vs H3 detection rate `1` (`3925` of `3925`).
+
+H2 detection on the 4.0 mm crack varies widely across seeds (`0.22` to `0.557`, or `899` to `2272` of `4078`) and H3 coefficients change sign across folds, so no ranking is claimed.
 
 ### Coefficient Instability Across Folds
 
@@ -142,6 +158,78 @@ Although the interpretable physics model (H3) achieves zero false calls on the s
 - **`above_noise_area` Coefficient:** `10.6` on fold 0 vs `12.6` on fold 1 vs `4.29` on fold 2.
 
 This instability underscores that the linear classifier over-fits idiosyncratic feature correlations of the specific two training flaws rather than learning invariant flaw physics across flaw geometries.
+
+---
+
+## False-Call Analysis
+
+*Dataset: Real data (ML-NDT)*
+
+Evaluation of false calls on clean unflawed scans (`results/false_call_analysis.json`):
+- **Clean images evaluated:** `2334`
+- **Flagged by any detector:** `43`
+- **Agreement counts:**
+  - Single detector only: `22`
+  - Two detectors: `21`
+  - Three detectors: `0`
+  - Four detectors: `0`
+  - Total flags by supervised: `0`
+  - Total flags by anomaly: `42`
+  - Total flags by H2: `21`
+  - Total flags by H3: `1`
+- **Primary causes:**
+  - High SNR structure: `43`
+
+---
+
+## Site Adaptation
+
+*Dataset: real weld images with synthetic perturbations, single seed (`0`)*
+
+Limits: `Real ML-NDT data contains only 3 physical thermal fatigue cracks in an austenitic pipe weld; all inspection environment shifts (gain, offset, noise) are synthetic perturbations applied in software. Advisory only: UTriage never accepts or passes a part.`
+
+Threshold calibration uses `434` clean scans (`n_calib_clean`). Performance across synthetic perturbation shifts compares baseline versus adapted models (`results/site_adaptation.json`):
+- **Shift `identity`:**
+  - False calls: baseline `11` of `433` (rate `0.0254`) vs adapted `11` of `433` (rate `0.0254`)
+  - Detection: baseline `43` of `57` (rate `0.754`) vs adapted `43` of `57` (rate `0.754`)
+- **Shift `gain 0.5`:**
+  - False calls: baseline `0` of `433` (rate `0`) vs adapted `11` of `433` (rate `0.0254`)
+  - Detection: baseline `19` of `57` (rate `0.333`) vs adapted `43` of `57` (rate `0.754`)
+- **Shift `gain 2.0`:**
+  - False calls: baseline `433` of `433` (rate `1`) vs adapted `11` of `433` (rate `0.0254`)
+  - Detection: baseline `57` of `57` (rate `1`) vs adapted `43` of `57` (rate `0.754`)
+- **Shift `offset +0.5`:**
+  - False calls: baseline `226` of `433` (rate `0.522`) vs adapted `11` of `433` (rate `0.0254`)
+  - Detection: baseline `48` of `57` (rate `0.842`) vs adapted `43` of `57` (rate `0.754`)
+- **Shift `noise 0.2`:**
+  - False calls: baseline `30` of `433` (rate `0.0693`) vs adapted `8` of `433` (rate `0.0185`)
+  - Detection: baseline `49` of `57` (rate `0.86`) vs adapted `43` of `57` (rate `0.754`)
+- **Shift `combined`:**
+  - False calls: baseline `0` of `433` (rate `0`) vs adapted `7` of `433` (rate `0.0162`)
+  - Detection: baseline `21` of `57` (rate `0.368`) vs adapted `39` of `57` (rate `0.684`)
+
+---
+
+## Joint Training and Self-Supervised Pretraining
+
+*Dataset: real metrics on ML-NDT weld; sim images Synthetic data*
+
+Joint training explores synthetic-data mixing and self-supervised masked pretraining across arms A through D (`results/joint_train_metrics.json`). Across all folds, no arm improved every crack:
+- **Held-out `crack_1.6`:**
+  - Arm A (`real_only`): detection `165` of `4014` (rate `0.0411`), false calls `0` of `778` (rate `0`)
+  - Arm B (`real_plus_sim`): detection `192` of `4014` (rate `0.0478`), false calls `0` of `778` (rate `0`)
+  - Arm C (`pretrain_real`): detection `107` of `4014` (rate `0.0267`), false calls `0` of `778` (rate `0`)
+  - Arm D (`pretrain_real_plus_sim`): detection `0` of `4014` (rate `0`), false calls `0` of `778` (rate `0`)
+- **Held-out `crack_4.0`:**
+  - Arm A (`real_only`): detection `0` of `4078` (rate `0`), false calls `0` of `778` (rate `0`)
+  - Arm B (`real_plus_sim`): detection `0` of `4078` (rate `0`), false calls `0` of `778` (rate `0`)
+  - Arm C (`pretrain_real`): detection `2306` of `4078` (rate `0.565`), false calls `0` of `778` (rate `0`)
+  - Arm D (`pretrain_real_plus_sim`): detection `2229` of `4078` (rate `0.547`), false calls `0` of `778` (rate `0`)
+- **Held-out `crack_8.6`:**
+  - Arm A (`real_only`): detection `3925` of `3925` (rate `1`), false calls `0` of `778` (rate `0`)
+  - Arm B (`real_plus_sim`): detection `3925` of `3925` (rate `1`), false calls `0` of `778` (rate `0`)
+  - Arm C (`pretrain_real`): detection `3925` of `3925` (rate `1`), false calls `0` of `778` (rate `0`)
+  - Arm D (`pretrain_real_plus_sim`): detection `3925` of `3925` (rate `1`), false calls `0` of `778` (rate `0`)
 
 ---
 
@@ -176,7 +264,7 @@ However, shifting to held-out operational parameter regions exposes significant 
 Diagnostic checks (`results/fit_diagnostics.json`) quantify the degree of model overfitting to known training flaws. The evaluation criterion flags overfitting whenever the performance gap between training and held-out test groups exceeds 0.10.
 
 ### Supervised LOCO Overfitting
-Supervised models exhibit complete memorization of training flaw morphology:
+The supervised models detected only a small share of held-out cracks (`579`/`4014` on `crack_1.6` and `671`/`4078` on `crack_4.0`):
 - **Crack `crack_1.6` Fold:** Training detection rate `1` vs held-out detection rate `0.144` (Diagnosis: severe overfitting)
 - **Crack `crack_4.0` Fold:** Training detection rate `1` vs held-out detection rate `0.165` (Diagnosis: severe overfitting)
 
@@ -207,13 +295,13 @@ Inference benchmarks were conducted on CPU on the local development machine (`re
 A rigorous evidence-based assessment requires explicit disclosure of technical and data boundaries:
 
 1. **Total Distinct Real Physical Flaws:**
-   Across all accepted public ultrasonic datasets, only ten distinct physical flaws exist across three verified datasets (three physical fatigue cracks in ML-NDT, one flaw in Strathclyde-FMC, and six physical flaws in NDT_ML_Flaw). The remaining accepted datasets have unverified flaw counts.
+   Across accepted public ultrasonic datasets, the count of distinct physical flaws is documented in `results/data_inventory.md` (physical flaws used in evaluation comprise ML-NDT and NDT_ML_Flaw; remaining accepted datasets have unverified flaw counts).
 2. **Weld Data Versus Bar Inspection:**
    All public real-data benchmarks are derived from pipe or plate welds, not aerospace round bars or billets. No public ultrasonic inspection datasets exist for rotating immersion testing of titanium or nickel superalloy bars.
 3. **Unverified Simulator Constants:**
    Material acoustic velocities, attenuation curves, and grain noise parameters in `configs/materials.yaml` are handbook approximations labelled `UNVERIFIED — Ruri to check`. Acceptance thresholds in `configs/acceptance.yaml` are unverified placeholders and do not reproduce paywalled AMS-STD-2154 or ASTM E2375 tables.
 4. **Advisory Independent Prototype:**
-   UTriage is an advisory independent prototype. It never accepts a part; every final inspection disposition belongs exclusively to the certified Level II / Level III examiner. It operates strictly air-gapped and offline on exported scan files with no connection to UT instruments or plant machinery.
+   UTriage is an advisory independent prototype. It never accepts a part; every final inspection disposition belongs exclusively to the Level II / Level III examiner. It operates strictly air-gapped and offline on exported scan files with no connection to UT instruments or plant machinery. No plant validation exists.
 
 ---
 
@@ -222,6 +310,6 @@ A rigorous evidence-based assessment requires explicit disclosure of technical a
 1. **United Technologies / RTX Patent (US 9,927,404 B2):**
    "Phased array billet data evaluation software" — describes SNR-based indication classification and gating methods for ultrasonic inspection of titanium billets.
 2. **Virkkunen et al. (arXiv:1903.11399):**
-   "Augmented Ultrasonic Data for Machine Learning" — establishes residual neural network architectures, early max-pooling envelope extraction, and virtual flaw augmentation on the ML-NDT dataset (LGPL-3.0).
+   "Augmented Ultrasonic Data for Machine Learning" — describes residual neural network architectures, early max-pooling envelope extraction, and virtual flaw augmentation on the ML-NDT dataset (LGPL-3.0).
 3. **Tunukovic et al. (Ultrasonics 140 (2024) 107313):**
-   Approach for unsupervised acoustic anomaly detection using convolutional autoencoders trained exclusively on flaw-free ultrasonic scans, evaluating reconstruction error after interface and wall gating.
+   Approach for unsupervised acoustic anomaly detection using convolutional autoencoders trained exclusively on flaw-free ultrasonic scans, evaluating reconstruction error after interface and wall gating (citation taken from docs/phase8-spec.md; details UNVERIFIED - Ruri to check).

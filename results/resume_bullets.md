@@ -1,0 +1,10 @@
+- Built an independent prototype for advisory, offline ultrasonic indication triage for ultrasonic inspection; simulated bar scans and public weld PAUT data, designed so ML can only add flags to a rules engine (property-tested) (advisory).
+- Audited a public weld PAUT benchmark and found the random split shared all 3 physical cracks between train and test, superseding the earlier test score (public dataset).
+- Detected held-out cracks under batch-held-out early stopping (8.6 mm 3925/3925, 1.6 mm 579/4014, 4.0 mm 671/4078) vs crack-held-out early stopping (3925/3925, 4012/4014, 2449/4078) on 3 physical cracks in one public weld dataset (leave-one-crack-out).
+- Trained an autoencoder only on flaw-free scans that detected the held-out 1.6 mm crack 3649/4014 at a false-call rate of 0.018, but the 4.0 mm crack only 1306/4078 (held-out cracks, trained on clean scans only).
+- Pre-registered a supervised+anomaly hybrid and a physics-feature detector, reaching 3687-3766/4014 vs 2661/4014 on 1.6 mm, 899-2272/4078 vs 2578/4078 on 4.0 mm, 3925/3925 on 8.6 mm, false calls 7/778 vs 1/778; results vary across seeds (public dataset, pre-registered).
+- Observed false calls exceeding the 0.3 project reporting threshold at an unseen frequency and above-range noise for both rules and ML in held-out regions (simulated).
+- Evaluated cross-dataset transfer on NDT_ML_Flaw real weld data, finding the model flagged every image with 3442/3442 detections and 3558/3558 false calls (NDT_ML_Flaw, real weld data).
+- Adapted on 434 clean scans (433 test): gain 2.0 false calls 433/433 to 11/433 (detection 57/57 to 43/57); gain 0.5 detection 19/57 to 43/57 (false calls 11/433) (real weld images, synthetic gain/offset/noise shifts, single seed).
+- Evaluated joint synthetic-real training across 1 seed: on crack 4.0, arm A detected 0/4078 vs arm C 2306/4078, but no arm improved every crack (joint training, public weld data).
+- Property-tested the ML-only-adds-flags rule on 9 simulator columns with 0 violations, achieving median CPU latency of 14.2 ms measured on the development workstation CPU, not on the target i5 laptop (advisory).
