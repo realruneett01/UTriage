@@ -11,12 +11,12 @@
 
 In automated immersion ultrasonic testing (UT) of aerospace-grade titanium and nickel-base superalloy round bars, coarse alloy microstructures create significant acoustic grain backscatter on RF A-scans. This background noise causes false calls under conventional thresholding, increasing review burden and inspector fatigue.
 
-UTriage is an offline, advisory decision-support prototype designed to aid certified Level II and Level III inspectors. Its architecture enforces three non-negotiable safety principles:
-1. **Conventional rules remain authoritative:** Code-based evaluation (DAC curves, gating, reference reflectors, and SNR thresholds) represents the safety baseline (`{{rules_baseline.json: gate.passed}}`).
+UTriage is an offline, advisory decision-support prototype designed to aid Level II and Level III inspectors. Its architecture enforces three non-negotiable safety principles:
+1. **Conventional rules remain authoritative:** Code-based evaluation (DAC curves, gating, reference reflectors, and SNR thresholds) represents the safety baseline (baseline gate passed: `{{rules_baseline.json: gate.passed}}`).
 2. **The AI can only add candidate flags:** Machine learning models have zero software authority to suppress, clear, or downgrade any rule-flagged indication.
-3. **Certified inspector authority:** UTriage is an advisory tool and never accepts a part. All final dispositions remain the sole responsibility of the certified inspector.
+3. **Inspector authority:** UTriage is an advisory tool and never accepts a part. All final dispositions remain the sole responsibility of the Level II / Level III examiner.
 
-Phase 8 established an evidence-driven audit of detection claims. When evaluated on random batch splits, machine learning models exhibit data leakage across physical cracks (`{{leakage_audit.json: leakage_by_physical_crack}}`), measuring interpolation within known flaws. Under rigorous group-held-out evaluations across physical cracks, unseen datasets, and simulator parameter regions, supervised models exhibit severe generalization boundaries. Unsupervised anomaly detection trained solely on flaw-free data provides a more resilient alternative.
+Phase 8 conducted an evidence-driven audit of detection claims. When evaluated on random batch splits, machine learning models exhibit data leakage across physical cracks (leakage present: `{{leakage_audit.json: leakage_by_physical_crack}}`), measuring interpolation within known flaws. Under rigorous group-held-out evaluations across physical cracks, unseen datasets, and simulator parameter regions, supervised models exhibit severe generalization boundaries. Unsupervised anomaly detection trained solely on flaw-free data provides a more resilient alternative.
 
 ---
 
@@ -39,7 +39,7 @@ All real-data claims are now evaluated strictly under group-held-out protocols.
 
 ## Evaluation Protocol
 
-To prevent leakage and establish valid performance boundaries, all evaluations in Phase 8 use group-held-out splits:
+To prevent leakage and define valid performance boundaries, all evaluations in Phase 8 use group-held-out splits:
 
 1. **By Physical Crack (LOCO):** Leave-one-crack-out cross-validation across the three physical cracks in the ML-NDT dataset. Each fold trains on two physical cracks and clean background scans, and is tested strictly on the third held-out physical crack and held-out clean scans.
 2. **By Dataset (External Test):** Direct evaluation on the independent NDT_ML_Flaw dataset containing `{{cross_dataset_metrics.json: models.mlndt_best.pt.overall.n_physical_flaws}}` distinct physical flaws in dissimilar metal weld PAUT data without fine-tuning.
@@ -72,6 +72,17 @@ Supervised convolutional networks trained on two cracks and tested on the held-o
   - False-call rate on unflawed scans: `{{loco_metrics.json: folds.2.false_calls.rate}}`
   - Clopper-Pearson 95% lower bound: `{{loco_metrics.json: folds.2.pod.pod_lower95}}`
 
+In the LOCO evaluation above, early stopping was batch-held-out (validation batches contain the training cracks, ADR 0009). When early stopping uses a strictly held-out physical crack for validation (`results/loco_crackval_metrics.json`), results swing strongly with the validation crack choice:
+- **Held-out `{{loco_crackval_metrics.json: folds.0.held_out}}` (validation crack `{{loco_crackval_metrics.json: folds.0.val_crack}}`):**
+  - Detections: `{{loco_crackval_metrics.json: folds.0.detections.n_hit}}` of `{{loco_crackval_metrics.json: folds.0.detections.n_flawed}}` (detection rate: `{{loco_crackval_metrics.json: folds.0.detections.rate}}`)
+  - False-call rate on unflawed scans: `{{loco_crackval_metrics.json: folds.0.false_calls.rate}}` (`{{loco_crackval_metrics.json: folds.0.false_calls.n_false}}` of `{{loco_crackval_metrics.json: folds.0.false_calls.n_unflawed}}`)
+- **Held-out `{{loco_crackval_metrics.json: folds.1.held_out}}` (validation crack `{{loco_crackval_metrics.json: folds.1.val_crack}}`):**
+  - Detections: `{{loco_crackval_metrics.json: folds.1.detections.n_hit}}` of `{{loco_crackval_metrics.json: folds.1.detections.n_flawed}}` (detection rate: `{{loco_crackval_metrics.json: folds.1.detections.rate}}`)
+  - False-call rate on unflawed scans: `{{loco_crackval_metrics.json: folds.1.false_calls.rate}}` (`{{loco_crackval_metrics.json: folds.1.false_calls.n_false}}` of `{{loco_crackval_metrics.json: folds.1.false_calls.n_unflawed}}`)
+- **Held-out `{{loco_crackval_metrics.json: folds.2.held_out}}` (validation crack `{{loco_crackval_metrics.json: folds.2.val_crack}}`):**
+  - Detections: `{{loco_crackval_metrics.json: folds.2.detections.n_hit}}` of `{{loco_crackval_metrics.json: folds.2.detections.n_flawed}}` (detection rate: `{{loco_crackval_metrics.json: folds.2.detections.rate}}`)
+  - False-call rate on unflawed scans: `{{loco_crackval_metrics.json: folds.2.false_calls.rate}}` (`{{loco_crackval_metrics.json: folds.2.false_calls.n_false}}` of `{{loco_crackval_metrics.json: folds.2.false_calls.n_unflawed}}`)
+
 ### Unsupervised Anomaly Detection
 *Dataset: Real data (ML-NDT)*
 
@@ -83,7 +94,7 @@ An unsupervised convolutional autoencoder (`ConvAE2D`) was trained exclusively o
 ### Cross-Dataset External Evaluation
 *Dataset: Real data (NDT_ML_Flaw)*
 
-Models trained on ML-NDT were evaluated directly on 7,000 scans from the independent NDT_ML_Flaw dataset (dissimilar metal weld PAUT) under the documented spatial-temporal mapping:
+Models trained on ML-NDT were evaluated directly on `{{cross_dataset_metrics.json: models.mlndt_best.pt.overall.n_images}}` scans from the independent NDT_ML_Flaw dataset (dissimilar metal weld PAUT) under the documented spatial-temporal mapping:
 - Supervised model (`mlndt_best.pt`): Detection rate `{{cross_dataset_metrics.json: models.mlndt_best.pt.overall.detection.rate}}`, false-call rate `{{cross_dataset_metrics.json: models.mlndt_best.pt.overall.false_calls.rate}}`
 - Anomaly detector (`anomaly_2d.pt`): Detection rate `{{cross_dataset_metrics.json: models.anomaly_2d.pt.overall.detection.rate}}`, false-call rate `{{cross_dataset_metrics.json: models.anomaly_2d.pt.overall.false_calls.rate}}`
 
@@ -129,9 +140,14 @@ Evaluating H2 across distinct random training seeds shows marked sensitivity on 
 - **`crack_4.0` Fold:** Seed detection rates range across seeds from `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed2.pt.methods.h2.detection.k}}` of `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed2.pt.methods.h2.detection.n}}` (`{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed2.pt.methods.h2.detection.rate}}`) to `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed0.pt.methods.h2.detection.k}}` of `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed0.pt.methods.h2.detection.n}}` (`{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed0.pt.methods.h2.detection.rate}}`), with false calls fixed at `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed0.pt.methods.h2.false_calls.n_false}}` of `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed0.pt.methods.h2.false_calls.n_scans}}` (`{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed0.pt.methods.h2.false_calls.rate}}`).
 - **`crack_8.6` Fold:** Seed detection rates are identical across seeds at `{{hybrid_metrics.json: folds.crack_8.6.models.loco_crack_8.6_seed0.pt.methods.h2.detection.k}}` of `{{hybrid_metrics.json: folds.crack_8.6.models.loco_crack_8.6_seed0.pt.methods.h2.detection.n}}` (`{{hybrid_metrics.json: folds.crack_8.6.models.loco_crack_8.6_seed0.pt.methods.h2.detection.rate}}`), with false calls at `{{hybrid_metrics.json: folds.crack_8.6.models.loco_crack_8.6_seed0.pt.methods.h2.false_calls.n_false}}` of `{{hybrid_metrics.json: folds.crack_8.6.models.loco_crack_8.6_seed0.pt.methods.h2.false_calls.n_scans}}` (`{{hybrid_metrics.json: folds.crack_8.6.models.loco_crack_8.6_seed0.pt.methods.h2.false_calls.rate}}`).
 
-### Complementarity
+### Comparison Across Architectures
 
-Comparing the two alternative architectures reveals clear complementarity across flaw sizes: H2 is strongest on the 1.6 mm crack (detection rate `{{hybrid_metrics.json: folds.crack_1.6.models.loco_crack_1.6.pt.methods.h2.detection.rate}}` for H2 vs `{{physics_model_metrics.json: folds.0.detections.rate}}` for H3), whereas H3 is strongest on the 4.0 mm crack (detection rate `{{physics_model_metrics.json: folds.1.detections.rate}}` for H3 vs `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0.pt.methods.h2.detection.rate}}` for H2).
+Comparing the two alternative architectures per crack:
+- On `crack_1.6`: H2 detection rate `{{hybrid_metrics.json: folds.crack_1.6.models.loco_crack_1.6.pt.methods.h2.detection.rate}}` (`{{hybrid_metrics.json: folds.crack_1.6.models.loco_crack_1.6.pt.methods.h2.detection.k}}` of `{{hybrid_metrics.json: folds.crack_1.6.models.loco_crack_1.6.pt.methods.h2.detection.n}}`) vs H3 detection rate `{{physics_model_metrics.json: folds.0.detections.rate}}` (`{{physics_model_metrics.json: folds.0.detections.k}}` of `{{physics_model_metrics.json: folds.0.detections.n}}`).
+- On `crack_4.0`: H2 detection rate `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0.pt.methods.h2.detection.rate}}` (`{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0.pt.methods.h2.detection.k}}` of `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0.pt.methods.h2.detection.n}}`) vs H3 detection rate `{{physics_model_metrics.json: folds.1.detections.rate}}` (`{{physics_model_metrics.json: folds.1.detections.k}}` of `{{physics_model_metrics.json: folds.1.detections.n}}`).
+- On `crack_8.6`: H2 detection rate `{{hybrid_metrics.json: folds.crack_8.6.models.loco_crack_8.6.pt.methods.h2.detection.rate}}` (`{{hybrid_metrics.json: folds.crack_8.6.models.loco_crack_8.6.pt.methods.h2.detection.k}}` of `{{hybrid_metrics.json: folds.crack_8.6.models.loco_crack_8.6.pt.methods.h2.detection.n}}`) vs H3 detection rate `{{physics_model_metrics.json: folds.2.detections.rate}}` (`{{physics_model_metrics.json: folds.2.detections.k}}` of `{{physics_model_metrics.json: folds.2.detections.n}}`).
+
+H2 detection on the 4.0 mm crack varies widely across seeds (`{{hybrid_metrics.json: folds.crack_4.0.summary_3seeds.h2.min_detection_rate}}` to `{{hybrid_metrics.json: folds.crack_4.0.summary_3seeds.h2.max_detection_rate}}`, or `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed2.pt.methods.h2.detection.k}}` to `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed0.pt.methods.h2.detection.k}}` of `{{hybrid_metrics.json: folds.crack_4.0.models.loco_crack_4.0_seed0.pt.methods.h2.detection.n}}`) and H3 coefficients change sign across folds, so no ranking is claimed.
 
 ### Coefficient Instability Across Folds
 
@@ -142,6 +158,78 @@ Although the interpretable physics model (H3) achieves zero false calls on the s
 - **`above_noise_area` Coefficient:** `{{physics_model_metrics.json: folds.0.coefficients.above_noise_area}}` on fold 0 vs `{{physics_model_metrics.json: folds.1.coefficients.above_noise_area}}` on fold 1 vs `{{physics_model_metrics.json: folds.2.coefficients.above_noise_area}}` on fold 2.
 
 This instability underscores that the linear classifier over-fits idiosyncratic feature correlations of the specific two training flaws rather than learning invariant flaw physics across flaw geometries.
+
+---
+
+## False-Call Analysis
+
+*Dataset: Real data (ML-NDT)*
+
+Evaluation of false calls on clean unflawed scans (`results/false_call_analysis.json`):
+- **Clean images evaluated:** `{{false_call_analysis.json: n_clean}}`
+- **Flagged by any detector:** `{{false_call_analysis.json: n_flagged}}`
+- **Agreement counts:**
+  - Single detector only: `{{false_call_analysis.json: agreement_table.counts_by_agreement.1}}`
+  - Two detectors: `{{false_call_analysis.json: agreement_table.counts_by_agreement.2}}`
+  - Three detectors: `{{false_call_analysis.json: agreement_table.counts_by_agreement.3}}`
+  - Four detectors: `{{false_call_analysis.json: agreement_table.counts_by_agreement.4}}`
+  - Total flags by supervised: `{{false_call_analysis.json: agreement_table.by_detector.supervised}}`
+  - Total flags by anomaly: `{{false_call_analysis.json: agreement_table.by_detector.anomaly}}`
+  - Total flags by H2: `{{false_call_analysis.json: agreement_table.by_detector.h2}}`
+  - Total flags by H3: `{{false_call_analysis.json: agreement_table.by_detector.h3}}`
+- **Primary causes:**
+  - High SNR structure: `{{false_call_analysis.json: cause_counts.high_snr_structure}}`
+
+---
+
+## Site Adaptation
+
+*Dataset: real weld images with synthetic perturbations, single seed (`{{site_adaptation.json: seed}}`)*
+
+Limits: `{{site_adaptation.json: limits}}`
+
+Threshold calibration uses `{{site_adaptation.json: n_calib_clean}}` clean scans (`n_calib_clean`). Performance across synthetic perturbation shifts compares baseline versus adapted models (`results/site_adaptation.json`):
+- **Shift `identity`:**
+  - False calls: baseline `{{site_adaptation.json: shifts.identity.baseline.false_calls.k}}` of `{{site_adaptation.json: shifts.identity.baseline.false_calls.n}}` (rate `{{site_adaptation.json: shifts.identity.baseline.false_calls.rate}}`) vs adapted `{{site_adaptation.json: shifts.identity.adapted.false_calls.k}}` of `{{site_adaptation.json: shifts.identity.adapted.false_calls.n}}` (rate `{{site_adaptation.json: shifts.identity.adapted.false_calls.rate}}`)
+  - Detection: baseline `{{site_adaptation.json: shifts.identity.baseline.detection.k}}` of `{{site_adaptation.json: shifts.identity.baseline.detection.n}}` (rate `{{site_adaptation.json: shifts.identity.baseline.detection.rate}}`) vs adapted `{{site_adaptation.json: shifts.identity.adapted.detection.k}}` of `{{site_adaptation.json: shifts.identity.adapted.detection.n}}` (rate `{{site_adaptation.json: shifts.identity.adapted.detection.rate}}`)
+- **Shift `gain 0.5`:**
+  - False calls: baseline `{{site_adaptation.json: shifts.gain 0.5.baseline.false_calls.k}}` of `{{site_adaptation.json: shifts.gain 0.5.baseline.false_calls.n}}` (rate `{{site_adaptation.json: shifts.gain 0.5.baseline.false_calls.rate}}`) vs adapted `{{site_adaptation.json: shifts.gain 0.5.adapted.false_calls.k}}` of `{{site_adaptation.json: shifts.gain 0.5.adapted.false_calls.n}}` (rate `{{site_adaptation.json: shifts.gain 0.5.adapted.false_calls.rate}}`)
+  - Detection: baseline `{{site_adaptation.json: shifts.gain 0.5.baseline.detection.k}}` of `{{site_adaptation.json: shifts.gain 0.5.baseline.detection.n}}` (rate `{{site_adaptation.json: shifts.gain 0.5.baseline.detection.rate}}`) vs adapted `{{site_adaptation.json: shifts.gain 0.5.adapted.detection.k}}` of `{{site_adaptation.json: shifts.gain 0.5.adapted.detection.n}}` (rate `{{site_adaptation.json: shifts.gain 0.5.adapted.detection.rate}}`)
+- **Shift `gain 2.0`:**
+  - False calls: baseline `{{site_adaptation.json: shifts.gain 2.0.baseline.false_calls.k}}` of `{{site_adaptation.json: shifts.gain 2.0.baseline.false_calls.n}}` (rate `{{site_adaptation.json: shifts.gain 2.0.baseline.false_calls.rate}}`) vs adapted `{{site_adaptation.json: shifts.gain 2.0.adapted.false_calls.k}}` of `{{site_adaptation.json: shifts.gain 2.0.adapted.false_calls.n}}` (rate `{{site_adaptation.json: shifts.gain 2.0.adapted.false_calls.rate}}`)
+  - Detection: baseline `{{site_adaptation.json: shifts.gain 2.0.baseline.detection.k}}` of `{{site_adaptation.json: shifts.gain 2.0.baseline.detection.n}}` (rate `{{site_adaptation.json: shifts.gain 2.0.baseline.detection.rate}}`) vs adapted `{{site_adaptation.json: shifts.gain 2.0.adapted.detection.k}}` of `{{site_adaptation.json: shifts.gain 2.0.adapted.detection.n}}` (rate `{{site_adaptation.json: shifts.gain 2.0.adapted.detection.rate}}`)
+- **Shift `offset +0.5`:**
+  - False calls: baseline `{{site_adaptation.json: shifts.offset +0.5.baseline.false_calls.k}}` of `{{site_adaptation.json: shifts.offset +0.5.baseline.false_calls.n}}` (rate `{{site_adaptation.json: shifts.offset +0.5.baseline.false_calls.rate}}`) vs adapted `{{site_adaptation.json: shifts.offset +0.5.adapted.false_calls.k}}` of `{{site_adaptation.json: shifts.offset +0.5.adapted.false_calls.n}}` (rate `{{site_adaptation.json: shifts.offset +0.5.adapted.false_calls.rate}}`)
+  - Detection: baseline `{{site_adaptation.json: shifts.offset +0.5.baseline.detection.k}}` of `{{site_adaptation.json: shifts.offset +0.5.baseline.detection.n}}` (rate `{{site_adaptation.json: shifts.offset +0.5.baseline.detection.rate}}`) vs adapted `{{site_adaptation.json: shifts.offset +0.5.adapted.detection.k}}` of `{{site_adaptation.json: shifts.offset +0.5.adapted.detection.n}}` (rate `{{site_adaptation.json: shifts.offset +0.5.adapted.detection.rate}}`)
+- **Shift `noise 0.2`:**
+  - False calls: baseline `{{site_adaptation.json: shifts.noise 0.2.baseline.false_calls.k}}` of `{{site_adaptation.json: shifts.noise 0.2.baseline.false_calls.n}}` (rate `{{site_adaptation.json: shifts.noise 0.2.baseline.false_calls.rate}}`) vs adapted `{{site_adaptation.json: shifts.noise 0.2.adapted.false_calls.k}}` of `{{site_adaptation.json: shifts.noise 0.2.adapted.false_calls.n}}` (rate `{{site_adaptation.json: shifts.noise 0.2.adapted.false_calls.rate}}`)
+  - Detection: baseline `{{site_adaptation.json: shifts.noise 0.2.baseline.detection.k}}` of `{{site_adaptation.json: shifts.noise 0.2.baseline.detection.n}}` (rate `{{site_adaptation.json: shifts.noise 0.2.baseline.detection.rate}}`) vs adapted `{{site_adaptation.json: shifts.noise 0.2.adapted.detection.k}}` of `{{site_adaptation.json: shifts.noise 0.2.adapted.detection.n}}` (rate `{{site_adaptation.json: shifts.noise 0.2.adapted.detection.rate}}`)
+- **Shift `combined`:**
+  - False calls: baseline `{{site_adaptation.json: shifts.combined.baseline.false_calls.k}}` of `{{site_adaptation.json: shifts.combined.baseline.false_calls.n}}` (rate `{{site_adaptation.json: shifts.combined.baseline.false_calls.rate}}`) vs adapted `{{site_adaptation.json: shifts.combined.adapted.false_calls.k}}` of `{{site_adaptation.json: shifts.combined.adapted.false_calls.n}}` (rate `{{site_adaptation.json: shifts.combined.adapted.false_calls.rate}}`)
+  - Detection: baseline `{{site_adaptation.json: shifts.combined.baseline.detection.k}}` of `{{site_adaptation.json: shifts.combined.baseline.detection.n}}` (rate `{{site_adaptation.json: shifts.combined.baseline.detection.rate}}`) vs adapted `{{site_adaptation.json: shifts.combined.adapted.detection.k}}` of `{{site_adaptation.json: shifts.combined.adapted.detection.n}}` (rate `{{site_adaptation.json: shifts.combined.adapted.detection.rate}}`)
+
+---
+
+## Joint Training and Self-Supervised Pretraining
+
+*Dataset: real metrics on ML-NDT weld; sim images Synthetic data*
+
+Joint training explores synthetic-data mixing and self-supervised masked pretraining across arms A through D (`results/joint_train_metrics.json`). Across all folds, no arm improved every crack:
+- **Held-out `{{joint_train_metrics.json: arms.A.folds.0.held_out}}`:**
+  - Arm A (`{{joint_train_metrics.json: arms.A.name}}`): detection `{{joint_train_metrics.json: arms.A.folds.0.detections.k}}` of `{{joint_train_metrics.json: arms.A.folds.0.detections.n}}` (rate `{{joint_train_metrics.json: arms.A.folds.0.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.A.folds.0.false_calls.k}}` of `{{joint_train_metrics.json: arms.A.folds.0.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.A.folds.0.false_calls.rate}}`)
+  - Arm B (`{{joint_train_metrics.json: arms.B.name}}`): detection `{{joint_train_metrics.json: arms.B.folds.0.detections.k}}` of `{{joint_train_metrics.json: arms.B.folds.0.detections.n}}` (rate `{{joint_train_metrics.json: arms.B.folds.0.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.B.folds.0.false_calls.k}}` of `{{joint_train_metrics.json: arms.B.folds.0.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.B.folds.0.false_calls.rate}}`)
+  - Arm C (`{{joint_train_metrics.json: arms.C.name}}`): detection `{{joint_train_metrics.json: arms.C.folds.0.detections.k}}` of `{{joint_train_metrics.json: arms.C.folds.0.detections.n}}` (rate `{{joint_train_metrics.json: arms.C.folds.0.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.C.folds.0.false_calls.k}}` of `{{joint_train_metrics.json: arms.C.folds.0.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.C.folds.0.false_calls.rate}}`)
+  - Arm D (`{{joint_train_metrics.json: arms.D.name}}`): detection `{{joint_train_metrics.json: arms.D.folds.0.detections.k}}` of `{{joint_train_metrics.json: arms.D.folds.0.detections.n}}` (rate `{{joint_train_metrics.json: arms.D.folds.0.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.D.folds.0.false_calls.k}}` of `{{joint_train_metrics.json: arms.D.folds.0.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.D.folds.0.false_calls.rate}}`)
+- **Held-out `{{joint_train_metrics.json: arms.A.folds.1.held_out}}`:**
+  - Arm A (`{{joint_train_metrics.json: arms.A.name}}`): detection `{{joint_train_metrics.json: arms.A.folds.1.detections.k}}` of `{{joint_train_metrics.json: arms.A.folds.1.detections.n}}` (rate `{{joint_train_metrics.json: arms.A.folds.1.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.A.folds.1.false_calls.k}}` of `{{joint_train_metrics.json: arms.A.folds.1.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.A.folds.1.false_calls.rate}}`)
+  - Arm B (`{{joint_train_metrics.json: arms.B.name}}`): detection `{{joint_train_metrics.json: arms.B.folds.1.detections.k}}` of `{{joint_train_metrics.json: arms.B.folds.1.detections.n}}` (rate `{{joint_train_metrics.json: arms.B.folds.1.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.B.folds.1.false_calls.k}}` of `{{joint_train_metrics.json: arms.B.folds.1.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.B.folds.1.false_calls.rate}}`)
+  - Arm C (`{{joint_train_metrics.json: arms.C.name}}`): detection `{{joint_train_metrics.json: arms.C.folds.1.detections.k}}` of `{{joint_train_metrics.json: arms.C.folds.1.detections.n}}` (rate `{{joint_train_metrics.json: arms.C.folds.1.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.C.folds.1.false_calls.k}}` of `{{joint_train_metrics.json: arms.C.folds.1.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.C.folds.1.false_calls.rate}}`)
+  - Arm D (`{{joint_train_metrics.json: arms.D.name}}`): detection `{{joint_train_metrics.json: arms.D.folds.1.detections.k}}` of `{{joint_train_metrics.json: arms.D.folds.1.detections.n}}` (rate `{{joint_train_metrics.json: arms.D.folds.1.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.D.folds.1.false_calls.k}}` of `{{joint_train_metrics.json: arms.D.folds.1.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.D.folds.1.false_calls.rate}}`)
+- **Held-out `{{joint_train_metrics.json: arms.A.folds.2.held_out}}`:**
+  - Arm A (`{{joint_train_metrics.json: arms.A.name}}`): detection `{{joint_train_metrics.json: arms.A.folds.2.detections.k}}` of `{{joint_train_metrics.json: arms.A.folds.2.detections.n}}` (rate `{{joint_train_metrics.json: arms.A.folds.2.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.A.folds.2.false_calls.k}}` of `{{joint_train_metrics.json: arms.A.folds.2.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.A.folds.2.false_calls.rate}}`)
+  - Arm B (`{{joint_train_metrics.json: arms.B.name}}`): detection `{{joint_train_metrics.json: arms.B.folds.2.detections.k}}` of `{{joint_train_metrics.json: arms.B.folds.2.detections.n}}` (rate `{{joint_train_metrics.json: arms.B.folds.2.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.B.folds.2.false_calls.k}}` of `{{joint_train_metrics.json: arms.B.folds.2.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.B.folds.2.false_calls.rate}}`)
+  - Arm C (`{{joint_train_metrics.json: arms.C.name}}`): detection `{{joint_train_metrics.json: arms.C.folds.2.detections.k}}` of `{{joint_train_metrics.json: arms.C.folds.2.detections.n}}` (rate `{{joint_train_metrics.json: arms.C.folds.2.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.C.folds.2.false_calls.k}}` of `{{joint_train_metrics.json: arms.C.folds.2.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.C.folds.2.false_calls.rate}}`)
+  - Arm D (`{{joint_train_metrics.json: arms.D.name}}`): detection `{{joint_train_metrics.json: arms.D.folds.2.detections.k}}` of `{{joint_train_metrics.json: arms.D.folds.2.detections.n}}` (rate `{{joint_train_metrics.json: arms.D.folds.2.detections.rate}}`), false calls `{{joint_train_metrics.json: arms.D.folds.2.false_calls.k}}` of `{{joint_train_metrics.json: arms.D.folds.2.false_calls.n}}` (rate `{{joint_train_metrics.json: arms.D.folds.2.false_calls.rate}}`)
 
 ---
 
@@ -176,7 +264,7 @@ However, shifting to held-out operational parameter regions exposes significant 
 Diagnostic checks (`results/fit_diagnostics.json`) quantify the degree of model overfitting to known training flaws. The evaluation criterion flags overfitting whenever the performance gap between training and held-out test groups exceeds 0.10.
 
 ### Supervised LOCO Overfitting
-Supervised models exhibit complete memorization of training flaw morphology:
+The supervised models detected only a small share of held-out cracks (`{{loco_metrics.json: folds.0.detections.n_hit}}`/`{{loco_metrics.json: folds.0.detections.n_flawed}}` on `crack_1.6` and `{{loco_metrics.json: folds.1.detections.n_hit}}`/`{{loco_metrics.json: folds.1.detections.n_flawed}}` on `crack_4.0`):
 - **Crack `crack_1.6` Fold:** Training detection rate `{{fit_diagnostics.json: diagnostics.loco.folds.crack_1.6.train_detection_rate}}` vs held-out detection rate `{{fit_diagnostics.json: diagnostics.loco.folds.crack_1.6.heldout_detection_rate}}` (Diagnosis: severe overfitting)
 - **Crack `crack_4.0` Fold:** Training detection rate `{{fit_diagnostics.json: diagnostics.loco.folds.crack_4.0.train_detection_rate}}` vs held-out detection rate `{{fit_diagnostics.json: diagnostics.loco.folds.crack_4.0.heldout_detection_rate}}` (Diagnosis: severe overfitting)
 
@@ -207,13 +295,13 @@ Inference benchmarks were conducted on CPU on the local development machine (`re
 A rigorous evidence-based assessment requires explicit disclosure of technical and data boundaries:
 
 1. **Total Distinct Real Physical Flaws:**
-   Across all accepted public ultrasonic datasets, only ten distinct physical flaws exist across three verified datasets (three physical fatigue cracks in ML-NDT, one flaw in Strathclyde-FMC, and six physical flaws in NDT_ML_Flaw). The remaining accepted datasets have unverified flaw counts.
+   Across accepted public ultrasonic datasets, the count of distinct physical flaws is documented in `results/data_inventory.md` (physical flaws used in evaluation comprise ML-NDT and NDT_ML_Flaw; remaining accepted datasets have unverified flaw counts).
 2. **Weld Data Versus Bar Inspection:**
    All public real-data benchmarks are derived from pipe or plate welds, not aerospace round bars or billets. No public ultrasonic inspection datasets exist for rotating immersion testing of titanium or nickel superalloy bars.
 3. **Unverified Simulator Constants:**
    Material acoustic velocities, attenuation curves, and grain noise parameters in `configs/materials.yaml` are handbook approximations labelled `UNVERIFIED — Ruri to check`. Acceptance thresholds in `configs/acceptance.yaml` are unverified placeholders and do not reproduce paywalled AMS-STD-2154 or ASTM E2375 tables.
 4. **Advisory Independent Prototype:**
-   UTriage is an advisory independent prototype. It never accepts a part; every final inspection disposition belongs exclusively to the certified Level II / Level III examiner. It operates strictly air-gapped and offline on exported scan files with no connection to UT instruments or plant machinery.
+   UTriage is an advisory independent prototype. It never accepts a part; every final inspection disposition belongs exclusively to the Level II / Level III examiner. It operates strictly air-gapped and offline on exported scan files with no connection to UT instruments or plant machinery. No plant validation exists.
 
 ---
 
@@ -222,6 +310,6 @@ A rigorous evidence-based assessment requires explicit disclosure of technical a
 1. **United Technologies / RTX Patent (US 9,927,404 B2):**
    "Phased array billet data evaluation software" — describes SNR-based indication classification and gating methods for ultrasonic inspection of titanium billets.
 2. **Virkkunen et al. (arXiv:1903.11399):**
-   "Augmented Ultrasonic Data for Machine Learning" — establishes residual neural network architectures, early max-pooling envelope extraction, and virtual flaw augmentation on the ML-NDT dataset (LGPL-3.0).
+   "Augmented Ultrasonic Data for Machine Learning" — describes residual neural network architectures, early max-pooling envelope extraction, and virtual flaw augmentation on the ML-NDT dataset (LGPL-3.0).
 3. **Tunukovic et al. (Ultrasonics 140 (2024) 107313):**
-   Approach for unsupervised acoustic anomaly detection using convolutional autoencoders trained exclusively on flaw-free ultrasonic scans, evaluating reconstruction error after interface and wall gating.
+   Approach for unsupervised acoustic anomaly detection using convolutional autoencoders trained exclusively on flaw-free ultrasonic scans, evaluating reconstruction error after interface and wall gating (citation taken from docs/phase8-spec.md; details UNVERIFIED - Ruri to check).

@@ -71,7 +71,7 @@ def resolve_key_path(obj: Any, path: str) -> tuple[bool, Any]:
 def format_value(val: Any) -> str:
     """Format extracted value for template substitution."""
     if isinstance(val, bool):
-        return str(val)
+        return "yes" if val else "no"
     if isinstance(val, float):
         return f"{val:.3g}"
     return str(val)

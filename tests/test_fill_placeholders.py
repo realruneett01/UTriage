@@ -112,14 +112,14 @@ def test_format_floats(val: float, expected: str, tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("val", "expected"),
     [
-        (True, "True"),
-        (False, "False"),
+        (True, "yes"),
+        (False, "no"),
         (42, "42"),
         ("abc", "abc"),
     ],
 )
 def test_format_non_floats(val: Any, expected: str, tmp_path: Path) -> None:
-    """Format boolean, integer, and string types without float conversion."""
+    """Format boolean as yes/no, integer, and string types without float conversion."""
     assert format_value(val) == expected
     _write_json(tmp_path / "raw.json", {"val": val})
     template = "{{raw.json: val}}"
