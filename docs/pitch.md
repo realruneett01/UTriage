@@ -18,7 +18,7 @@ In manufacturing these alloys, coarse grain and colony microstructures scatter a
 ### Questions We Need to Confirm With Your Team
 To assess whether automated triage provides meaningful operational relief at your facility, we need to clarify four practical questions:
 - **[U1] Review bottleneck:** Does manual A-scan review and borderline indication triage represent a measurable queue in your bar-finishing throughput?
-- **[U2] Acceptance specifications:** Which governing acceptance standards and classes apply to each alloy product line (e.g., AMS-STD-2154 or ASTM E2375 classes)? *(Note: Our development models use unverified placeholder limits; no paywalled standard values are assumed).*
+- **[U2] Acceptance specifications:** Which governing acceptance standards and classes apply to each alloy product line (e.g., AMS-STD-2154 or ASTM E2375 classes)? *(Note: The rules engine currently uses unverified placeholder acceptance limits (configs/acceptance.yaml); the ML does not use or learn acceptance limits; no paywalled standard values are assumed).*
 - **[U3] Acquisition export capabilities:** What data formats (digitized RF A-scans, rectified envelopes, or vendor-proprietary C-scan streams) can your immersion tank consoles export?
 - **[U4] Re-scan frequency:** What proportion of bar inspections currently require a re-scan due to grain-noise ambiguity, back-wall drop, or acoustic coupling anomalies?
 
@@ -41,8 +41,8 @@ UTriage is a software tool developed specifically for offline immersion UT evalu
 
 To conduct a plant-specific feasibility evaluation without disrupting production, we request sample data exported per our specification in `docs/scan_export_template.md`:
 
-1. **Calibration-block reference scans:** One immersion scan of an ASTM E127 / ASTM E428 calibration standard matching production bar alloy and diameter, containing reference FBH reflectors (e.g., 0.8 mm FBH) across evaluated metal paths.
-2. **Representative bar sample scans:** Two to three anonymized scan files of production or test bars in target alloys (e.g., Ti-6Al-4V or IN718) exhibiting typical grain backscatter, including any known natural or seeded indications.
+1. **Calibration-block reference scans:** One immersion scan of an ASTM E127 / ASTM E428 calibration standard matching target bar alloy and diameter, containing reference FBH reflectors (e.g., 0.8 mm FBH) across evaluated metal paths.
+2. **Representative bar sample scans:** Two to three anonymized scan files of sample or test bars in target alloys (e.g., Ti-6Al-4V or IN718) exhibiting typical grain backscatter, including any known natural or seeded indications.
 3. **Scan format specifications:** Exported data in plain-text CSV RF format, or raw vendor console export files accompanied by header documentation (format specifications detailed in `docs/scan_export_template.md`).
 
 ---
@@ -62,7 +62,7 @@ Within two weeks of receiving the sample scans, we provide a comprehensive, data
 To maintain total technical and commercial integrity, we are explicit about the boundaries of this evaluation:
 
 - **Not qualified:** UTriage is **not qualified** under AMS-STD-2154, ASTM E2375, MIL-HDBK-1823A, or any aerospace prime specification. It cannot be used for production part clearance.
-- **Current validation base:** Current performance figures have been established strictly on physics-based synthetic bar simulations (`results/bar_domain_metrics.json`, `results/rules_baseline.json`, labelled **Synthetic data**) and public research datasets covering 9 distinct real flaws used in evaluation (`results/claims.md`). Earlier benchmarks citing `results/mlndt_metrics.json` are superseded because a leakage audit (`results/leakage_audit.json`) showed that the random batch split leaked all 3 physical cracks between training and test sets. Rigorous group-held-out evaluations (`results/claims.md`, `results/generalization_matrix.json`, `results/loco_metrics.json`) demonstrate that held-out cracks are mostly missed by the supervised model, cross-dataset transfer failed on independent welds, and the anomaly detector trained on flaw-free scans is the more promising direction. All quantitative metrics and confidence intervals are documented in `results/claims.md`. We make no claims of prior plant qualification or plant production data validation.
+- **Current evaluation base:** Current performance figures have been established strictly on physics-based synthetic bar simulations (`results/bar_domain_metrics.json`, `results/rules_baseline.json`, labelled **Synthetic data**) and public research datasets covering 9 distinct real flaws used in evaluation (`results/claims.md`). Earlier benchmarks citing `results/mlndt_metrics.json` are superseded because a leakage audit (`results/leakage_audit.json`) showed that the random batch split leaked all 3 physical cracks between training and test sets. Rigorous group-held-out evaluations (`results/claims.md`, `results/generalization_matrix.json`, `results/loco_metrics.json`) demonstrate that held-out cracks are mostly missed by the supervised model, cross-dataset transfer failed on independent welds, and the anomaly detector trained on flaw-free scans is the more promising direction. All quantitative metrics and confidence intervals are documented in `results/claims.md`. We make no claims of prior plant qualification or plant production data validation.
 - **Proprietary commercial software under NDA:** UTriage is proprietary commercial software. All discussions, data exchanges, and evaluations are conducted under a mutual Non-Disclosure Agreement (NDA). All plant scan data remains the exclusive property of the plant and will not be retained or redistributed.
 
 ---

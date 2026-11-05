@@ -9,7 +9,7 @@
 
 ### [00:00 – 00:30] 1. The Problem: Immersion UT of Aerospace Bars & Grain Noise
 **Visual**:
-- Split screen: MIDHANI tender specification summary (automated immersion UT of titanium/superalloy bars, 8–300 mm diameter, 0.8 mm FBH sensitivity) alongside a simulated raw C-scan exhibiting heavy background grain noise.
+- Public tender specification summary shown as context only (automated immersion UT of titanium/superalloy bars, 8–300 mm diameter, 0.8 mm FBH sensitivity [V1]) alongside a simulated raw C-scan exhibiting heavy background grain noise, with an on-screen label: **Simulated data - not MIDHANI data**.
 - Title card: **UTriage: AI-Assisted Indication Triage & Data-Quality Watchdog (Advisory Only)**.
 
 **Narration**:
@@ -41,32 +41,32 @@ The main view displays the full helical C-scan. The conventional rules engine ha
   - Dynamically synchronised interface gate at the front-wall echo.
   - Flaw evaluation gate with calibrated Distance-Amplitude Correction (DAC) curve overlaid.
   - Back-wall echo gate.
-- Metrics card displays: Peak Amplitude = `[value from results/bar_domain_metrics.json]` % DAC, Local SNR = `[value from results/bar_domain_metrics.json]` dB, Depth = `[value from results/bar_domain_metrics.json]` mm.
+- Metrics card displays: Peak Amplitude = 50.0 % DAC (results/bar_domain_metrics.json configs.record_pct, Synthetic data), Local SNR = UNVERIFIED — Ruri to check dB, Depth = UNVERIFIED — Ruri to check mm.
 
 **Narration**:
 "Clicking an indication immediately brings up its raw A-scan waveform. 
 
-Notice how gates are dynamically referenced to the front-wall echo rather than a fixed hardware trigger, compensating for surface runout or water-path variations. The Distance-Amplitude Correction curve normalizes signal amplitude for depth-dependent attenuation and beam spread. This indication reaches `[value from results/bar_domain_metrics.json]` % DAC with a local SNR of `[value from results/bar_domain_metrics.json]` dB. The rules engine categorizes it according to baseline thresholds."
+Notice how gates are dynamically referenced to the front-wall echo rather than a fixed hardware trigger, compensating for surface runout or water-path variations. The Distance-Amplitude Correction curve normalizes signal amplitude for depth-dependent attenuation and beam spread. This indication reaches 50.0 % DAC (results/bar_domain_metrics.json configs.record_pct, Synthetic data) with a local SNR of UNVERIFIED — Ruri to check dB. The rules engine categorizes it according to baseline thresholds."
 
 ---
 
 ### [01:35 – 02:15] 4. ML Triage: Grain Noise Opinion & Conformal Uncertainty
 **Visual**:
-- Presenter selects a borderline indication hovering near recording threshold (`[value from results/bar_domain_metrics.json]` % DAC).
+- Presenter selects a borderline indication hovering near recording threshold (50.0 % DAC (results/bar_domain_metrics.json configs.record_pct, Synthetic data)).
 - The Triage Evidence panel opens:
   - 1D A-scan window view (waveform window centered on gated echo; kept model ml_1d per results/bar_domain_metrics.json).
-  - ML Grain Noise Probability meter = `[value from results/bar_domain_metrics.json]`.
+  - ML Grain Noise Probability meter = 0.9458858966827393 (results/bar_domain_metrics.json thresholds.ml_1d.overall, Synthetic data).
   - Evidence text: "Temporal waveform envelope matches grain scattering rather than an isolated reflector."
-  - Conformal Prediction set: "Calibrated Coverage = [value from results/bar_domain_metrics.json] | Disposition: Inspector review: uncertain".
+  - Conformal Prediction set: "Calibrated Coverage = 0.9285714285714286 (results/triage_metrics.json conformal.coverage, Synthetic data) | Disposition: Inspector review: uncertain".
 - Safety architecture callout highlights: **Union Rule Active (ML can only add flags, never remove rules flags)**.
 - Evidence limits callout: Supervised models mostly miss held-out cracks under group-held-out evaluation, cross-dataset transfer failed on external welds, and anomaly detection on flaw-free scans is the more promising direction across 9 distinct real flaws used in evaluation (see results/claims.md).
 
 **Narration**:
 "Now look at a borderline indication near the recording threshold. Conventional amplitude thresholding leaves the inspector uncertain whether this is a small flaw or a random grain noise spike. 
 
-Here, the kept 1D ML model (ml_1d) examines the gated A-scan window centered on the echo. By evaluating temporal waveform morphology and echo duration against expected grain scattering, the model assesses a `[value from results/bar_domain_metrics.json]` probability of grain noise. 
+Here, the kept 1D ML model (ml_1d) examines the gated A-scan window centered on the echo. By evaluating temporal waveform morphology and echo duration against expected grain scattering, the model assesses a 0.9458858966827393 (results/bar_domain_metrics.json thresholds.ml_1d.overall, Synthetic data) probability of grain noise. 
 
-Using conformal prediction, the model outputs a calibrated prediction set with a guaranteed error rate. If confidence is insufficient, it tags the indication as 'inspector review: uncertain'. Under our union safety rule, the ML model can never suppress or remove a conventional rule flag—it only provides evidence to guide inspector attention. We also report Phase 8 evidence limits transparently: across 9 distinct real flaws used in evaluation, held-out cracks are mostly missed by the supervised model, and cross-dataset transfer failed on independent welds. Anomaly detection trained on flaw-free scans represents the more promising direction (all figures in results/claims.md)."
+Using conformal prediction, the model outputs a calibrated prediction set targeting a nominal error rate. If confidence is insufficient, it tags the indication as 'inspector review: uncertain'. Under our union safety rule, the ML model can never suppress or remove a conventional rule flag—it only provides evidence to guide inspector attention. We also report Phase 8 evidence limits transparently: across 9 distinct real flaws used in evaluation, held-out cracks are mostly missed by the supervised model, and cross-dataset transfer failed on independent welds. Anomaly detection trained on flaw-free scans represents the more promising direction (all figures in results/claims.md)."
 
 ---
 
@@ -76,7 +76,7 @@ Using conformal prediction, the model outputs a calibrated prediction set with a
 - Heatmap displays watchdog diagnostics:
   - Interface echo stability map.
   - Back-wall reflection amplitude map showing a localized attenuation drop.
-- A prominent amber alert banner reads: **RE-SCAN RECOMMENDED: Back-wall attenuation loss detected at Axial [value from results/bar_domain_metrics.json] mm, Angle [value from results/bar_domain_metrics.json]°**.
+- A prominent amber alert banner reads: **RE-SCAN RECOMMENDED: Back-wall attenuation loss detected at Axial UNVERIFIED — Ruri to check mm, Angle UNVERIFIED — Ruri to check°**.
 
 **Narration**:
 "Next is the data-quality watchdog. If surface aeration, water-path drift, or acoustic attenuation degrades signal integrity, the watchdog catches it immediately. 
@@ -87,7 +87,7 @@ In this section, the watchdog flags a back-wall echo drop below the bar median. 
 
 ### [02:40 – 03:00] 6. Inspector Decision Log & Pre-Filled Report
 **Visual**:
-- Presenter clicks 'Accept with Note', logs inspector initials `[inspector name]`, and enters a brief comment.
+- Presenter clicks 'Accept with Note', logs inspector initials (e.g., RJ), and enters a brief comment.
 - The decision is appended to the immutable local audit log.
 - Presenter clicks 'Generate Report': an offline HTML inspection report renders instantly with an official header:
   - "Advisory Triage Summary — Final Disposition by Certified Inspector".
@@ -97,4 +97,4 @@ In this section, the watchdog flags a back-wall echo drop below the bar median. 
 **Narration**:
 "Finally, the inspector records their disposition for each indication. Every decision, override, and comment is logged to an immutable local audit file. 
 
-With one click, UTriage compiles a complete, pre-filled inspection report ready for Level III sign-off. Everything runs offline on standard hardware, with zero network requirements, zero invented numbers, and complete traceability back to calibration."
+With one click, UTriage compiles a complete, pre-filled inspection report formatted for Level III inspector review. Everything runs offline on standard hardware, with zero network requirements, zero invented numbers, and complete traceability back to calibration."
