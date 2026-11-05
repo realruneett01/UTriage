@@ -17,7 +17,7 @@ p5:
   gain_db: 0.0
   electronic_noise: 0.0015
   k_fbh: 0.8
-  source: "simulator defaults (model choice, not from an instrument datasheet)"
+  source: "UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet)"
 
 p10:
   frequency_mhz: 10.0
@@ -30,4 +30,4 @@ p10:
   gain_db: 0.0
   electronic_noise: 0.0015
   k_fbh: 0.8
-  source: "simulator defaults (model choice, not from an instrument datasheet)"
+  source: "UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet)"
