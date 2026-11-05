@@ -251,6 +251,7 @@ def calc_detection(
             "lower95": 0.0,
             "upper95": 0.0,
             "interval_type": "two_sided_95",
+            "method": "Clopper-Pearson",
         }
     n_hit = int(np.sum(hits[flawed]))
     rate = float(n_hit / n_flawed)
@@ -264,6 +265,7 @@ def calc_detection(
         "lower95": lower,
         "upper95": upper,
         "interval_type": "two_sided_95",
+        "method": "Clopper-Pearson",
     }
 
 
@@ -290,6 +292,7 @@ def calc_false_calls(
             "rate": 0.0,
             "upper95": 0.0,
             "interval_type": "one_sided_95_upper",
+            "method": "Clopper-Pearson",
         }
     fc = false_call_rate(hits[unflawed])
     n_false, n = int(fc["n_false"]), int(fc["n"])
@@ -302,6 +305,7 @@ def calc_false_calls(
         "rate": float(fc["rate"]),
         "upper95": upper,
         "interval_type": "one_sided_95_upper",
+        "method": "Clopper-Pearson",
     }
 
 
@@ -316,6 +320,13 @@ def eval_pod(sizes: np.ndarray, hits: np.ndarray) -> dict[str, Any]:
         fit = fit_hitmiss(sizes, hits)
         d = fit_to_dict(fit)
         d["reason"] = None
+        max_size = float(np.max(sizes))
+        if d.get("a90") is not None and d["a90"] > max_size:
+            d["a90"] = None
+            d["reason"] = "a90 extrapolates beyond the largest tested flaw size"
+        if d.get("a90_95") is not None and d["a90_95"] > max_size:
+            d["a90_95"] = None
+            d["reason"] = "a90_95 extrapolates beyond the largest tested flaw size"
         return d
     except (ValueError, RuntimeError) as exc:  # Non-convergent fit narrow exception
         res = binomial_pod_bound(sizes, hits)
@@ -601,12 +612,17 @@ def build_experiment_summary(
         arm_shas[arm] = shas[0] if len(shas) == 1 else shas
 
     reason = fold_records[0].get("sim_fraction_reason") if fold_records else None
+    tot_real = sum(int(f.get("n_real_train", 0)) for f in fold_records)
+    tot_sim = sum(int(f.get("n_sim_train", 0)) for f in fold_records)
+    actual_frac = float(tot_sim / (tot_real + tot_sim)) if (tot_real + tot_sim) > 0 else 0.0
     return {
         "label": "real metrics on ML-NDT (weld, 3 physical cracks); sim images are Synthetic data",
         "protocol": "Leave-one-crack-out joint synthetic-real training",
         "device": dev_str,
         "seeds": list(cfg.seeds),
+        "requested_sim_fraction": cfg.sim_fraction,
         "sim_fraction": cfg.sim_fraction,
+        "actual_sim_fraction": actual_frac,
         "sim_fraction_reason": reason,
         "n_sim": cfg.n_sim_cap,
         "n_sim_cap": cfg.n_sim_cap,
