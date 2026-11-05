@@ -1,15 +1,27 @@
-"""Generate resume bullets strictly from results/claims.json (project plan section Resume entry)."""
+"""Generate resume bullets strictly from results JSON files and claims."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import re
+import sys
+from collections.abc import Callable
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from pathlib import Path
 from typing import Any
 
 from utriage.report.claims import check_forbidden
+
+FORBIDDEN_WORDS: tuple[str, ...] = (
+    "verified",
+    "confirming",
+    "establishing",
+    "ensuring",
+    "guarantee",
+    "nearly",
+    "aerospace bar inspection",
+)
 
 
 def round_ceil(val: float | int | str, decimals: int = 2) -> str:
@@ -39,8 +51,8 @@ def _build_framing_bullet() -> str:
     """Build independent prototype framing bullet."""
     text = (
         "Built an independent prototype for advisory, offline ultrasonic indication triage "
-        "in aerospace bar inspection, ensuring machine learning can only add flags "
-        "to a rules engine"
+        "for ultrasonic inspection; simulated bar scans and public weld PAUT data, "
+        "designed so ML can only add flags to a rules engine (property-tested)"
     )
     return _ensure_scope(text, "advisory")
 
@@ -50,7 +62,15 @@ def _build_leakage_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
     c = claims.get("leakage")
     if c is None:
         return None
-    shared = int(c.get("numbers", {}).get("shared_cracks", 3))
+    nums = c.get("numbers", {})
+    if "shared_cracks" in nums:
+        shared = int(nums["shared_cracks"])
+    else:
+        match = re.search(r"all\s+(\d+)\s+physical cracks", c.get("text", ""))
+        if not match:
+            sys.stderr.write("Warning: missing shared_cracks in leakage claim; skipping bullet.\n")
+            return None
+        shared = int(match.group(1))
     text = (
         f"Audited a public weld PAUT benchmark and found the random split shared "
         f"all {shared} physical cracks between train and test, superseding the earlier test score"
@@ -58,7 +78,7 @@ def _build_leakage_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
     return _ensure_scope(text, "public dataset")
 
 
-def _get_k_n(claim: dict[str, Any]) -> tuple[int, int]:
+def _get_k_n(claim: dict[str, Any]) -> tuple[int, int] | None:
     """Extract k and n detection counts from claim numbers or text."""
     nums = claim.get("numbers", {})
     if "k" in nums and "n" in nums:
@@ -66,26 +86,124 @@ def _get_k_n(claim: dict[str, Any]) -> tuple[int, int]:
     match = re.search(r"(\d+)\s*(?:of|/)\s*(\d+)", claim.get("text", ""))
     if match:
         return int(match.group(1)), int(match.group(2))
-    return 0, 0
+    return None
 
 
-def _build_loco_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
-    """Build leave-one-crack-out bullet from loco claims."""
+def _fold_kn(fold: dict[str, Any]) -> tuple[str, int, int] | None:
+    """Extract held_out name and k, n detection counts from a fold dict."""
+    held = fold.get("held_out")
+    det = fold.get("detections", {})
+    k = det.get("n_hit", det.get("k"))
+    n = det.get("n_flawed", det.get("n"))
+    if not all((held, k is not None, n is not None)):
+        return None
+    return str(held), int(k), int(n)
+
+
+def _extract_loco_from_file(path: Path) -> dict[str, tuple[int, int]] | None:
+    """Extract fold detection counts from a LOCO metrics JSON file."""
+    if not path.exists():
+        return None
+    with path.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    res: dict[str, tuple[int, int]] = {}
+    for fold in data.get("folds", []):
+        parsed = _fold_kn(fold)
+        if parsed:
+            res[parsed[0]] = (parsed[1], parsed[2])
+    if len(res) < 3:
+        return None
+    return res
+
+
+def _extract_loco_batch_counts(
+    claims: dict[str, dict[str, Any]], results_dir: Path
+) -> tuple[int, int, int, int, int, int] | None:
+    """Extract batch-held-out LOCO detection counts."""
+    fc = _extract_loco_from_file(results_dir / "loco_metrics.json")
+    if fc:
+        return (
+            fc["crack_8.6"][0],
+            fc["crack_8.6"][1],
+            fc["crack_1.6"][0],
+            fc["crack_1.6"][1],
+            fc["crack_4.0"][0],
+            fc["crack_4.0"][1],
+        )
     keys = ("loco_crack_8.6", "loco_crack_1.6", "loco_crack_4.0")
     if not all(k in claims for k in keys):
         return None
-    k8, n8 = _get_k_n(claims["loco_crack_8.6"])
-    k1, n1 = _get_k_n(claims["loco_crack_1.6"])
-    k4, n4 = _get_k_n(claims["loco_crack_4.0"])
+    k8n = _get_k_n(claims["loco_crack_8.6"])
+    k1n = _get_k_n(claims["loco_crack_1.6"])
+    k4n = _get_k_n(claims["loco_crack_4.0"])
+    if not all((k8n, k1n, k4n)):
+        return None
+    return k8n[0], k8n[1], k1n[0], k1n[1], k4n[0], k4n[1]  # type: ignore[index]
+
+
+def _extract_loco_claim_counts(
+    nums: dict[str, Any],
+) -> tuple[int, int, int, int, int, int] | None:
+    """Extract crack-held-out LOCO detection counts from numbers dict."""
+    keys = (
+        "crack_8.6_k",
+        "crack_8.6_n",
+        "crack_1.6_k",
+        "crack_1.6_n",
+        "crack_4.0_k",
+        "crack_4.0_n",
+    )
+    if not all(k in nums for k in keys):
+        return None
+    return (
+        int(nums["crack_8.6_k"]),
+        int(nums["crack_8.6_n"]),
+        int(nums["crack_1.6_k"]),
+        int(nums["crack_1.6_n"]),
+        int(nums["crack_4.0_k"]),
+        int(nums["crack_4.0_n"]),
+    )
+
+
+def _extract_loco_crackval_counts(
+    claims: dict[str, dict[str, Any]], results_dir: Path
+) -> tuple[int, int, int, int, int, int] | None:
+    """Extract crack-held-out LOCO detection counts."""
+    fc = _extract_loco_from_file(results_dir / "loco_crackval_metrics.json")
+    if fc:
+        return (
+            fc["crack_8.6"][0],
+            fc["crack_8.6"][1],
+            fc["crack_1.6"][0],
+            fc["crack_1.6"][1],
+            fc["crack_4.0"][0],
+            fc["crack_4.0"][1],
+        )
+    cv = claims.get("loco_crackval")
+    if cv is None:
+        return None
+    return _extract_loco_claim_counts(cv.get("numbers", {}))
+
+
+def _build_loco_bullet(claims: dict[str, dict[str, Any]], results_dir: Path) -> str | None:
+    """Build leave-one-crack-out bullet comparing batch vs crack validation."""
+    b_counts = _extract_loco_batch_counts(claims, results_dir)
+    c_counts = _extract_loco_crackval_counts(claims, results_dir)
+    if b_counts is None or c_counts is None:
+        sys.stderr.write("Warning: missing LOCO counts; skipping bullet.\n")
+        return None
+    k8_b, n8_b, k1_b, n1_b, k4_b, n4_b = b_counts
+    k8_c, n8_c, k1_c, n1_c, k4_c, n4_c = c_counts
     text = (
-        f"Detected the held-out 8.6 mm crack {k8}/{n8} using a supervised CNN, "
-        f"but only {k1}/{n1} and {k4}/{n4} for 1.6 and 4.0 mm cracks, "
-        "establishing a measured generalization limit"
+        f"Detected held-out cracks under batch-held-out early stopping "
+        f"(8.6 mm {k8_b}/{n8_b}, 1.6 mm {k1_b}/{n1_b}, 4.0 mm {k4_b}/{n4_b}) vs "
+        f"crack-held-out early stopping ({k8_c}/{n8_c}, {k1_c}/{n1_c}, {k4_c}/{n4_c}) "
+        "on 3 physical cracks in one public weld dataset"
     )
     return _ensure_scope(text, "leave-one-crack-out")
 
 
-def _get_fcr(claim: dict[str, Any]) -> str:
+def _get_fcr(claim: dict[str, Any]) -> str | None:
     """Extract formatted false-call rate from claim numbers or text."""
     nums = claim.get("numbers", {})
     for key in ("false_call_rate", "fcr"):
@@ -94,22 +212,27 @@ def _get_fcr(claim: dict[str, Any]) -> str:
     match = re.search(r"false[- ]call(?:s|\s+rate)\s+([0-9.]+)", claim.get("text", ""))
     if match:
         return match.group(1)
-    return "0.018"
+    return None
 
 
 def _build_anomaly_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
     """Build anomaly detection bullet from anomaly claims."""
     if not all(k in claims for k in ("anomaly_crack_1.6", "anomaly_crack_4.0")):
         return None
-    k1, n1 = _get_k_n(claims["anomaly_crack_1.6"])
-    k4, n4 = _get_k_n(claims["anomaly_crack_4.0"])
+    kn1 = _get_k_n(claims["anomaly_crack_1.6"])
+    kn4 = _get_k_n(claims["anomaly_crack_4.0"])
     fcr1 = _get_fcr(claims["anomaly_crack_1.6"])
+    if not all((kn1, kn4, fcr1)):
+        sys.stderr.write("Warning: missing anomaly metrics; skipping bullet.\n")
+        return None
+    k1, n1 = kn1  # type: ignore[misc]
+    k4, n4 = kn4  # type: ignore[misc]
     text = (
         f"Trained an autoencoder only on flaw-free scans that detected the held-out "
         f"1.6 mm crack {k1}/{n1} at a false-call rate of {fcr1}, "
         f"but the 4.0 mm crack only {k4}/{n4}"
     )
-    return _ensure_scope(text, "leave-one-crack-out")
+    return _ensure_scope(text, "held-out cracks, trained on clean scans only")
 
 
 def _format_det_range(min_k: float | int, max_k: float | int, n: int) -> str:
@@ -119,73 +242,268 @@ def _format_det_range(min_k: float | int, max_k: float | int, n: int) -> str:
     return f"{int(min_k)}-{int(max_k)}/{n}"
 
 
-def _extract_crack_det(claim: dict[str, Any], crack: str, n_default: int) -> str:
-    """Extract detection counts or range for crack from claim numbers or text."""
-    nums = claim.get("numbers", {})
+def _get_crack_from_nums(nums: dict[str, Any], crack: str) -> str | None:
+    """Extract crack detection string from claim numbers dict."""
     min_k = nums.get(f"k_min_{crack}", nums.get(f"crack_{crack}_min_k"))
     max_k = nums.get(f"k_max_{crack}", nums.get(f"crack_{crack}_max_k"))
-    n_val = int(nums.get(f"n_{crack}", nums.get(f"crack_{crack}_n", n_default)))
-    if min_k is not None and max_k is not None:
-        return _format_det_range(min_k, max_k, n_val)
+    n_val = nums.get(f"n_{crack}", nums.get(f"crack_{crack}_n"))
+    if all(x is not None for x in (min_k, max_k, n_val)):
+        return _format_det_range(min_k, max_k, int(n_val))  # type: ignore[arg-type]
     k_val = nums.get(f"k_{crack}", nums.get(f"crack_{crack}_k"))
-    if k_val is not None:
-        return f"{int(k_val)}/{n_val}"
+    if all(x is not None for x in (k_val, n_val)):
+        return f"{int(k_val)}/{int(n_val)}"  # type: ignore[arg-type]
+    return None
+
+
+def _extract_crack_det(claim: dict[str, Any], crack: str) -> str | None:
+    """Extract detection counts or range for crack without default numbers."""
+    from_nums = _get_crack_from_nums(claim.get("numbers", {}), crack)
+    if from_nums is not None:
+        return from_nums
     match = re.search(rf"{re.escape(crack)}[^\d]*?(\d+(?:-\d+)?\s*/\s*\d+)", claim.get("text", ""))
     if match:
         return match.group(1).replace(" ", "")
-    match_n = re.search(rf"(\d+(?:-\d+)?\s*/\s*{n_default})", claim.get("text", ""))
-    if match_n:
-        return match_n.group(1).replace(" ", "")
-    return f"0/{n_default}"
+    return None
 
 
-def _extract_false_calls(claim: dict[str, Any]) -> str:
-    """Extract false calls count from claim numbers or text."""
+def _extract_false_calls_h2(claim: dict[str, Any]) -> str | None:
+    """Extract false calls count for H2 claim."""
     nums = claim.get("numbers", {})
     if "n_false" in nums and "n_scans" in nums:
         return f"{int(nums['n_false'])}/{int(nums['n_scans'])}"
     if "n_false" in nums and "n_clean" in nums:
         return f"{int(nums['n_false'])}/{int(nums['n_clean'])}"
-    match = re.search(r"false[- ]calls?\s*(\d+(?:\s*/\s*\d+)?)", claim.get("text", ""))
+    match = re.search(r"false[- ]calls?\s*(\d+\s*/\s*\d+)", claim.get("text", ""))
     if match:
         return match.group(1).replace(" ", "")
-    return "0/778"
+    return None
 
 
-def _build_hybrid_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
-    """Build bullet combining pre-registered hybrid H2 and physics H3 claims."""
-    keys = ("hybrid_h2", "physics_h3", "hybrid_comparison")
-    if not all(k in claims for k in keys):
+def _extract_h3_fc_from_file(path: Path) -> str | None:
+    """Extract maximum false calls across folds from physics metrics file."""
+    if not path.exists():
         return None
-    h2_claim = claims["hybrid_h2"]
-    h3_claim = claims["physics_h3"]
-    h2_1 = _extract_crack_det(h2_claim, "1.6", 4014)
-    h3_1 = _extract_crack_det(h3_claim, "1.6", 4014)
-    h2_4 = _extract_crack_det(h2_claim, "4.0", 4078)
-    h3_4 = _extract_crack_det(h3_claim, "4.0", 4078)
-    h2_8 = _extract_crack_det(h2_claim, "8.6", 3925)
-    h2_fc = _extract_false_calls(h2_claim)
-    h3_fc = _extract_false_calls(h3_claim)
+    with path.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    folds = data.get("folds", [])
+    if not folds:
+        return None
+    max_fold = max(folds, key=lambda f: f.get("false_calls", {}).get("n_false", 0))
+    fc = max_fold.get("false_calls", {})
+    return f"{int(fc.get('n_false', 0))}/{int(fc.get('n_clean', fc.get('n_scans', 0)))}"
+
+
+def _extract_h3_fc_from_numbers(nums: dict[str, Any]) -> str | None:
+    """Extract maximum false calls from claim numbers dictionary."""
+    fc_pairs: list[tuple[int, int]] = []
+    for k, v in nums.items():
+        if not k.endswith("_n_false"):
+            continue
+        clean_key = k.replace("_n_false", "_n_clean")
+        clean_val = nums.get(clean_key, nums.get(k.replace("_n_false", "_n_scans"), 0))
+        fc_pairs.append((int(v), int(clean_val)))
+    if not fc_pairs:
+        return None
+    max_k, max_n = max(fc_pairs, key=lambda p: p[0])
+    return f"{max_k}/{max_n}" if max_n > 0 else None
+
+
+def _extract_false_calls_h3(claim: dict[str, Any], results_dir: Path) -> str | None:
+    """Extract maximum false calls across folds for H3 physics detector."""
+    fc_file = _extract_h3_fc_from_file(results_dir / "physics_model_metrics.json")
+    if fc_file is not None:
+        return fc_file
+    fc_nums = _extract_h3_fc_from_numbers(claim.get("numbers", {}))
+    if fc_nums is not None:
+        return fc_nums
+    matches = re.findall(r"false[- ]calls?\s*(\d+)\s*/\s*(\d+)", claim.get("text", ""))
+    if matches:
+        k_val, n_val = max(matches, key=lambda m: int(m[0]))
+        return f"{k_val}/{n_val}"
+    return None
+
+
+def _build_hybrid_bullet(claims: dict[str, dict[str, Any]], results_dir: Path) -> str | None:
+    """Build bullet combining pre-registered hybrid H2 and physics H3 claims."""
+    if not all(k in claims for k in ("hybrid_h2", "physics_h3")):
+        return None
+    h2_c = claims["hybrid_h2"]
+    h3_c = claims["physics_h3"]
+    h2_1, h3_1 = _extract_crack_det(h2_c, "1.6"), _extract_crack_det(h3_c, "1.6")
+    h2_4, h3_4 = _extract_crack_det(h2_c, "4.0"), _extract_crack_det(h3_c, "4.0")
+    h2_8 = _extract_crack_det(h2_c, "8.6")
+    h2_fc = _extract_false_calls_h2(h2_c)
+    h3_fc = _extract_false_calls_h3(h3_c, results_dir)
+    if not all((h2_1, h3_1, h2_4, h3_4, h2_8, h2_fc, h3_fc)):
+        sys.stderr.write("Warning: missing hybrid detection numbers; skipping bullet.\n")
+        return None
+    h2_nums = h2_c.get("numbers", {})
+    k_min = h2_nums.get("crack_4.0_min_k", h2_nums.get("k_min_4.0", 0))
+    k_max = h2_nums.get("crack_4.0_max_k", h2_nums.get("k_max_4.0", 0))
+    seed_note = "; results vary across seeds" if k_max != k_min else ""
     text = (
         f"Pre-registered a supervised+anomaly hybrid and a physics-feature detector, "
         f"reaching {h2_1} vs {h3_1} on 1.6 mm, {h2_4} vs {h3_4} on 4.0 mm, "
-        f"{h2_8} on 8.6 mm, false calls {h2_fc} vs {h3_fc}, "
-        "confirming the two are complementary"
+        f"{h2_8} on 8.6 mm, false calls {h2_fc} vs {h3_fc}{seed_note}"
     )
     return _ensure_scope(text, "public dataset, pre-registered")
 
 
 def _build_sim_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
-    """Build simulator and cross-dataset bullet from sim_regions and cross_dataset claims."""
+    """Build simulator bullet from sim_regions claim."""
     c_sim = claims.get("sim_regions")
     if c_sim is None:
         return None
-    extra = ", with no cross-dataset transfer" if "cross_dataset" in claims else ""
+    thresh = c_sim.get("numbers", {}).get("threshold", 0.3)
     text = (
-        "Observed false calls exceeding 0.3 per window at an unseen frequency "
-        f"and above-range noise for both rules and ML in held-out regions{extra}"
+        f"Observed false calls exceeding the {thresh:.1f} project reporting threshold "
+        "at an unseen frequency and above-range noise for both rules and ML in held-out regions"
     )
     return _ensure_scope(text, "simulated")
+
+
+def _build_cross_dataset_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
+    """Build real cross-dataset bullet from cross_dataset claim."""
+    c_cross = claims.get("cross_dataset")
+    if c_cross is None:
+        return None
+    kn = _get_k_n(c_cross)
+    fc = _extract_false_calls_h2(c_cross)
+    if kn is None or fc is None:
+        sys.stderr.write("Warning: missing cross-dataset metrics; skipping bullet.\n")
+        return None
+    k, n = kn
+    text = (
+        f"Evaluated cross-dataset transfer on NDT_ML_Flaw real weld data, "
+        f"finding the model flagged every image with {k}/{n} detections and {fc} false calls"
+    )
+    return _ensure_scope(text, "NDT_ML_Flaw, real weld data")
+
+
+def _format_site_adaptation(
+    data: dict[str, Any], g2: dict[str, Any], g05: dict[str, Any], n_calib: int
+) -> str | None:
+    """Format site adaptation bullet text and scope."""
+    g2_fc = f"{g2['baseline']['false_calls']['k']}/{g2['baseline']['false_calls']['n']}"
+    g2_afc = f"{g2['adapted']['false_calls']['k']}/{g2['adapted']['false_calls']['n']}"
+    g2_det = f"{g2['baseline']['detection']['k']}/{g2['baseline']['detection']['n']}"
+    g2_adet = f"{g2['adapted']['detection']['k']}/{g2['adapted']['detection']['n']}"
+    g05_det = f"{g05['baseline']['detection']['k']}/{g05['baseline']['detection']['n']}"
+    g05_adet = f"{g05['adapted']['detection']['k']}/{g05['adapted']['detection']['n']}"
+    g05_afc = f"{g05['adapted']['false_calls']['k']}/{g05['adapted']['false_calls']['n']}"
+    n_test = data.get("n_test_clean", data.get("n_images", {}).get("test_clean"))
+    clean_desc = f"{n_calib} clean scans ({n_test} test)" if n_test else f"{n_calib} clean scans"
+    text = (
+        f"Adapted on {clean_desc}: gain 2.0 false calls {g2_fc} to {g2_afc} "
+        f"(detection {g2_det} to {g2_adet}); gain 0.5 detection {g05_det} to {g05_adet} "
+        f"(false calls {g05_afc})"
+    )
+    scope = "real weld images, synthetic gain/offset/noise shifts, single seed"
+    if data.get("test_underpowered"):
+        scope += ", small test set"
+    return _ensure_scope(text, scope)
+
+
+def _build_site_adaptation_bullet(results_dir: Path) -> str | None:
+    """Build site adaptation bullet directly from results/site_adaptation.json."""
+    path = results_dir / "site_adaptation.json"
+    if not path.exists():
+        sys.stderr.write(f"Warning: {path} not found; skipping bullet.\n")
+        return None
+    with path.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    shifts = data.get("shifts", {})
+    g2, g05 = shifts.get("gain 2.0"), shifts.get("gain 0.5")
+    if not g2 or not g05:
+        sys.stderr.write("Warning: missing gain shifts; skipping bullet.\n")
+        return None
+    n_calib = data.get("n_calib_clean")
+    if n_calib is None:
+        sys.stderr.write("Warning: missing n_calib_clean; skipping bullet.\n")
+        return None
+    return _format_site_adaptation(data, g2, g05, int(n_calib))
+
+
+def _arm_improved_all(arm: str, folds: list[dict[str, Any]]) -> bool:
+    """Check if a specific arm improved every crack over arm A."""
+    for f in folds:
+        a_k = f.get("arms", {}).get("A", {}).get("detections", {}).get("k", 0)
+        arm_k = f.get("arms", {}).get(arm, {}).get("detections", {}).get("k", 0)
+        if arm_k <= a_k:
+            return False
+    return True
+
+
+def _check_no_arm_improved(folds: list[dict[str, Any]]) -> bool:
+    """Verify whether no alternative arm strictly improved every crack."""
+    arms = [a for a in folds[0].get("arms", {}) if a != "A"]
+    for arm in arms:
+        if _arm_improved_all(arm, folds):
+            return False
+    return True
+
+
+def _format_joint_bullet(
+    data: dict[str, Any], folds: list[dict[str, Any]], f4: dict[str, Any]
+) -> str | None:
+    """Format joint training bullet text from folds data."""
+    arm_a = f4.get("arms", {}).get("A", {}).get("detections", {})
+    arm_c = f4.get("arms", {}).get("C", {}).get("detections", {})
+    if "k" not in arm_a or "k" not in arm_c:
+        sys.stderr.write("Warning: missing arm A/C detections; skipping bullet.\n")
+        return None
+    a_det = f"{int(arm_a['k'])}/{int(arm_a['n'])}"
+    c_det = f"{int(arm_c['k'])}/{int(arm_c['n'])}"
+    seeds = data.get("seeds", [])
+    n_seeds = len(seeds) if isinstance(seeds, list) else 1
+    seed_str = f"{n_seeds} seed" if n_seeds == 1 else f"{n_seeds} seeds"
+    note = ", but no arm improved every crack" if _check_no_arm_improved(folds) else ""
+    text = (
+        f"Evaluated joint synthetic-real training across {seed_str}: "
+        f"on crack 4.0, arm A detected {a_det} vs arm C {c_det}{note}"
+    )
+    return _ensure_scope(text, "joint training, public weld data")
+
+
+def _build_joint_training_bullet(results_dir: Path) -> str | None:
+    """Build joint training bullet directly from results/joint_train_metrics.json."""
+    path = results_dir / "joint_train_metrics.json"
+    if not path.exists():
+        sys.stderr.write(f"Warning: {path} not found; skipping bullet.\n")
+        return None
+    with path.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    folds = data.get("folds")
+    if not folds:
+        sys.stderr.write("Warning: missing folds in joint training; skipping bullet.\n")
+        return None
+    f4 = next((f for f in folds if f.get("held_out") == "crack_4.0"), None)
+    if not f4:
+        sys.stderr.write("Warning: missing crack_4.0 fold; skipping bullet.\n")
+        return None
+    return _format_joint_bullet(data, folds, f4)
+
+
+def _extract_union_counts(claim: dict[str, Any]) -> tuple[int, int] | None:
+    """Extract violations and columns from union claim."""
+    viol = claim.get("numbers", {}).get("n_violations")
+    col = claim.get("numbers", {}).get("n_columns")
+    if col is None:
+        m = re.search(r"(\d+)\s+simulator columns", claim.get("text", ""))
+        col = int(m.group(1)) if m else None
+    if viol is None or col is None:
+        return None
+    return int(viol), int(col)
+
+
+def _extract_latency_median(claim: dict[str, Any]) -> float | None:
+    """Extract median latency ms from latency claim."""
+    lat_nums = claim.get("numbers", {})
+    med = lat_nums.get("median_ms", lat_nums.get("median"))
+    if med is None:
+        m = re.search(r"median\s+([0-9.]+)\s*ms", claim.get("text", ""))
+        med = float(m.group(1)) if m else None
+    return float(med) if med is not None else None
 
 
 def _build_engineering_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
@@ -194,30 +512,42 @@ def _build_engineering_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
     latency_c = claims.get("latency")
     if union_c is None or latency_c is None:
         return None
-    viol = int(union_c.get("numbers", {}).get("n_violations", 0))
-    lat_nums = latency_c.get("numbers", {})
-    med = float(lat_nums.get("median_ms", lat_nums.get("median", 14.2)))
+    u_counts = _extract_union_counts(union_c)
+    med_val = _extract_latency_median(latency_c)
+    if u_counts is None or med_val is None:
+        sys.stderr.write("Warning: missing engineering numbers; skipping bullet.\n")
+        return None
+    viol, col = u_counts
     text = (
-        f"Verified the union safety property held across all checked simulator columns "
-        f"with {viol} violations, achieving median CPU latency of {med:.1f} ms"
+        f"Property-tested the ML-only-adds-flags rule on {col} simulator columns "
+        f"with {viol} violations, achieving median CPU latency of {med_val:.1f} ms "
+        "measured on the development workstation CPU, not on the target i5 laptop"
     )
     return _ensure_scope(text, "advisory")
+
+
+def _check_single_claim(c: dict[str, Any]) -> None:
+    """Check text and scope_limit of a single claim."""
+    for field in ("text", "scope_limit"):
+        val = c.get(field, "")
+        if isinstance(val, str) and (found := check_forbidden(val)):
+            raise ValueError(f"Forbidden phrase(s) {found} found in claim: {val!r}")
 
 
 def _check_claims_forbidden(claims: dict[str, dict[str, Any]]) -> None:
     """Verify no claim text or scope contains forbidden phrases."""
     for c in claims.values():
-        for field in ("text", "scope_limit"):
-            val = c.get(field, "")
-            if isinstance(val, str) and (found := check_forbidden(val)):
-                raise ValueError(f"Forbidden phrase(s) {found} found in claim: {val!r}")
+        _check_single_claim(c)
 
 
 def _check_bullets_forbidden(bullets: list[str]) -> None:
-    """Verify no generated bullet contains forbidden phrases."""
+    """Verify no generated bullet contains forbidden phrases or words."""
     for bullet in bullets:
         if found := check_forbidden(bullet):
             raise ValueError(f"Forbidden phrase(s) {found} found in bullet: {bullet!r}")
+        lower = bullet.lower()
+        if bad := [w for w in FORBIDDEN_WORDS if w.lower() in lower]:
+            raise ValueError(f"Forbidden word(s) {bad} found in bullet: {bullet!r}")
 
 
 def _load_claims(results_dir: Path) -> dict[str, dict[str, Any]]:
@@ -233,20 +563,23 @@ def _load_claims(results_dir: Path) -> dict[str, dict[str, Any]]:
 
 
 def build_bullets(results_dir: Path) -> list[str]:
-    """Build resume bullet points strictly from results/claims.json."""
+    """Build resume bullet points strictly from results JSON files and claims."""
     claims = _load_claims(results_dir)
     _check_claims_forbidden(claims)
-    builders = [
-        _build_leakage_bullet,
-        _build_loco_bullet,
-        _build_anomaly_bullet,
-        _build_hybrid_bullet,
-        _build_sim_bullet,
-        _build_engineering_bullet,
+    builders: list[tuple[Callable[..., str | None], tuple[Any, ...]]] = [
+        (_build_leakage_bullet, (claims,)),
+        (_build_loco_bullet, (claims, results_dir)),
+        (_build_anomaly_bullet, (claims,)),
+        (_build_hybrid_bullet, (claims, results_dir)),
+        (_build_sim_bullet, (claims,)),
+        (_build_cross_dataset_bullet, (claims,)),
+        (_build_site_adaptation_bullet, (results_dir,)),
+        (_build_joint_training_bullet, (results_dir,)),
+        (_build_engineering_bullet, (claims,)),
     ]
     bullets = [_build_framing_bullet()]
-    for builder in builders:
-        b = builder(claims)
+    for func, args in builders:
+        b = func(*args)
         if b is not None:
             bullets.append(b)
     _check_bullets_forbidden(bullets)
