@@ -1,0 +1,5060 @@
+{
+  "label": "Real ML-NDT images with synthetic gain/offset/noise shifts (3 physical cracks)",
+  "preregistration": "docs/decisions/0015-shift-robustness-preregistration.md",
+  "note": "threshold fixed on unshifted clean scans; shifts are synthetic",
+  "seed": 0,
+  "shifts": [
+    {
+      "name": "identity",
+      "gain": 1.0,
+      "offset": 0.0,
+      "noise_std": 0.0
+    },
+    {
+      "name": "gain 0.5",
+      "gain": 0.5,
+      "offset": 0.0,
+      "noise_std": 0.0
+    },
+    {
+      "name": "gain 2.0",
+      "gain": 2.0,
+      "offset": 0.0,
+      "noise_std": 0.0
+    },
+    {
+      "name": "offset +0.5",
+      "gain": 1.0,
+      "offset": 0.5,
+      "noise_std": 0.0
+    },
+    {
+      "name": "noise 0.2",
+      "gain": 1.0,
+      "offset": 0.0,
+      "noise_std": 0.2
+    },
+    {
+      "name": "combined",
+      "gain": 0.5,
+      "offset": 0.5,
+      "noise_std": 0.2
+    }
+  ],
+  "families": {
+    "loco": {
+      "status": "evaluated",
+      "folds": [
+        {
+          "held_out": "crack_1.6",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\loco_crack_1.6_seed0.pt",
+            "models\\loco_crack_1.6_seed1.pt",
+            "models\\loco_crack_1.6_seed2.pt"
+          ],
+          "model_sha256": [
+            "430ad4982608b12dee45cb652464a5c268c1ce126e1db3aed0ce7087be97a7c3",
+            "2aba3e9556f15e84451966ec0646ce40d3db5d8b8f93094a71caf14733e72710",
+            "b9f780b2def10efb32a42c27e5a661708c8320c1ce343a3f8fc3ec9ac5bf57ec"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.00019025795336347073,
+            "0.05": 0.0001052449006238021
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9999500463032343,
+              "margin": 2.431196913154995,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.00019025795336347073,
+                  "detection": {
+                    "k": 4010,
+                    "n": 4014,
+                    "rate": 0.9990034877927254,
+                    "ci_low": 0.9974505160871684,
+                    "ci_high": 0.9997284193332667,
+                    "interval_95": [
+                      0.9974505160871684,
+                      0.9997284193332667
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 6,
+                    "n": 389,
+                    "rate": 0.015424164524421594,
+                    "ci_low": 0.00568088522248199,
+                    "ci_high": 0.03326806000834118,
+                    "interval_95": [
+                      0.00568088522248199,
+                      0.03326806000834118
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0001052449006238021,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 28,
+                    "n": 389,
+                    "rate": 0.07197943444730077,
+                    "ci_low": 0.04835977056749351,
+                    "ci_high": 0.10235200443338145,
+                    "interval_95": [
+                      0.04835977056749351,
+                      0.10235200443338145
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.994490683635553,
+              "margin": 3.720652959908966,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.00019025795336347073,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0001052449006238021,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.0819845835206597,
+              "margin": 3.241207385471144,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.00019025795336347073,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0001052449006238021,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9292498747955421,
+              "margin": 3.7206555226371667,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.00019025795336347073,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0001052449006238021,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9981260959392768,
+              "margin": 0.22044643400252584,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.00019025795336347073,
+                  "detection": {
+                    "k": 2536,
+                    "n": 4014,
+                    "rate": 0.6317887394120578,
+                    "ci_low": 0.6166516822908821,
+                    "ci_high": 0.6467337159189457,
+                    "interval_95": [
+                      0.6166516822908821,
+                      0.6467337159189457
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0001052449006238021,
+                  "detection": {
+                    "k": 3164,
+                    "n": 4014,
+                    "rate": 0.7882411559541604,
+                    "ci_low": 0.7752700967469752,
+                    "ci_high": 0.8007912844724241,
+                    "interval_95": [
+                      0.7752700967469752,
+                      0.8007912844724241
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9595666452762375,
+              "margin": 3.7206571793422993,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.00019025795336347073,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0001052449006238021,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 0.6317887394120578,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 0.6317887394120578,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        },
+        {
+          "held_out": "crack_4.0",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\loco_crack_4.0_seed0.pt",
+            "models\\loco_crack_4.0_seed1.pt",
+            "models\\loco_crack_4.0_seed2.pt"
+          ],
+          "model_sha256": [
+            "36938c97203f4fcdc25400376ccf1b4e5cdf50e0c2c30cfa0939d7f5a98d82e0",
+            "934e5c8f75f724760ee61bf47d6393557100c110e0d0107f8b7e8300f576b41d",
+            "cbada037b3bc7126919e20aeee8160a39563cc35f999defd55ced091585e36ea"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.0006231704610399902,
+            "0.05": 0.00020154034427832812
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9982122392271023,
+              "margin": 1.8968868832095391,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0006231704610399902,
+                  "detection": {
+                    "k": 3896,
+                    "n": 4078,
+                    "rate": 0.9553702795487984,
+                    "ci_low": 0.9485758939015023,
+                    "ci_high": 0.9615021058167339,
+                    "interval_95": [
+                      0.9485758939015023,
+                      0.9615021058167339
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 2,
+                    "n": 389,
+                    "rate": 0.005141388174807198,
+                    "ci_low": 0.0006232535611988801,
+                    "ci_high": 0.01844815528196217,
+                    "interval_95": [
+                      0.0006232535611988801,
+                      0.01844815528196217
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00020154034427832812,
+                  "detection": {
+                    "k": 4038,
+                    "n": 4078,
+                    "rate": 0.9901912702305051,
+                    "ci_low": 0.9866670162364857,
+                    "ci_high": 0.9929835134556113,
+                    "interval_95": [
+                      0.9866670162364857,
+                      0.9929835134556113
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 18,
+                    "n": 389,
+                    "rate": 0.04627249357326478,
+                    "ci_low": 0.02765121704984377,
+                    "ci_high": 0.07214645162694391,
+                    "interval_95": [
+                      0.02765121704984377,
+                      0.07214645162694391
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.8557048227935716,
+              "margin": 3.2053018055802522,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0006231704610399902,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00020154034427832812,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.634275584962133,
+              "margin": 2.86975351289901,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0006231704610399902,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00020154034427832812,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9957310592545616,
+              "margin": 3.1736523859701755,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0006231704610399902,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00020154034427832812,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9863175784288636,
+              "margin": 1.9545727291461135,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0006231704610399902,
+                  "detection": {
+                    "k": 4069,
+                    "n": 4078,
+                    "rate": 0.9977930358018636,
+                    "ci_low": 0.9958146467873381,
+                    "ci_high": 0.9989903543496839,
+                    "interval_95": [
+                      0.9958146467873381,
+                      0.9989903543496839
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 229,
+                    "n": 389,
+                    "rate": 0.5886889460154242,
+                    "ci_low": 0.5379831646382394,
+                    "ci_high": 0.6380347138177299,
+                    "interval_95": [
+                      0.5379831646382394,
+                      0.6380347138177299
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00020154034427832812,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.8340332664709122,
+              "margin": 3.0184903127119163,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0006231704610399902,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00020154034427832812,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 0.9553702795487984,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 0.9553702795487984,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        },
+        {
+          "held_out": "crack_8.6",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\loco_crack_8.6_seed0.pt",
+            "models\\loco_crack_8.6_seed1.pt",
+            "models\\loco_crack_8.6_seed2.pt"
+          ],
+          "model_sha256": [
+            "7285c522ffcc0e169a9dceec9baf2c1b4153803dc995b06c05a889619c96c31e",
+            "a9931327e1223927252e68c0a4969062ec52661ae15117d9a47e070520fceda8",
+            "7b56f64f6e0e697b5eae164733701fef04f8861bc50665d489ba499778f7844f"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.001550960703752935,
+            "0.05": 0.000550813798326999
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 2.8093992056418804,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001550960703752935,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 1,
+                    "n": 389,
+                    "rate": 0.002570694087403599,
+                    "ci_low": 6.508222135157167e-05,
+                    "ci_high": 0.014239109513372976,
+                    "interval_95": [
+                      6.508222135157167e-05,
+                      0.014239109513372976
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.000550813798326999,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 35,
+                    "n": 389,
+                    "rate": 0.08997429305912596,
+                    "ci_low": 0.06347111671912022,
+                    "ci_high": 0.12291011275719671,
+                    "interval_95": [
+                      0.06347111671912022,
+                      0.12291011275719671
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 2.8093992056418804,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001550960703752935,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.000550813798326999,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 2.8093992056418804,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001550960703752935,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.000550813798326999,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 2.8093992056418804,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001550960703752935,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.000550813798326999,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 1.0,
+              "margin": 2.8093992056418804,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001550960703752935,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.000550813798326999,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 14,
+                    "n": 389,
+                    "rate": 0.03598971722365039,
+                    "ci_low": 0.019813043710845392,
+                    "ci_high": 0.05964786704323548,
+                    "interval_95": [
+                      0.019813043710845392,
+                      0.05964786704323548
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 1.0,
+              "margin": 2.8093992056418804,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001550960703752935,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.000550813798326999,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 1.0,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 1.0,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        }
+      ]
+    },
+    "robust": {
+      "status": "evaluated",
+      "folds": [
+        {
+          "held_out": "crack_1.6",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\robust_crack_1.6_s0.pt",
+            "models\\robust_crack_1.6_s1.pt",
+            "models\\robust_crack_1.6_s2.pt",
+            "models\\robust_crack_1.6_s3.pt",
+            "models\\robust_crack_1.6_s4.pt"
+          ],
+          "model_sha256": [
+            "bc188f120cbf62ab9711e76c97cf8ce29212e97228d830dc4824b2954e2261a2",
+            "43fcaf26281f992de8fab7ef4243508d1a5c04564de63307089d13a0cb424197",
+            "3a61238141b988c9bb516427b6662b687782d39a14e729292df125b220443731",
+            "bc7232b0f0b6b5f7cd15545ac7dfbde94cd409d8259fd95cf0db77155fc5bb03",
+            "e0f065b8702c0a648d7ce738cda92a2e9955a5db9735aeeccff8a373e0482382"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.001344688469544053,
+            "0.05": 0.0005880837561562657
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9869812981044492,
+              "margin": 1.2492607741534585,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001344688469544053,
+                  "detection": {
+                    "k": 3532,
+                    "n": 4014,
+                    "rate": 0.8799202790234181,
+                    "ci_low": 0.8694625187990271,
+                    "ci_high": 0.8898214095313075,
+                    "interval_95": [
+                      0.8694625187990271,
+                      0.8898214095313075
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 6,
+                    "n": 389,
+                    "rate": 0.015424164524421594,
+                    "ci_low": 0.00568088522248199,
+                    "ci_high": 0.03326806000834118,
+                    "interval_95": [
+                      0.00568088522248199,
+                      0.03326806000834118
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0005880837561562657,
+                  "detection": {
+                    "k": 3778,
+                    "n": 4014,
+                    "rate": 0.9412057797708022,
+                    "ci_low": 0.9334769147538157,
+                    "ci_high": 0.9482843028365227,
+                    "interval_95": [
+                      0.9334769147538157,
+                      0.9482843028365227
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 23,
+                    "n": 389,
+                    "rate": 0.05912596401028278,
+                    "ci_low": 0.03784628228824355,
+                    "ci_high": 0.0873996758676103,
+                    "interval_95": [
+                      0.03784628228824355,
+                      0.0873996758676103
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9933491135780552,
+              "margin": 2.0940743953490824,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001344688469544053,
+                  "detection": {
+                    "k": 4012,
+                    "n": 4014,
+                    "rate": 0.9995017438963627,
+                    "ci_low": 0.998201298627071,
+                    "ci_high": 0.9999396531774707,
+                    "interval_95": [
+                      0.998201298627071,
+                      0.9999396531774707
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 237,
+                    "n": 389,
+                    "rate": 0.609254498714653,
+                    "ci_low": 0.5588009179182819,
+                    "ci_high": 0.6580322362190925,
+                    "interval_95": [
+                      0.5588009179182819,
+                      0.6580322362190925
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0005880837561562657,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9639917102480648,
+              "margin": 0.8974482112654485,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001344688469544053,
+                  "detection": {
+                    "k": 3256,
+                    "n": 4014,
+                    "rate": 0.8111609367214748,
+                    "ci_low": 0.7987039265383784,
+                    "ci_high": 0.8231632910675646,
+                    "interval_95": [
+                      0.7987039265383784,
+                      0.8231632910675646
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 19,
+                    "n": 389,
+                    "rate": 0.04884318766066838,
+                    "ci_low": 0.02965944685929064,
+                    "ci_high": 0.07522596194358404,
+                    "interval_95": [
+                      0.02965944685929064,
+                      0.07522596194358404
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0005880837561562657,
+                  "detection": {
+                    "k": 3710,
+                    "n": 4014,
+                    "rate": 0.924265072247135,
+                    "ci_low": 0.9156429782297655,
+                    "ci_high": 0.9322633053824221,
+                    "interval_95": [
+                      0.9156429782297655,
+                      0.9322633053824221
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 47,
+                    "n": 389,
+                    "rate": 0.12082262210796915,
+                    "ci_low": 0.09014169761378177,
+                    "ci_high": 0.1574135616602674,
+                    "interval_95": [
+                      0.09014169761378177,
+                      0.1574135616602674
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9114910153793343,
+              "margin": 1.4552782120947412,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001344688469544053,
+                  "detection": {
+                    "k": 3965,
+                    "n": 4014,
+                    "rate": 0.9877927254608869,
+                    "ci_low": 0.9838931108911275,
+                    "ci_high": 0.9909557185930559,
+                    "interval_95": [
+                      0.9838931108911275,
+                      0.9909557185930559
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 263,
+                    "n": 389,
+                    "rate": 0.6760925449871465,
+                    "ci_low": 0.6270941636208086,
+                    "ci_high": 0.7223860860081901,
+                    "interval_95": [
+                      0.6270941636208086,
+                      0.7223860860081901
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0005880837561562657,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9945307106361668,
+              "margin": 1.6444890876327858,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001344688469544053,
+                  "detection": {
+                    "k": 3814,
+                    "n": 4014,
+                    "rate": 0.9501743896362731,
+                    "ci_low": 0.9429838044807567,
+                    "ci_high": 0.9567002429018376,
+                    "interval_95": [
+                      0.9429838044807567,
+                      0.9567002429018376
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 6,
+                    "n": 389,
+                    "rate": 0.015424164524421594,
+                    "ci_low": 0.00568088522248199,
+                    "ci_high": 0.03326806000834118,
+                    "interval_95": [
+                      0.00568088522248199,
+                      0.03326806000834118
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0005880837561562657,
+                  "detection": {
+                    "k": 3985,
+                    "n": 4014,
+                    "rate": 0.9927752864972595,
+                    "ci_low": 0.9896404652811224,
+                    "ci_high": 0.9951563123908197,
+                    "interval_95": [
+                      0.9896404652811224,
+                      0.9951563123908197
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 72,
+                    "n": 389,
+                    "rate": 0.18508997429305912,
+                    "ci_low": 0.14773336594332365,
+                    "ci_high": 0.2273173615795584,
+                    "interval_95": [
+                      0.14773336594332365,
+                      0.2273173615795584
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9766966004588054,
+              "margin": 1.8446388719903266,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.001344688469544053,
+                  "detection": {
+                    "k": 3998,
+                    "n": 4014,
+                    "rate": 0.9960139511709019,
+                    "ci_low": 0.9935349566844884,
+                    "ci_high": 0.9977199645853955,
+                    "interval_95": [
+                      0.9935349566844884,
+                      0.9977199645853955
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 204,
+                    "n": 389,
+                    "rate": 0.5244215938303342,
+                    "ci_low": 0.4734847666476255,
+                    "ci_high": 0.5749841035555302,
+                    "interval_95": [
+                      0.4734847666476255,
+                      0.5749841035555302
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0005880837561562657,
+                  "detection": {
+                    "k": 4013,
+                    "n": 4014,
+                    "rate": 0.9997508719481814,
+                    "ci_low": 0.9986127375222851,
+                    "ci_high": 0.999993692643712,
+                    "interval_95": [
+                      0.9986127375222851,
+                      0.999993692643712
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 381,
+                    "n": 389,
+                    "rate": 0.9794344473007712,
+                    "ci_low": 0.9598812299419158,
+                    "ci_high": 0.9910804412647218,
+                    "interval_95": [
+                      0.9598812299419158,
+                      0.9910804412647218
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 0.8111609367214748,
+            "worst_case_false_call_rate": 0.6760925449871465,
+            "worst_case_detection_rate_0.01": 0.8111609367214748,
+            "worst_case_false_call_rate_0.01": 0.6760925449871465
+          }
+        },
+        {
+          "held_out": "crack_4.0",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\robust_crack_4.0_s0.pt",
+            "models\\robust_crack_4.0_s1.pt",
+            "models\\robust_crack_4.0_s2.pt",
+            "models\\robust_crack_4.0_s3.pt",
+            "models\\robust_crack_4.0_s4.pt"
+          ],
+          "model_sha256": [
+            "74cd6d5c519a8ac1a26d92841f8162d268f2dcc3548d63ab3c3a965df1249428",
+            "c1e11f8f814f72367b3b9893db56ae29f9eaf74d7cd941889972160b5850feb5",
+            "4bb0b83deaf8c998d7217dc446d4ac86e0360b28446f4237c5647f32e88811a9",
+            "01a10082be265e4244a8f12957754b17ab5cd6d65799203996577e71775fc1de",
+            "92db10c06b263e9fc8661c57ede38a6b1b596a87b6a8246b70c830fdc35d0590"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.0021022693254053593,
+            "0.05": 0.0008382395026274025
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9878096904702768,
+              "margin": 0.6471986130016876,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0021022693254053593,
+                  "detection": {
+                    "k": 3393,
+                    "n": 4078,
+                    "rate": 0.8320255026974007,
+                    "ci_low": 0.8201920673699827,
+                    "ci_high": 0.8433811611998442,
+                    "interval_95": [
+                      0.8201920673699827,
+                      0.8433811611998442
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 4,
+                    "n": 389,
+                    "rate": 0.010282776349614395,
+                    "ci_low": 0.0028086184919814032,
+                    "ci_high": 0.0261174148660797,
+                    "interval_95": [
+                      0.0028086184919814032,
+                      0.0261174148660797
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0008382395026274025,
+                  "detection": {
+                    "k": 3881,
+                    "n": 4078,
+                    "rate": 0.9516920058852378,
+                    "ci_low": 0.9446576341831059,
+                    "ci_high": 0.9580697642106272,
+                    "interval_95": [
+                      0.9446576341831059,
+                      0.9580697642106272
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 18,
+                    "n": 389,
+                    "rate": 0.04627249357326478,
+                    "ci_low": 0.02765121704984377,
+                    "ci_high": 0.07214645162694391,
+                    "interval_95": [
+                      0.02765121704984377,
+                      0.07214645162694391
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9876451610056343,
+              "margin": 1.3606728822056053,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0021022693254053593,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0008382395026274025,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.8860081873896046,
+              "margin": -0.3844704957426819,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0021022693254053593,
+                  "detection": {
+                    "k": 834,
+                    "n": 4078,
+                    "rate": 0.20451201569396762,
+                    "ci_low": 0.1922250639837765,
+                    "ci_high": 0.21722373793010916,
+                    "interval_95": [
+                      0.1922250639837765,
+                      0.21722373793010916
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 4,
+                    "n": 389,
+                    "rate": 0.010282776349614395,
+                    "ci_low": 0.0028086184919814032,
+                    "ci_high": 0.0261174148660797,
+                    "interval_95": [
+                      0.0028086184919814032,
+                      0.0261174148660797
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0008382395026274025,
+                  "detection": {
+                    "k": 2086,
+                    "n": 4078,
+                    "rate": 0.5115252574791564,
+                    "ci_low": 0.4960571258018874,
+                    "ci_high": 0.5269768624213684,
+                    "interval_95": [
+                      0.4960571258018874,
+                      0.5269768624213684
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 18,
+                    "n": 389,
+                    "rate": 0.04627249357326478,
+                    "ci_low": 0.02765121704984377,
+                    "ci_high": 0.07214645162694391,
+                    "interval_95": [
+                      0.02765121704984377,
+                      0.07214645162694391
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9141118371700429,
+              "margin": 0.636804004584397,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0021022693254053593,
+                  "detection": {
+                    "k": 3963,
+                    "n": 4078,
+                    "rate": 0.9717999019127023,
+                    "ci_low": 0.9662461583416726,
+                    "ci_high": 0.9766630453908933,
+                    "interval_95": [
+                      0.9662461583416726,
+                      0.9766630453908933
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 164,
+                    "n": 389,
+                    "rate": 0.42159383033419023,
+                    "ci_low": 0.3719970832110985,
+                    "ci_high": 0.47239277015281705,
+                    "interval_95": [
+                      0.3719970832110985,
+                      0.47239277015281705
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0008382395026274025,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9858208381294828,
+              "margin": 0.49207496219876745,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0021022693254053593,
+                  "detection": {
+                    "k": 3289,
+                    "n": 4078,
+                    "rate": 0.806522805296714,
+                    "ci_low": 0.7940582942942283,
+                    "ci_high": 0.8185465639540572,
+                    "interval_95": [
+                      0.7940582942942283,
+                      0.8185465639540572
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 4,
+                    "n": 389,
+                    "rate": 0.010282776349614395,
+                    "ci_low": 0.0028086184919814032,
+                    "ci_high": 0.0261174148660797,
+                    "interval_95": [
+                      0.0028086184919814032,
+                      0.0261174148660797
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0008382395026274025,
+                  "detection": {
+                    "k": 3912,
+                    "n": 4078,
+                    "rate": 0.9592937714565963,
+                    "ci_low": 0.9527683414787176,
+                    "ci_high": 0.9651501998075402,
+                    "interval_95": [
+                      0.9527683414787176,
+                      0.9651501998075402
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 23,
+                    "n": 389,
+                    "rate": 0.05912596401028278,
+                    "ci_low": 0.03784628228824355,
+                    "ci_high": 0.0873996758676103,
+                    "interval_95": [
+                      0.03784628228824355,
+                      0.0873996758676103
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.918839064968336,
+              "margin": 2.2814533474556336,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0021022693254053593,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.0008382395026274025,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 0.20451201569396762,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 0.20451201569396762,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        },
+        {
+          "held_out": "crack_8.6",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\robust_crack_8.6_s0.pt",
+            "models\\robust_crack_8.6_s1.pt",
+            "models\\robust_crack_8.6_s2.pt",
+            "models\\robust_crack_8.6_s3.pt",
+            "models\\robust_crack_8.6_s4.pt"
+          ],
+          "model_sha256": [
+            "08c6b0e725dfacdffdbe5e180b7d348afb20aa359259251e9b161886cc56ec1b",
+            "6ee88a5e0e65be0637856b30ea2404d5ac5936db7e9ad25ae8fe641136987df3",
+            "0c5fa472c525bbcec4ec4dfec771ccfa0820c5e13d0c1882cfc067d37798b18a",
+            "6e0a9a3859959e87e32df7639d53635c9ae03c4e1a656fa519b054545c9f0a83",
+            "63d92e49cdb1fee9d74ee918f277c19f369f0880db04c67ffc646964d80d68ce"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.0002757249749265611,
+            "0.05": 0.00017077822121791542
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 3.5595238940989975,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0002757249749265611,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 7,
+                    "n": 389,
+                    "rate": 0.017994858611825194,
+                    "ci_low": 0.0072647117730278606,
+                    "ci_high": 0.03672334725240288,
+                    "interval_95": [
+                      0.0072647117730278606,
+                      0.03672334725240288
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00017077822121791542,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 15,
+                    "n": 389,
+                    "rate": 0.038560411311053984,
+                    "ci_low": 0.021739803040697055,
+                    "ci_high": 0.06280272535973809,
+                    "interval_95": [
+                      0.021739803040697055,
+                      0.06280272535973809
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 3.5595238940989975,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0002757249749265611,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 194,
+                    "n": 389,
+                    "rate": 0.4987146529562982,
+                    "ci_low": 0.4479160751073408,
+                    "ci_high": 0.5495329309711133,
+                    "interval_95": [
+                      0.4479160751073408,
+                      0.5495329309711133
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00017077822121791542,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 3.5595238940989975,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0002757249749265611,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 13,
+                    "n": 389,
+                    "rate": 0.033419023136246784,
+                    "ci_low": 0.017911912035102028,
+                    "ci_high": 0.056469600623069244,
+                    "interval_95": [
+                      0.017911912035102028,
+                      0.056469600623069244
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00017077822121791542,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 27,
+                    "n": 389,
+                    "rate": 0.06940874035989718,
+                    "ci_low": 0.04623586640985231,
+                    "ci_high": 0.09938172632920288,
+                    "interval_95": [
+                      0.04623586640985231,
+                      0.09938172632920288
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 3.5595238940989975,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0002757249749265611,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00017077822121791542,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 1.0,
+              "margin": 3.5595238940989975,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0002757249749265611,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 34,
+                    "n": 389,
+                    "rate": 0.08740359897172237,
+                    "ci_low": 0.06128881037694548,
+                    "ci_high": 0.11999587590812863,
+                    "interval_95": [
+                      0.06128881037694548,
+                      0.11999587590812863
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00017077822121791542,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 160,
+                    "n": 389,
+                    "rate": 0.41131105398457585,
+                    "ci_low": 0.3619652861822701,
+                    "ci_high": 0.4620168353617606,
+                    "interval_95": [
+                      0.3619652861822701,
+                      0.4620168353617606
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 1.0,
+              "margin": 3.5595238940989975,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.0002757249749265611,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.00017077822121791542,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 1.0,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 1.0,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        }
+      ]
+    },
+    "lite": {
+      "status": "evaluated",
+      "folds": [
+        {
+          "held_out": "crack_1.6",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\lite_crack_1.6_s0.pt",
+            "models\\lite_crack_1.6_s1.pt",
+            "models\\lite_crack_1.6_s2.pt",
+            "models\\lite_crack_1.6_s3.pt",
+            "models\\lite_crack_1.6_s4.pt"
+          ],
+          "model_sha256": [
+            "b7ee52cc78304a0561d87949ef5e521d3e7f6487e469331d22a4acabb37236cb",
+            "21dee1952f64ffe38a8d23188f649e7696d1d3d12587c34e2232563349c5ad91",
+            "6bd4c711b8975bff8f368f5d365582257ed2c1ee50670d057de17987776e86cd",
+            "018218434b555e287bfa310e9f78bb894edb2572229a411bfc19b2679be87ec2",
+            "20979737d45c82b67b6d8103a111d2a2e5857cf002831aa81584e2a11bc679f0"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.09855777025222778,
+            "0.05": 0.04788155108690262
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9965922612757662,
+              "margin": 0.5584667875794733,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.09855777025222778,
+                  "detection": {
+                    "k": 3677,
+                    "n": 4014,
+                    "rate": 0.9160438465371201,
+                    "ci_low": 0.9070340859302026,
+                    "ci_high": 0.9244423820956863,
+                    "interval_95": [
+                      0.9070340859302026,
+                      0.9244423820956863
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 4,
+                    "n": 389,
+                    "rate": 0.010282776349614395,
+                    "ci_low": 0.0028086184919814032,
+                    "ci_high": 0.0261174148660797,
+                    "interval_95": [
+                      0.0028086184919814032,
+                      0.0261174148660797
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.04788155108690262,
+                  "detection": {
+                    "k": 3944,
+                    "n": 4014,
+                    "rate": 0.9825610363726955,
+                    "ci_low": 0.9780176663519101,
+                    "ci_high": 0.9863808936484358,
+                    "interval_95": [
+                      0.9780176663519101,
+                      0.9863808936484358
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 13,
+                    "n": 389,
+                    "rate": 0.033419023136246784,
+                    "ci_low": 0.017911912035102028,
+                    "ci_high": 0.056469600623069244,
+                    "interval_95": [
+                      0.017911912035102028,
+                      0.056469600623069244
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9994505093355773,
+              "margin": 0.8451282809640419,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.09855777025222778,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 99,
+                    "n": 389,
+                    "rate": 0.2544987146529563,
+                    "ci_low": 0.21193949226676706,
+                    "ci_high": 0.3008384650250264,
+                    "interval_95": [
+                      0.21193949226676706,
+                      0.3008384650250264
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.04788155108690262,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 385,
+                    "n": 389,
+                    "rate": 0.9897172236503856,
+                    "ci_low": 0.9738825851339203,
+                    "ci_high": 0.9971913815080186,
+                    "interval_95": [
+                      0.9738825851339203,
+                      0.9971913815080186
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9760715388172245,
+              "margin": 0.3366103065259326,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.09855777025222778,
+                  "detection": {
+                    "k": 3165,
+                    "n": 4014,
+                    "rate": 0.7884902840059791,
+                    "ci_low": 0.7755244787741645,
+                    "ci_high": 0.8010347924209061,
+                    "interval_95": [
+                      0.7755244787741645,
+                      0.8010347924209061
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 8,
+                    "n": 389,
+                    "rate": 0.02056555269922879,
+                    "ci_low": 0.008919558735278131,
+                    "ci_high": 0.04011877005808419,
+                    "interval_95": [
+                      0.008919558735278131,
+                      0.04011877005808419
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.04788155108690262,
+                  "detection": {
+                    "k": 3728,
+                    "n": 4014,
+                    "rate": 0.9287493771798705,
+                    "ci_low": 0.9203503460691629,
+                    "ci_high": 0.9365176043358494,
+                    "interval_95": [
+                      0.9203503460691629,
+                      0.9365176043358494
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 35,
+                    "n": 389,
+                    "rate": 0.08997429305912596,
+                    "ci_low": 0.06347111671912022,
+                    "ci_high": 0.12291011275719671,
+                    "interval_95": [
+                      0.06347111671912022,
+                      0.12291011275719671
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.7927232193748615,
+              "margin": 0.9648071875806924,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.09855777025222778,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.04788155108690262,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9932933959932011,
+              "margin": 0.3267058258972385,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.09855777025222778,
+                  "detection": {
+                    "k": 3007,
+                    "n": 4014,
+                    "rate": 0.7491280518186347,
+                    "ci_low": 0.7354140608605737,
+                    "ci_high": 0.7624784980492466,
+                    "interval_95": [
+                      0.7354140608605737,
+                      0.7624784980492466
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 1,
+                    "n": 389,
+                    "rate": 0.002570694087403599,
+                    "ci_low": 6.508222135157167e-05,
+                    "ci_high": 0.014239109513372976,
+                    "interval_95": [
+                      6.508222135157167e-05,
+                      0.014239109513372976
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.04788155108690262,
+                  "detection": {
+                    "k": 3616,
+                    "n": 4014,
+                    "rate": 0.9008470353761834,
+                    "ci_low": 0.8911829495364335,
+                    "ci_high": 0.9099230116307908,
+                    "interval_95": [
+                      0.8911829495364335,
+                      0.9099230116307908
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 5,
+                    "n": 389,
+                    "rate": 0.012853470437017995,
+                    "ci_low": 0.004186303759600851,
+                    "ci_high": 0.02973933787667276,
+                    "interval_95": [
+                      0.004186303759600851,
+                      0.02973933787667276
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.6953298416980158,
+              "margin": 0.7104320570815437,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.09855777025222778,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.04788155108690262,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 0.7491280518186347,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 0.7491280518186347,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        },
+        {
+          "held_out": "crack_4.0",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\lite_crack_4.0_s0.pt",
+            "models\\lite_crack_4.0_s1.pt",
+            "models\\lite_crack_4.0_s2.pt",
+            "models\\lite_crack_4.0_s3.pt",
+            "models\\lite_crack_4.0_s4.pt"
+          ],
+          "model_sha256": [
+            "96bb97a5c5c55b865a2a1cc050eede5cec28e55b73d78281489388a84013bf54",
+            "589277b19fb482320ab304f8d21addfa91b8590c7fa11d18657af7b0253bab38",
+            "1172fb9f58025c4c3c1beb381aa106b86d60531e6aa848fdaf810375c25bc934",
+            "17fd92bebe21550dcc466dcf9c63b0345011b637cceddd9d24312b29673e74c9",
+            "440a80315181e5bc2f07685557e8c3e192d2a51224386feaf028c1fa509fd7ea"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.10212017595767975,
+            "0.05": 0.040986862033605576
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.997668220345928,
+              "margin": 0.7393374744497712,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.10212017595767975,
+                  "detection": {
+                    "k": 3908,
+                    "n": 4078,
+                    "rate": 0.9583128984796468,
+                    "ci_low": 0.9517188820856242,
+                    "ci_high": 0.9642395347198246,
+                    "interval_95": [
+                      0.9517188820856242,
+                      0.9642395347198246
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.040986862033605576,
+                  "detection": {
+                    "k": 4026,
+                    "n": 4078,
+                    "rate": 0.9872486512996567,
+                    "ci_low": 0.9833115561102039,
+                    "ci_high": 0.9904624183806616,
+                    "interval_95": [
+                      0.9833115561102039,
+                      0.9904624183806616
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 11,
+                    "n": 389,
+                    "rate": 0.028277634961439587,
+                    "ci_low": 0.014198835686796037,
+                    "ci_high": 0.05003236400811133,
+                    "interval_95": [
+                      0.014198835686796037,
+                      0.05003236400811133
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9942736181731304,
+              "margin": 0.7717233296013741,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.10212017595767975,
+                  "detection": {
+                    "k": 4053,
+                    "n": 4078,
+                    "rate": 0.9938695438940657,
+                    "ci_low": 0.9909634532496887,
+                    "ci_high": 0.9960288789997009,
+                    "interval_95": [
+                      0.9909634532496887,
+                      0.9960288789997009
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 81,
+                    "n": 389,
+                    "rate": 0.20822622107969152,
+                    "ci_low": 0.16894384210226895,
+                    "ci_high": 0.25201357494641974,
+                    "interval_95": [
+                      0.16894384210226895,
+                      0.25201357494641974
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.040986862033605576,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9920237880608342,
+              "margin": 0.5282717610150142,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.10212017595767975,
+                  "detection": {
+                    "k": 3640,
+                    "n": 4078,
+                    "rate": 0.8925944090240314,
+                    "ci_low": 0.8826859087903844,
+                    "ci_high": 0.9019363595257743,
+                    "interval_95": [
+                      0.8826859087903844,
+                      0.9019363595257743
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 2,
+                    "n": 389,
+                    "rate": 0.005141388174807198,
+                    "ci_low": 0.0006232535611988801,
+                    "ci_high": 0.01844815528196217,
+                    "interval_95": [
+                      0.0006232535611988801,
+                      0.01844815528196217
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.040986862033605576,
+                  "detection": {
+                    "k": 3956,
+                    "n": 4078,
+                    "rate": 0.9700833742030407,
+                    "ci_low": 0.964383727399359,
+                    "ci_high": 0.9750955188783321,
+                    "interval_95": [
+                      0.964383727399359,
+                      0.9750955188783321
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 16,
+                    "n": 389,
+                    "rate": 0.04113110539845758,
+                    "ci_low": 0.02368974710667882,
+                    "ci_high": 0.06593628363404892,
+                    "interval_95": [
+                      0.02368974710667882,
+                      0.06593628363404892
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.8288089831826934,
+              "margin": 0.9904089799424083,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.10212017595767975,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.040986862033605576,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9961635006827027,
+              "margin": 0.6965195433556459,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.10212017595767975,
+                  "detection": {
+                    "k": 3840,
+                    "n": 4078,
+                    "rate": 0.9416380578715057,
+                    "ci_low": 0.9339982495864386,
+                    "ci_high": 0.9486371617475906,
+                    "interval_95": [
+                      0.9339982495864386,
+                      0.9486371617475906
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.040986862033605576,
+                  "detection": {
+                    "k": 4005,
+                    "n": 4078,
+                    "rate": 0.9820990681706719,
+                    "ci_low": 0.9775442557198732,
+                    "ci_high": 0.9859429508963202,
+                    "interval_95": [
+                      0.9775442557198732,
+                      0.9859429508963202
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 10,
+                    "n": 389,
+                    "rate": 0.02570694087403599,
+                    "ci_low": 0.012394795678428905,
+                    "ci_high": 0.04676676291456643,
+                    "interval_95": [
+                      0.012394795678428905,
+                      0.04676676291456643
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.7044111547194741,
+              "margin": 0.7983680421833073,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.10212017595767975,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.040986862033605576,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 0.8925944090240314,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 0.8925944090240314,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        },
+        {
+          "held_out": "crack_8.6",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\lite_crack_8.6_s0.pt",
+            "models\\lite_crack_8.6_s1.pt",
+            "models\\lite_crack_8.6_s2.pt",
+            "models\\lite_crack_8.6_s3.pt",
+            "models\\lite_crack_8.6_s4.pt"
+          ],
+          "model_sha256": [
+            "66d9c24271583118b602b42c6b09ab935c504f38a02815af28ff331bc0839e35",
+            "89b01d5c7b4b8b6eb971a78a83b7b989c469f792b57e3f9b36fe35f181431b16",
+            "8d601d2bcc373828a3acb29b5c23492d22320cbde09607e863cf801e289322e8",
+            "87cd785b9b03b7e6eb250cd7e0c9ae6c88b353b65e20b0d8d45e518ae5f9337a",
+            "62384a3b50d7bc3b6c8484595c6b0008766619ed93c5a2bf38910959cb060f68"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.17735369503498077,
+            "0.05": 0.08940726518630981
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 0.7511597588887639,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.17735369503498077,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 1,
+                    "n": 389,
+                    "rate": 0.002570694087403599,
+                    "ci_low": 6.508222135157167e-05,
+                    "ci_high": 0.014239109513372976,
+                    "interval_95": [
+                      6.508222135157167e-05,
+                      0.014239109513372976
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.08940726518630981,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 19,
+                    "n": 389,
+                    "rate": 0.04884318766066838,
+                    "ci_low": 0.02965944685929064,
+                    "ci_high": 0.07522596194358404,
+                    "interval_95": [
+                      0.02965944685929064,
+                      0.07522596194358404
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 0.7511597588887639,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.17735369503498077,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 9,
+                    "n": 389,
+                    "rate": 0.02313624678663239,
+                    "ci_low": 0.010632689152907219,
+                    "ci_high": 0.04346412555288587,
+                    "interval_95": [
+                      0.010632689152907219,
+                      0.04346412555288587
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.08940726518630981,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 168,
+                    "n": 389,
+                    "rate": 0.4318766066838046,
+                    "ci_low": 0.3820505804950481,
+                    "ci_high": 0.4827470567219837,
+                    "interval_95": [
+                      0.3820505804950481,
+                      0.4827470567219837
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 0.7511597588887639,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.17735369503498077,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 1,
+                    "n": 389,
+                    "rate": 0.002570694087403599,
+                    "ci_low": 6.508222135157167e-05,
+                    "ci_high": 0.014239109513372976,
+                    "interval_95": [
+                      6.508222135157167e-05,
+                      0.014239109513372976
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.08940726518630981,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 20,
+                    "n": 389,
+                    "rate": 0.05141388174807198,
+                    "ci_low": 0.03168416801737865,
+                    "ci_high": 0.07829005439699915,
+                    "interval_95": [
+                      0.03168416801737865,
+                      0.07829005439699915
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9999374519018225,
+              "margin": 0.7511597588887639,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.17735369503498077,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.08940726518630981,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 1.0,
+              "margin": 0.7511597588887639,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.17735369503498077,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.08940726518630981,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 10,
+                    "n": 389,
+                    "rate": 0.02570694087403599,
+                    "ci_low": 0.012394795678428905,
+                    "ci_high": 0.04676676291456643,
+                    "interval_95": [
+                      0.012394795678428905,
+                      0.04676676291456643
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.1375308237682773,
+              "margin": 0.532674961737911,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.17735369503498077,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.08940726518630981,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 1.0,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 1.0,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        }
+      ]
+    },
+    "invariant": {
+      "status": "evaluated",
+      "folds": [
+        {
+          "held_out": "crack_1.6",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\invariant_crack_1.6_s0.pt",
+            "models\\invariant_crack_1.6_s1.pt",
+            "models\\invariant_crack_1.6_s2.pt"
+          ],
+          "model_sha256": [
+            "459cd084ea77b785631da3225f109f5632517ad2c7969545cd1e76207c6f1936",
+            "fe31f96d618beadb2ff2be539c0be627f05c8c57a0a4c1dfaf37a304f1f2d8f9",
+            "0033ee5633545b9173305077f18d6d38093ea8c6e42eb10d60268a0c8bd9e3c5"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.22024284303188324,
+            "0.05": 0.09605807811021805
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9915879255510597,
+              "margin": 0.3044495121531516,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.22024284303188324,
+                  "detection": {
+                    "k": 3262,
+                    "n": 4014,
+                    "rate": 0.8126557050323866,
+                    "ci_low": 0.80023447488813,
+                    "ci_high": 0.8246200766540468,
+                    "interval_95": [
+                      0.80023447488813,
+                      0.8246200766540468
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 4,
+                    "n": 389,
+                    "rate": 0.010282776349614395,
+                    "ci_low": 0.0028086184919814032,
+                    "ci_high": 0.0261174148660797,
+                    "interval_95": [
+                      0.0028086184919814032,
+                      0.0261174148660797
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.09605807811021805,
+                  "detection": {
+                    "k": 3872,
+                    "n": 4014,
+                    "rate": 0.9646238166417539,
+                    "ci_low": 0.9584360618296323,
+                    "ci_high": 0.9701226507409036,
+                    "interval_95": [
+                      0.9584360618296323,
+                      0.9701226507409036
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 16,
+                    "n": 389,
+                    "rate": 0.04113110539845758,
+                    "ci_low": 0.02368974710667882,
+                    "ci_high": 0.06593628363404892,
+                    "interval_95": [
+                      0.02368974710667882,
+                      0.06593628363404892
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9962092829338959,
+              "margin": 0.42359232113670114,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.22024284303188324,
+                  "detection": {
+                    "k": 3796,
+                    "n": 4014,
+                    "rate": 0.9456900847035377,
+                    "ci_low": 0.9382237035199793,
+                    "ci_high": 0.9524989712640555,
+                    "interval_95": [
+                      0.9382237035199793,
+                      0.9524989712640555
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.09605807811021805,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 369,
+                    "n": 389,
+                    "rate": 0.9485861182519281,
+                    "ci_low": 0.9217099456030009,
+                    "ci_high": 0.9683158319826214,
+                    "interval_95": [
+                      0.9217099456030009,
+                      0.9683158319826214
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9493712878959631,
+              "margin": 0.022920882747854976,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.22024284303188324,
+                  "detection": {
+                    "k": 2113,
+                    "n": 4014,
+                    "rate": 0.5264075734927753,
+                    "ci_low": 0.5108222693021334,
+                    "ci_high": 0.5419544031506479,
+                    "interval_95": [
+                      0.5108222693021334,
+                      0.5419544031506479
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 9,
+                    "n": 389,
+                    "rate": 0.02313624678663239,
+                    "ci_low": 0.010632689152907219,
+                    "ci_high": 0.04346412555288587,
+                    "interval_95": [
+                      0.010632689152907219,
+                      0.04346412555288587
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.09605807811021805,
+                  "detection": {
+                    "k": 3664,
+                    "n": 4014,
+                    "rate": 0.9128051818634778,
+                    "ci_low": 0.9036496032956938,
+                    "ci_high": 0.9213544850887769,
+                    "interval_95": [
+                      0.9036496032956938,
+                      0.9213544850887769
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 54,
+                    "n": 389,
+                    "rate": 0.13881748071979436,
+                    "ci_low": 0.10603418924987723,
+                    "ci_high": 0.17721500565187967,
+                    "interval_95": [
+                      0.10603418924987723,
+                      0.17721500565187967
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9264841691611494,
+              "margin": 0.605156664251178,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.22024284303188324,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 387,
+                    "n": 389,
+                    "rate": 0.9948586118251928,
+                    "ci_low": 0.9815518447180378,
+                    "ci_high": 0.9993767464388011,
+                    "interval_95": [
+                      0.9815518447180378,
+                      0.9993767464388011
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.09605807811021805,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9915469379024314,
+              "margin": 0.27795857285175574,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.22024284303188324,
+                  "detection": {
+                    "k": 3142,
+                    "n": 4014,
+                    "rate": 0.7827603388141505,
+                    "ci_low": 0.7696754544883272,
+                    "ci_high": 0.795432345045179,
+                    "interval_95": [
+                      0.7696754544883272,
+                      0.795432345045179
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 2,
+                    "n": 389,
+                    "rate": 0.005141388174807198,
+                    "ci_low": 0.0006232535611988801,
+                    "ci_high": 0.01844815528196217,
+                    "interval_95": [
+                      0.0006232535611988801,
+                      0.01844815528196217
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.09605807811021805,
+                  "detection": {
+                    "k": 3845,
+                    "n": 4014,
+                    "rate": 0.9578973592426507,
+                    "ci_low": 0.9512182114559546,
+                    "ci_high": 0.9638990504320255,
+                    "interval_95": [
+                      0.9512182114559546,
+                      0.9638990504320255
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 16,
+                    "n": 389,
+                    "rate": 0.04113110539845758,
+                    "ci_low": 0.02368974710667882,
+                    "ci_high": 0.06593628363404892,
+                    "interval_95": [
+                      0.02368974710667882,
+                      0.06593628363404892
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.8528236006880802,
+              "margin": 0.4779268180883003,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.22024284303188324,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.09605807811021805,
+                  "detection": {
+                    "k": 4014,
+                    "n": 4014,
+                    "rate": 1.0,
+                    "ci_low": 0.9990814188024528,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990814188024528,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 0.5264075734927753,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 0.5264075734927753,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        },
+        {
+          "held_out": "crack_4.0",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\invariant_crack_4.0_s0.pt",
+            "models\\invariant_crack_4.0_s1.pt",
+            "models\\invariant_crack_4.0_s2.pt"
+          ],
+          "model_sha256": [
+            "7b9887dd743dd556bd14d49bd467a9830a129c7c0244caf9c8b50316f5a5c541",
+            "77b05be169be3d6fae6f76c47134173f5259a208f6804f627e2df76e71b77920",
+            "d22e392be542cf2ee5971aa66b0a0d1a0f66f8ccaa6427eab078e00eb89aac07"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.3036346733570099,
+            "0.05": 0.11303073167800903
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9891435768579536,
+              "margin": 0.18118912992675834,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.3036346733570099,
+                  "detection": {
+                    "k": 2943,
+                    "n": 4078,
+                    "rate": 0.7216772927905836,
+                    "ci_low": 0.7076438806959764,
+                    "ci_high": 0.7353924479054166,
+                    "interval_95": [
+                      0.7076438806959764,
+                      0.7353924479054166
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.11303073167800903,
+                  "detection": {
+                    "k": 3832,
+                    "n": 4078,
+                    "rate": 0.9396763119176067,
+                    "ci_low": 0.9319258625212494,
+                    "ci_high": 0.9467891152804427,
+                    "interval_95": [
+                      0.9319258625212494,
+                      0.9467891152804427
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 12,
+                    "n": 389,
+                    "rate": 0.030848329048843187,
+                    "ci_low": 0.016039328940135437,
+                    "ci_high": 0.05326543026862415,
+                    "interval_95": [
+                      0.016039328940135437,
+                      0.05326543026862415
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.983550835822288,
+              "margin": 0.1452958146355965,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.3036346733570099,
+                  "detection": {
+                    "k": 2875,
+                    "n": 4078,
+                    "rate": 0.7050024521824424,
+                    "ci_low": 0.6907396966801826,
+                    "ci_high": 0.7189709491546812,
+                    "interval_95": [
+                      0.6907396966801826,
+                      0.7189709491546812
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.11303073167800903,
+                  "detection": {
+                    "k": 4077,
+                    "n": 4078,
+                    "rate": 0.9997547817557626,
+                    "ci_low": 0.9986344969721024,
+                    "ci_high": 0.9999937916308501,
+                    "interval_95": [
+                      0.9986344969721024,
+                      0.9999937916308501
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 380,
+                    "n": 389,
+                    "rate": 0.9768637532133676,
+                    "ci_low": 0.9565358744471142,
+                    "ci_high": 0.9893673108470927,
+                    "interval_95": [
+                      0.9565358744471142,
+                      0.9893673108470927
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 0.970081483059769,
+              "margin": 0.020607257978828397,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.3036346733570099,
+                  "detection": {
+                    "k": 2146,
+                    "n": 4078,
+                    "rate": 0.5262383521333988,
+                    "ci_low": 0.5107767278329955,
+                    "ci_high": 0.5416623513033709,
+                    "interval_95": [
+                      0.5107767278329955,
+                      0.5416623513033709
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.11303073167800903,
+                  "detection": {
+                    "k": 3505,
+                    "n": 4078,
+                    "rate": 0.8594899460519863,
+                    "ci_low": 0.8484439281993066,
+                    "ci_high": 0.8700181254693744,
+                    "interval_95": [
+                      0.8484439281993066,
+                      0.8700181254693744
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 19,
+                    "n": 389,
+                    "rate": 0.04884318766066838,
+                    "ci_low": 0.02965944685929064,
+                    "ci_high": 0.07522596194358404,
+                    "interval_95": [
+                      0.02965944685929064,
+                      0.07522596194358404
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9096796277221432,
+              "margin": 0.5160211422586399,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.3036346733570099,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.11303073167800903,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9888517104130132,
+              "margin": -0.02255317814435298,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.3036346733570099,
+                  "detection": {
+                    "k": 1945,
+                    "n": 4078,
+                    "rate": 0.4769494850416871,
+                    "ci_low": 0.46151837478724567,
+                    "ci_high": 0.4924136490406519,
+                    "interval_95": [
+                      0.46151837478724567,
+                      0.4924136490406519
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.11303073167800903,
+                  "detection": {
+                    "k": 3398,
+                    "n": 4078,
+                    "rate": 0.8332515939185875,
+                    "ci_low": 0.8214507743001385,
+                    "ci_high": 0.8445728529864107,
+                    "interval_95": [
+                      0.8214507743001385,
+                      0.8445728529864107
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 3,
+                    "n": 389,
+                    "rate": 0.007712082262210797,
+                    "ci_low": 0.0015932492859270654,
+                    "ci_high": 0.02237144346398195,
+                    "interval_95": [
+                      0.0015932492859270654,
+                      0.02237144346398195
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.6928108818905381,
+              "margin": 0.5085280267818981,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.3036346733570099,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.11303073167800903,
+                  "detection": {
+                    "k": 4078,
+                    "n": 4078,
+                    "rate": 1.0,
+                    "ci_low": 0.9990958284667015,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9990958284667015,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 0.4769494850416871,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 0.4769494850416871,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        },
+        {
+          "held_out": "crack_8.6",
+          "status": "evaluated",
+          "model_paths": [
+            "models\\invariant_crack_8.6_s0.pt",
+            "models\\invariant_crack_8.6_s1.pt",
+            "models\\invariant_crack_8.6_s2.pt"
+          ],
+          "model_sha256": [
+            "1c1a87d57ec966e5bb6ab3ce951177bc9ad5cf75247217072f61491eb7886435",
+            "ab33302c708f8103f5648550003f42dae4ec6a4c5bf59823a243af7e39cc2168",
+            "5e1cbede6e87fc9c75f173c95200f837c3f06cf639342a8b52d63f92cbec07be"
+          ],
+          "unshifted_thresholds": {
+            "0.01": 0.4427298605442047,
+            "0.05": 0.36978641152381897
+          },
+          "shifts": [
+            {
+              "shift_name": "identity",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 0.3073045966180267,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.4427298605442047,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.36978641152381897,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 12,
+                    "n": 389,
+                    "rate": 0.030848329048843187,
+                    "ci_low": 0.016039328940135437,
+                    "ci_high": 0.05326543026862415,
+                    "interval_95": [
+                      0.016039328940135437,
+                      0.05326543026862415
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 0.5",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 0.2911795346079212,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.4427298605442047,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 6,
+                    "n": 389,
+                    "rate": 0.015424164524421594,
+                    "ci_low": 0.00568088522248199,
+                    "ci_high": 0.03326806000834118,
+                    "interval_95": [
+                      0.00568088522248199,
+                      0.03326806000834118
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.36978641152381897,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "gain 2.0",
+              "shift_params": {
+                "gain": 2.0,
+                "offset": 0.0,
+                "noise_std": 0.0
+              },
+              "auroc": 1.0,
+              "margin": 0.32525944492929854,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.4427298605442047,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.36978641152381897,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 1,
+                    "n": 389,
+                    "rate": 0.002570694087403599,
+                    "ci_low": 6.508222135157167e-05,
+                    "ci_high": 0.014239109513372976,
+                    "interval_95": [
+                      6.508222135157167e-05,
+                      0.014239109513372976
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "offset +0.5",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.5,
+                "noise_std": 0.0
+              },
+              "auroc": 0.9947806723101862,
+              "margin": 0.3148000337867528,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.4427298605442047,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.36978641152381897,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "noise 0.2",
+              "shift_params": {
+                "gain": 1.0,
+                "offset": 0.0,
+                "noise_std": 0.2
+              },
+              "auroc": 1.0,
+              "margin": 0.3028060383090591,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.4427298605442047,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 0,
+                    "n": 389,
+                    "rate": 0.0,
+                    "ci_low": 0.0,
+                    "ci_high": 0.009438158934181894,
+                    "interval_95": [
+                      0.0,
+                      0.009438158934181894
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.36978641152381897,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 9,
+                    "n": 389,
+                    "rate": 0.02313624678663239,
+                    "ci_low": 0.010632689152907219,
+                    "ci_high": 0.04346412555288587,
+                    "interval_95": [
+                      0.010632689152907219,
+                      0.04346412555288587
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "shift_name": "combined",
+              "shift_params": {
+                "gain": 0.5,
+                "offset": 0.5,
+                "noise_std": 0.2
+              },
+              "auroc": 0.9998997920521343,
+              "margin": 0.28735220445771903,
+              "operating_points": {
+                "0.01": {
+                  "target_fcr": 0.01,
+                  "threshold": 0.4427298605442047,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                },
+                "0.05": {
+                  "target_fcr": 0.05,
+                  "threshold": 0.36978641152381897,
+                  "detection": {
+                    "k": 3925,
+                    "n": 3925,
+                    "rate": 1.0,
+                    "ci_low": 0.999060599613932,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.999060599613932,
+                      1.0
+                    ]
+                  },
+                  "false_calls": {
+                    "k": 389,
+                    "n": 389,
+                    "rate": 1.0,
+                    "ci_low": 0.9905618410658181,
+                    "ci_high": 1.0,
+                    "interval_95": [
+                      0.9905618410658181,
+                      1.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "summary": {
+            "worst_case_detection_rate": 1.0,
+            "worst_case_false_call_rate": 1.0,
+            "worst_case_detection_rate_0.01": 1.0,
+            "worst_case_false_call_rate_0.01": 1.0
+          }
+        }
+      ]
+    }
+  },
+  "model_sha256": {
+    "loco_crack_1.6_seed0.pt": "430ad4982608b12dee45cb652464a5c268c1ce126e1db3aed0ce7087be97a7c3",
+    "loco_crack_1.6_seed1.pt": "2aba3e9556f15e84451966ec0646ce40d3db5d8b8f93094a71caf14733e72710",
+    "loco_crack_1.6_seed2.pt": "b9f780b2def10efb32a42c27e5a661708c8320c1ce343a3f8fc3ec9ac5bf57ec",
+    "loco_crack_4.0_seed0.pt": "36938c97203f4fcdc25400376ccf1b4e5cdf50e0c2c30cfa0939d7f5a98d82e0",
+    "loco_crack_4.0_seed1.pt": "934e5c8f75f724760ee61bf47d6393557100c110e0d0107f8b7e8300f576b41d",
+    "loco_crack_4.0_seed2.pt": "cbada037b3bc7126919e20aeee8160a39563cc35f999defd55ced091585e36ea",
+    "loco_crack_8.6_seed0.pt": "7285c522ffcc0e169a9dceec9baf2c1b4153803dc995b06c05a889619c96c31e",
+    "loco_crack_8.6_seed1.pt": "a9931327e1223927252e68c0a4969062ec52661ae15117d9a47e070520fceda8",
+    "loco_crack_8.6_seed2.pt": "7b56f64f6e0e697b5eae164733701fef04f8861bc50665d489ba499778f7844f",
+    "robust_crack_1.6_s0.pt": "bc188f120cbf62ab9711e76c97cf8ce29212e97228d830dc4824b2954e2261a2",
+    "robust_crack_1.6_s1.pt": "43fcaf26281f992de8fab7ef4243508d1a5c04564de63307089d13a0cb424197",
+    "robust_crack_1.6_s2.pt": "3a61238141b988c9bb516427b6662b687782d39a14e729292df125b220443731",
+    "robust_crack_1.6_s3.pt": "bc7232b0f0b6b5f7cd15545ac7dfbde94cd409d8259fd95cf0db77155fc5bb03",
+    "robust_crack_1.6_s4.pt": "e0f065b8702c0a648d7ce738cda92a2e9955a5db9735aeeccff8a373e0482382",
+    "robust_crack_4.0_s0.pt": "74cd6d5c519a8ac1a26d92841f8162d268f2dcc3548d63ab3c3a965df1249428",
+    "robust_crack_4.0_s1.pt": "c1e11f8f814f72367b3b9893db56ae29f9eaf74d7cd941889972160b5850feb5",
+    "robust_crack_4.0_s2.pt": "4bb0b83deaf8c998d7217dc446d4ac86e0360b28446f4237c5647f32e88811a9",
+    "robust_crack_4.0_s3.pt": "01a10082be265e4244a8f12957754b17ab5cd6d65799203996577e71775fc1de",
+    "robust_crack_4.0_s4.pt": "92db10c06b263e9fc8661c57ede38a6b1b596a87b6a8246b70c830fdc35d0590",
+    "robust_crack_8.6_s0.pt": "08c6b0e725dfacdffdbe5e180b7d348afb20aa359259251e9b161886cc56ec1b",
+    "robust_crack_8.6_s1.pt": "6ee88a5e0e65be0637856b30ea2404d5ac5936db7e9ad25ae8fe641136987df3",
+    "robust_crack_8.6_s2.pt": "0c5fa472c525bbcec4ec4dfec771ccfa0820c5e13d0c1882cfc067d37798b18a",
+    "robust_crack_8.6_s3.pt": "6e0a9a3859959e87e32df7639d53635c9ae03c4e1a656fa519b054545c9f0a83",
+    "robust_crack_8.6_s4.pt": "63d92e49cdb1fee9d74ee918f277c19f369f0880db04c67ffc646964d80d68ce",
+    "lite_crack_1.6_s0.pt": "b7ee52cc78304a0561d87949ef5e521d3e7f6487e469331d22a4acabb37236cb",
+    "lite_crack_1.6_s1.pt": "21dee1952f64ffe38a8d23188f649e7696d1d3d12587c34e2232563349c5ad91",
+    "lite_crack_1.6_s2.pt": "6bd4c711b8975bff8f368f5d365582257ed2c1ee50670d057de17987776e86cd",
+    "lite_crack_1.6_s3.pt": "018218434b555e287bfa310e9f78bb894edb2572229a411bfc19b2679be87ec2",
+    "lite_crack_1.6_s4.pt": "20979737d45c82b67b6d8103a111d2a2e5857cf002831aa81584e2a11bc679f0",
+    "lite_crack_4.0_s0.pt": "96bb97a5c5c55b865a2a1cc050eede5cec28e55b73d78281489388a84013bf54",
+    "lite_crack_4.0_s1.pt": "589277b19fb482320ab304f8d21addfa91b8590c7fa11d18657af7b0253bab38",
+    "lite_crack_4.0_s2.pt": "1172fb9f58025c4c3c1beb381aa106b86d60531e6aa848fdaf810375c25bc934",
+    "lite_crack_4.0_s3.pt": "17fd92bebe21550dcc466dcf9c63b0345011b637cceddd9d24312b29673e74c9",
+    "lite_crack_4.0_s4.pt": "440a80315181e5bc2f07685557e8c3e192d2a51224386feaf028c1fa509fd7ea",
+    "lite_crack_8.6_s0.pt": "66d9c24271583118b602b42c6b09ab935c504f38a02815af28ff331bc0839e35",
+    "lite_crack_8.6_s1.pt": "89b01d5c7b4b8b6eb971a78a83b7b989c469f792b57e3f9b36fe35f181431b16",
+    "lite_crack_8.6_s2.pt": "8d601d2bcc373828a3acb29b5c23492d22320cbde09607e863cf801e289322e8",
+    "lite_crack_8.6_s3.pt": "87cd785b9b03b7e6eb250cd7e0c9ae6c88b353b65e20b0d8d45e518ae5f9337a",
+    "lite_crack_8.6_s4.pt": "62384a3b50d7bc3b6c8484595c6b0008766619ed93c5a2bf38910959cb060f68",
+    "invariant_crack_1.6_s0.pt": "459cd084ea77b785631da3225f109f5632517ad2c7969545cd1e76207c6f1936",
+    "invariant_crack_1.6_s1.pt": "fe31f96d618beadb2ff2be539c0be627f05c8c57a0a4c1dfaf37a304f1f2d8f9",
+    "invariant_crack_1.6_s2.pt": "0033ee5633545b9173305077f18d6d38093ea8c6e42eb10d60268a0c8bd9e3c5",
+    "invariant_crack_4.0_s0.pt": "7b9887dd743dd556bd14d49bd467a9830a129c7c0244caf9c8b50316f5a5c541",
+    "invariant_crack_4.0_s1.pt": "77b05be169be3d6fae6f76c47134173f5259a208f6804f627e2df76e71b77920",
+    "invariant_crack_4.0_s2.pt": "d22e392be542cf2ee5971aa66b0a0d1a0f66f8ccaa6427eab078e00eb89aac07",
+    "invariant_crack_8.6_s0.pt": "1c1a87d57ec966e5bb6ab3ce951177bc9ad5cf75247217072f61491eb7886435",
+    "invariant_crack_8.6_s1.pt": "ab33302c708f8103f5648550003f42dae4ec6a4c5bf59823a243af7e39cc2168",
+    "invariant_crack_8.6_s2.pt": "5e1cbede6e87fc9c75f173c95200f837c3f06cf639342a8b52d63f92cbec07be"
+  }
+}

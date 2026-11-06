@@ -1,0 +1,125 @@
+{
+  "rule": "verdict 'better' on a fold iff cand_auroc >= base_auroc + 0.05 AND cand_det_rate >= base_det_rate; otherwise 'no improvement'. NaN or missing values -> 'not evaluable'.",
+  "note": "evidence limit: 3 physical cracks in one public weld dataset",
+  "baseline_source": "results\\separability_metrics.json",
+  "candidates": {
+    "robust": {
+      "status": "evaluated",
+      "adr": "docs/decisions/0012-robust-loco-preregistration.md",
+      "rule": "verdict 'better' on a fold iff cand_auroc >= base_auroc + 0.05 AND cand_det_rate >= base_det_rate; otherwise 'no improvement'. NaN or missing values -> 'not evaluable'.",
+      "note": "evidence limit: 3 physical cracks in one public weld dataset",
+      "folds": {
+        "crack_1.6": {
+          "base_auroc": 0.999965096455465,
+          "cand_auroc": 0.9878849476703004,
+          "delta_auroc": -0.01208,
+          "base_det_k": 4014,
+          "base_det_n": 4014,
+          "cand_det_k": 3778,
+          "cand_det_n": 4014,
+          "verdict": "no improvement"
+        },
+        "crack_4.0": {
+          "base_auroc": 0.9980445578570069,
+          "cand_auroc": 0.9880556966908774,
+          "delta_auroc": -0.009989,
+          "base_det_k": 4038,
+          "base_det_n": 4078,
+          "cand_det_k": 3881,
+          "cand_det_n": 4078,
+          "verdict": "no improvement"
+        },
+        "crack_8.6": {
+          "base_auroc": 1.0,
+          "cand_auroc": 1.0,
+          "delta_auroc": 0.0,
+          "base_det_k": 3925,
+          "base_det_n": 3925,
+          "cand_det_k": 3925,
+          "cand_det_n": 3925,
+          "verdict": "no improvement"
+        }
+      }
+    },
+    "lite": {
+      "status": "evaluated",
+      "adr": "docs/decisions/0013-lite-hybrid-preregistration.md",
+      "rule": "verdict 'better' on a fold iff cand_auroc >= base_auroc + 0.05 AND cand_det_rate >= base_det_rate; otherwise 'no improvement'. NaN or missing values -> 'not evaluable'. Lite additionally 'lighter' iff latency.litenet total median < latency.mlndtnet median.",
+      "note": "evidence limit: 3 physical cracks in one public weld dataset",
+      "folds": {
+        "crack_1.6": {
+          "base_auroc": 0.999965096455465,
+          "cand_auroc": 0.9942396342877051,
+          "delta_auroc": -0.005725,
+          "base_det_k": 4014,
+          "base_det_n": 4014,
+          "cand_det_k": 3883,
+          "cand_det_n": 4014,
+          "verdict": "no improvement",
+          "lighter": true
+        },
+        "crack_4.0": {
+          "base_auroc": 0.9980445578570069,
+          "cand_auroc": 0.9944602109759435,
+          "delta_auroc": -0.003584,
+          "base_det_k": 4038,
+          "base_det_n": 4078,
+          "cand_det_k": 4005,
+          "cand_det_n": 4078,
+          "verdict": "no improvement",
+          "lighter": true
+        },
+        "crack_8.6": {
+          "base_auroc": 1.0,
+          "cand_auroc": 0.9987146529562982,
+          "delta_auroc": -0.001285,
+          "base_det_k": 3925,
+          "base_det_n": 3925,
+          "cand_det_k": 3925,
+          "cand_det_n": 3925,
+          "verdict": "no improvement",
+          "lighter": true
+        }
+      },
+      "lighter": true
+    },
+    "invariant": {
+      "status": "evaluated",
+      "adr": "docs/decisions/0014-invariant-representation-preregistration.md",
+      "rule": "verdict 'better' on a fold iff cand_auroc >= base_auroc + 0.05 AND cand_det_rate >= base_det_rate; otherwise 'no improvement'. NaN or missing values -> 'not evaluable'.",
+      "note": "evidence limit: 3 physical cracks in one public weld dataset",
+      "folds": {
+        "crack_1.6": {
+          "base_auroc": 0.999965096455465,
+          "cand_auroc": 0.9958199002719275,
+          "delta_auroc": -0.004145,
+          "base_det_k": 4014,
+          "base_det_n": 4014,
+          "cand_det_k": 3923,
+          "cand_det_n": 4014,
+          "verdict": "no improvement"
+        },
+        "crack_4.0": {
+          "base_auroc": 0.9980445578570069,
+          "cand_auroc": 0.9897490578954602,
+          "delta_auroc": -0.008295,
+          "base_det_k": 4038,
+          "base_det_n": 4078,
+          "cand_det_k": 3831,
+          "cand_det_n": 4078,
+          "verdict": "no improvement"
+        },
+        "crack_8.6": {
+          "base_auroc": 1.0,
+          "cand_auroc": 1.0,
+          "delta_auroc": 0.0,
+          "base_det_k": 3925,
+          "base_det_n": 3925,
+          "cand_det_k": 3925,
+          "cand_det_n": 3925,
+          "verdict": "no improvement"
+        }
+      }
+    }
+  }
+}
