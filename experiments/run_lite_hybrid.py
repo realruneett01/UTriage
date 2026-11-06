@@ -733,3 +733,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     payload = run_experiment(cfg)
     cfg.out.parent.mkdir(parents=True, exist_ok=True)
     cfg.out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()

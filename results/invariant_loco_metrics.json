@@ -1,0 +1,1032 @@
+{
+  "label": "Real data (ML-NDT weld, 3 physical cracks)",
+  "preregistration": "docs/decisions/0014-invariant-representation-preregistration.md",
+  "note": "transforms are approximations of physical variation; the held-out crack is never seen",
+  "config": {
+    "device": "cuda",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "pretrain_epochs": 30,
+    "finetune_epochs": 30,
+    "batch_size": 256,
+    "patience": 6,
+    "width": 16,
+    "temperature": 0.2,
+    "quick": false,
+    "out": "results\\invariant_loco_metrics.json",
+    "models_dir": "models"
+  },
+  "gpu_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+  "wall_time_s": 4778.64895599999,
+  "training_summary": [
+    {
+      "held_out": "crack_1.6",
+      "seed": 0,
+      "pretrain": {
+        "best_epoch": 12,
+        "best_loss": 10.03218936920166,
+        "seconds": 286.7545049999899
+      },
+      "finetune": {
+        "best_epoch": 27,
+        "best_loss": 0.08808152377605438,
+        "seconds": 221.35576710000169,
+        "model_path": "models\\invariant_crack_1.6_s0.pt",
+        "model_sha256": "459cd084ea77b785631da3225f109f5632517ad2c7969545cd1e76207c6f1936"
+      }
+    },
+    {
+      "held_out": "crack_1.6",
+      "seed": 1,
+      "pretrain": {
+        "best_epoch": 22,
+        "best_loss": 9.98886489868164,
+        "seconds": 411.88380690000486
+      },
+      "finetune": {
+        "best_epoch": 29,
+        "best_loss": 0.06953589618206024,
+        "seconds": 220.82578879999346,
+        "model_path": "models\\invariant_crack_1.6_s1.pt",
+        "model_sha256": "fe31f96d618beadb2ff2be539c0be627f05c8c57a0a4c1dfaf37a304f1f2d8f9"
+      }
+    },
+    {
+      "held_out": "crack_1.6",
+      "seed": 2,
+      "pretrain": {
+        "best_epoch": 6,
+        "best_loss": 10.05936336517334,
+        "seconds": 182.34257680000155
+      },
+      "finetune": {
+        "best_epoch": 29,
+        "best_loss": 0.0913003608584404,
+        "seconds": 220.53719199998886,
+        "model_path": "models\\invariant_crack_1.6_s2.pt",
+        "model_sha256": "0033ee5633545b9173305077f18d6d38093ea8c6e42eb10d60268a0c8bd9e3c5"
+      }
+    },
+    {
+      "held_out": "crack_4.0",
+      "seed": 0,
+      "pretrain": {
+        "best_epoch": 24,
+        "best_loss": 10.148443222045898,
+        "seconds": 439.70709039998474
+      },
+      "finetune": {
+        "best_epoch": 30,
+        "best_loss": 0.06363407522439957,
+        "seconds": 220.00934679998318,
+        "model_path": "models\\invariant_crack_4.0_s0.pt",
+        "model_sha256": "7b9887dd743dd556bd14d49bd467a9830a129c7c0244caf9c8b50316f5a5c541"
+      }
+    },
+    {
+      "held_out": "crack_4.0",
+      "seed": 1,
+      "pretrain": {
+        "best_epoch": 15,
+        "best_loss": 10.180564880371094,
+        "seconds": 310.14687339999364
+      },
+      "finetune": {
+        "best_epoch": 27,
+        "best_loss": 0.10795806348323822,
+        "seconds": 219.77987960001337,
+        "model_path": "models\\invariant_crack_4.0_s1.pt",
+        "model_sha256": "77b05be169be3d6fae6f76c47134173f5259a208f6804f627e2df76e71b77920"
+      }
+    },
+    {
+      "held_out": "crack_4.0",
+      "seed": 2,
+      "pretrain": {
+        "best_epoch": 30,
+        "best_loss": 10.11104965209961,
+        "seconds": 439.27907710001455
+      },
+      "finetune": {
+        "best_epoch": 29,
+        "best_loss": 0.06883794814348221,
+        "seconds": 219.86563240000396,
+        "model_path": "models\\invariant_crack_4.0_s2.pt",
+        "model_sha256": "d22e392be542cf2ee5971aa66b0a0d1a0f66f8ccaa6427eab078e00eb89aac07"
+      }
+    },
+    {
+      "held_out": "crack_8.6",
+      "seed": 0,
+      "pretrain": {
+        "best_epoch": 2,
+        "best_loss": 11.56767749786377,
+        "seconds": 127.11441360000754
+      },
+      "finetune": {
+        "best_epoch": 30,
+        "best_loss": 0.4913804531097412,
+        "seconds": 220.95134180001332,
+        "model_path": "models\\invariant_crack_8.6_s0.pt",
+        "model_sha256": "1c1a87d57ec966e5bb6ab3ce951177bc9ad5cf75247217072f61491eb7886435"
+      }
+    },
+    {
+      "held_out": "crack_8.6",
+      "seed": 1,
+      "pretrain": {
+        "best_epoch": 27,
+        "best_loss": 10.180183410644531,
+        "seconds": 442.13874059999944
+      },
+      "finetune": {
+        "best_epoch": 28,
+        "best_loss": 0.11691192537546158,
+        "seconds": 221.36119210001198,
+        "model_path": "models\\invariant_crack_8.6_s1.pt",
+        "model_sha256": "ab33302c708f8103f5648550003f42dae4ec6a4c5bf59823a243af7e39cc2168"
+      }
+    },
+    {
+      "held_out": "crack_8.6",
+      "seed": 2,
+      "pretrain": {
+        "best_epoch": 1,
+        "best_loss": 11.567948341369629,
+        "seconds": 111.3808528999798
+      },
+      "finetune": {
+        "best_epoch": 30,
+        "best_loss": 0.6661905646324158,
+        "seconds": 221.59733779999078,
+        "model_path": "models\\invariant_crack_8.6_s2.pt",
+        "model_sha256": "5e1cbede6e87fc9c75f173c95200f837c3f06cf639342a8b52d63f92cbec07be"
+      }
+    }
+  ],
+  "folds": [
+    {
+      "held_out": "crack_1.6",
+      "n_flawed": 4014,
+      "n_clean_calib": 389,
+      "n_clean_eval": 389,
+      "ranking": {
+        "p": {
+          "auroc": 0.99158664468704,
+          "average_precision": 0.9991404495235235
+        },
+        "emb_anom": {
+          "auroc": 0.9965973847318448,
+          "average_precision": 0.9996644895945404
+        },
+        "fused": {
+          "auroc": 0.9958199002719275,
+          "average_precision": 0.9994827663729904
+        }
+      },
+      "operating_points": {
+        "0.01": {
+          "target_fcr": 0.01,
+          "p": {
+            "detection": {
+              "k": 3263,
+              "n": 4014,
+              "rate": 0.8129048330842052,
+              "ci_low": 0.8004895944409813,
+              "ci_high": 0.8248628460480132,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 4,
+              "n": 389,
+              "rate": 0.010282776349614395,
+              "ci_low": 0.0028086184919814032,
+              "ci_high": 0.0261174148660797,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.22019141912460327
+          },
+          "emb_anom": {
+            "detection": {
+              "k": 3833,
+              "n": 4014,
+              "rate": 0.9549078226208271,
+              "ci_low": 0.9480247134006922,
+              "ci_high": 0.9611184465385152,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 3,
+              "n": 389,
+              "rate": 0.007712082262210797,
+              "ci_low": 0.0015932492859270654,
+              "ci_high": 0.02237144346398195,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 14.703494292785239
+          },
+          "fused": {
+            "detection": {
+              "k": 3802,
+              "n": 4014,
+              "rate": 0.9471848530144494,
+              "ci_low": 0.9398088468654425,
+              "ci_high": 0.9539009623877059,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 4,
+              "n": 389,
+              "rate": 0.010282776349614395,
+              "ci_low": 0.0028086184919814032,
+              "ci_high": 0.0261174148660797,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.31803467869758606,
+            "threshold_anom": 15.049327388254694
+          }
+        },
+        "0.05": {
+          "target_fcr": 0.05,
+          "p": {
+            "detection": {
+              "k": 3872,
+              "n": 4014,
+              "rate": 0.9646238166417539,
+              "ci_low": 0.9584360618296323,
+              "ci_high": 0.9701226507409036,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 16,
+              "n": 389,
+              "rate": 0.04113110539845758,
+              "ci_low": 0.02368974710667882,
+              "ci_high": 0.06593628363404892,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.09604594856500626
+          },
+          "emb_anom": {
+            "detection": {
+              "k": 3954,
+              "n": 4014,
+              "rate": 0.9850523168908819,
+              "ci_low": 0.9808007583988624,
+              "ci_high": 0.988574474493546,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 21,
+              "n": 389,
+              "rate": 0.05398457583547558,
+              "ci_low": 0.03372421461977815,
+              "ci_high": 0.08133977104995394,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 12.052164201760078
+          },
+          "fused": {
+            "detection": {
+              "k": 3923,
+              "n": 4014,
+              "rate": 0.9773293472845043,
+              "ci_low": 0.9722376031867016,
+              "ci_high": 0.9817086827115288,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 13,
+              "n": 389,
+              "rate": 0.033419023136246784,
+              "ci_low": 0.017911912035102028,
+              "ci_high": 0.056469600623069244,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.12822981178760529,
+            "threshold_anom": 13.486685663930949
+          }
+        }
+      },
+      "p": {
+        "auroc": 0.99158664468704,
+        "average_precision": 0.9991404495235235,
+        "operating_points": {
+          "0.01": {
+            "detection": {
+              "k": 3263,
+              "n": 4014,
+              "rate": 0.8129048330842052,
+              "ci_low": 0.8004895944409813,
+              "ci_high": 0.8248628460480132,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 4,
+              "n": 389,
+              "rate": 0.010282776349614395,
+              "ci_low": 0.0028086184919814032,
+              "ci_high": 0.0261174148660797,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.22019141912460327
+          },
+          "0.05": {
+            "detection": {
+              "k": 3872,
+              "n": 4014,
+              "rate": 0.9646238166417539,
+              "ci_low": 0.9584360618296323,
+              "ci_high": 0.9701226507409036,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 16,
+              "n": 389,
+              "rate": 0.04113110539845758,
+              "ci_low": 0.02368974710667882,
+              "ci_high": 0.06593628363404892,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.09604594856500626
+          }
+        }
+      },
+      "emb_anom": {
+        "auroc": 0.9965973847318448,
+        "average_precision": 0.9996644895945404,
+        "operating_points": {
+          "0.01": {
+            "detection": {
+              "k": 3833,
+              "n": 4014,
+              "rate": 0.9549078226208271,
+              "ci_low": 0.9480247134006922,
+              "ci_high": 0.9611184465385152,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 3,
+              "n": 389,
+              "rate": 0.007712082262210797,
+              "ci_low": 0.0015932492859270654,
+              "ci_high": 0.02237144346398195,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 14.703494292785239
+          },
+          "0.05": {
+            "detection": {
+              "k": 3954,
+              "n": 4014,
+              "rate": 0.9850523168908819,
+              "ci_low": 0.9808007583988624,
+              "ci_high": 0.988574474493546,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 21,
+              "n": 389,
+              "rate": 0.05398457583547558,
+              "ci_low": 0.03372421461977815,
+              "ci_high": 0.08133977104995394,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 12.052164201760078
+          }
+        }
+      },
+      "fused": {
+        "auroc": 0.9958199002719275,
+        "average_precision": 0.9994827663729904,
+        "operating_points": {
+          "0.01": {
+            "detection": {
+              "k": 3802,
+              "n": 4014,
+              "rate": 0.9471848530144494,
+              "ci_low": 0.9398088468654425,
+              "ci_high": 0.9539009623877059,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 4,
+              "n": 389,
+              "rate": 0.010282776349614395,
+              "ci_low": 0.0028086184919814032,
+              "ci_high": 0.0261174148660797,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.31803467869758606,
+            "threshold_anom": 15.049327388254694
+          },
+          "0.05": {
+            "detection": {
+              "k": 3923,
+              "n": 4014,
+              "rate": 0.9773293472845043,
+              "ci_low": 0.9722376031867016,
+              "ci_high": 0.9817086827115288,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 13,
+              "n": 389,
+              "rate": 0.033419023136246784,
+              "ci_low": 0.017911912035102028,
+              "ci_high": 0.056469600623069244,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.12822981178760529,
+            "threshold_anom": 13.486685663930949
+          }
+        }
+      },
+      "model_sha256": [
+        "459cd084ea77b785631da3225f109f5632517ad2c7969545cd1e76207c6f1936",
+        "fe31f96d618beadb2ff2be539c0be627f05c8c57a0a4c1dfaf37a304f1f2d8f9",
+        "0033ee5633545b9173305077f18d6d38093ea8c6e42eb10d60268a0c8bd9e3c5"
+      ]
+    },
+    {
+      "held_out": "crack_4.0",
+      "n_flawed": 4078,
+      "n_clean_calib": 389,
+      "n_clean_eval": 389,
+      "ranking": {
+        "p": {
+          "auroc": 0.9891397945714102,
+          "average_precision": 0.9989479168655232
+        },
+        "emb_anom": {
+          "auroc": 0.9877674549372077,
+          "average_precision": 0.9988270484741655
+        },
+        "fused": {
+          "auroc": 0.9897490578954602,
+          "average_precision": 0.9988450871327413
+        }
+      },
+      "operating_points": {
+        "0.01": {
+          "target_fcr": 0.01,
+          "p": {
+            "detection": {
+              "k": 2943,
+              "n": 4078,
+              "rate": 0.7216772927905836,
+              "ci_low": 0.7076438806959764,
+              "ci_high": 0.7353924479054166,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 0,
+              "n": 389,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.009438158934181894,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.3034847676753998
+          },
+          "emb_anom": {
+            "detection": {
+              "k": 3598,
+              "n": 4078,
+              "rate": 0.8822952427660617,
+              "ci_low": 0.8720070452770865,
+              "ci_high": 0.892032111742701,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 3,
+              "n": 389,
+              "rate": 0.007712082262210797,
+              "ci_low": 0.0015932492859270654,
+              "ci_high": 0.02237144346398195,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 14.815843682504303
+          },
+          "fused": {
+            "detection": {
+              "k": 3523,
+              "n": 4078,
+              "rate": 0.863903874448259,
+              "ci_low": 0.8529964580165637,
+              "ci_high": 0.8742869894599442,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 1,
+              "n": 389,
+              "rate": 0.002570694087403599,
+              "ci_low": 6.508222135157167e-05,
+              "ci_high": 0.014239109513372976,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.34873294830322266,
+            "threshold_anom": 15.648199852926554
+          }
+        },
+        "0.05": {
+          "target_fcr": 0.05,
+          "p": {
+            "detection": {
+              "k": 3832,
+              "n": 4078,
+              "rate": 0.9396763119176067,
+              "ci_low": 0.9319258625212494,
+              "ci_high": 0.9467891152804427,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 12,
+              "n": 389,
+              "rate": 0.030848329048843187,
+              "ci_low": 0.016039328940135437,
+              "ci_high": 0.05326543026862415,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.11293536424636841
+          },
+          "emb_anom": {
+            "detection": {
+              "k": 3814,
+              "n": 4078,
+              "rate": 0.935262383521334,
+              "ci_low": 0.9272708094181081,
+              "ci_high": 0.9426231498627411,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 15,
+              "n": 389,
+              "rate": 0.038560411311053984,
+              "ci_low": 0.021739803040697055,
+              "ci_high": 0.06280272535973809,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 12.852465683051488
+          },
+          "fused": {
+            "detection": {
+              "k": 3831,
+              "n": 4078,
+              "rate": 0.9394310936733693,
+              "ci_low": 0.9316669692848953,
+              "ci_high": 0.9465579534502103,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 10,
+              "n": 389,
+              "rate": 0.02570694087403599,
+              "ci_low": 0.012394795678428905,
+              "ci_high": 0.04676676291456643,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.1538369208574295,
+            "threshold_anom": 13.742561994409893
+          }
+        }
+      },
+      "p": {
+        "auroc": 0.9891397945714102,
+        "average_precision": 0.9989479168655232,
+        "operating_points": {
+          "0.01": {
+            "detection": {
+              "k": 2943,
+              "n": 4078,
+              "rate": 0.7216772927905836,
+              "ci_low": 0.7076438806959764,
+              "ci_high": 0.7353924479054166,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 0,
+              "n": 389,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.009438158934181894,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.3034847676753998
+          },
+          "0.05": {
+            "detection": {
+              "k": 3832,
+              "n": 4078,
+              "rate": 0.9396763119176067,
+              "ci_low": 0.9319258625212494,
+              "ci_high": 0.9467891152804427,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 12,
+              "n": 389,
+              "rate": 0.030848329048843187,
+              "ci_low": 0.016039328940135437,
+              "ci_high": 0.05326543026862415,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.11293536424636841
+          }
+        }
+      },
+      "emb_anom": {
+        "auroc": 0.9877674549372077,
+        "average_precision": 0.9988270484741655,
+        "operating_points": {
+          "0.01": {
+            "detection": {
+              "k": 3598,
+              "n": 4078,
+              "rate": 0.8822952427660617,
+              "ci_low": 0.8720070452770865,
+              "ci_high": 0.892032111742701,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 3,
+              "n": 389,
+              "rate": 0.007712082262210797,
+              "ci_low": 0.0015932492859270654,
+              "ci_high": 0.02237144346398195,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 14.815843682504303
+          },
+          "0.05": {
+            "detection": {
+              "k": 3814,
+              "n": 4078,
+              "rate": 0.935262383521334,
+              "ci_low": 0.9272708094181081,
+              "ci_high": 0.9426231498627411,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 15,
+              "n": 389,
+              "rate": 0.038560411311053984,
+              "ci_low": 0.021739803040697055,
+              "ci_high": 0.06280272535973809,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 12.852465683051488
+          }
+        }
+      },
+      "fused": {
+        "auroc": 0.9897490578954602,
+        "average_precision": 0.9988450871327413,
+        "operating_points": {
+          "0.01": {
+            "detection": {
+              "k": 3523,
+              "n": 4078,
+              "rate": 0.863903874448259,
+              "ci_low": 0.8529964580165637,
+              "ci_high": 0.8742869894599442,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 1,
+              "n": 389,
+              "rate": 0.002570694087403599,
+              "ci_low": 6.508222135157167e-05,
+              "ci_high": 0.014239109513372976,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.34873294830322266,
+            "threshold_anom": 15.648199852926554
+          },
+          "0.05": {
+            "detection": {
+              "k": 3831,
+              "n": 4078,
+              "rate": 0.9394310936733693,
+              "ci_low": 0.9316669692848953,
+              "ci_high": 0.9465579534502103,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 10,
+              "n": 389,
+              "rate": 0.02570694087403599,
+              "ci_low": 0.012394795678428905,
+              "ci_high": 0.04676676291456643,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.1538369208574295,
+            "threshold_anom": 13.742561994409893
+          }
+        }
+      },
+      "model_sha256": [
+        "7b9887dd743dd556bd14d49bd467a9830a129c7c0244caf9c8b50316f5a5c541",
+        "77b05be169be3d6fae6f76c47134173f5259a208f6804f627e2df76e71b77920",
+        "d22e392be542cf2ee5971aa66b0a0d1a0f66f8ccaa6427eab078e00eb89aac07"
+      ]
+    },
+    {
+      "held_out": "crack_8.6",
+      "n_flawed": 3925,
+      "n_clean_calib": 389,
+      "n_clean_eval": 389,
+      "ranking": {
+        "p": {
+          "auroc": 1.0,
+          "average_precision": 1.0
+        },
+        "emb_anom": {
+          "auroc": 1.0,
+          "average_precision": 1.0
+        },
+        "fused": {
+          "auroc": 1.0,
+          "average_precision": 1.0
+        }
+      },
+      "operating_points": {
+        "0.01": {
+          "target_fcr": 0.01,
+          "p": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 0,
+              "n": 389,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.009438158934181894,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.4426441192626953
+          },
+          "emb_anom": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 1,
+              "n": 389,
+              "rate": 0.002570694087403599,
+              "ci_low": 6.508222135157167e-05,
+              "ci_high": 0.014239109513372976,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 11.819630185067888
+          },
+          "fused": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 0,
+              "n": 389,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.009438158934181894,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.48629841208457947,
+            "threshold_anom": 12.157241473801585
+          }
+        },
+        "0.05": {
+          "target_fcr": 0.05,
+          "p": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 12,
+              "n": 389,
+              "rate": 0.030848329048843187,
+              "ci_low": 0.016039328940135437,
+              "ci_high": 0.05326543026862415,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.3697056770324707
+          },
+          "emb_anom": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 11,
+              "n": 389,
+              "rate": 0.028277634961439587,
+              "ci_low": 0.014198835686796037,
+              "ci_high": 0.05003236400811133,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 10.565949170299527
+          },
+          "fused": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 14,
+              "n": 389,
+              "rate": 0.03598971722365039,
+              "ci_low": 0.019813043710845392,
+              "ci_high": 0.05964786704323548,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.3833785355091095,
+            "threshold_anom": 10.984957125891365
+          }
+        }
+      },
+      "p": {
+        "auroc": 1.0,
+        "average_precision": 1.0,
+        "operating_points": {
+          "0.01": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 0,
+              "n": 389,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.009438158934181894,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.4426441192626953
+          },
+          "0.05": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 12,
+              "n": 389,
+              "rate": 0.030848329048843187,
+              "ci_low": 0.016039328940135437,
+              "ci_high": 0.05326543026862415,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.3697056770324707
+          }
+        }
+      },
+      "emb_anom": {
+        "auroc": 1.0,
+        "average_precision": 1.0,
+        "operating_points": {
+          "0.01": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 1,
+              "n": 389,
+              "rate": 0.002570694087403599,
+              "ci_low": 6.508222135157167e-05,
+              "ci_high": 0.014239109513372976,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 11.819630185067888
+          },
+          "0.05": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 11,
+              "n": 389,
+              "rate": 0.028277634961439587,
+              "ci_low": 0.014198835686796037,
+              "ci_high": 0.05003236400811133,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 10.565949170299527
+          }
+        }
+      },
+      "fused": {
+        "auroc": 1.0,
+        "average_precision": 1.0,
+        "operating_points": {
+          "0.01": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 0,
+              "n": 389,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.009438158934181894,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.48629841208457947,
+            "threshold_anom": 12.157241473801585
+          },
+          "0.05": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 14,
+              "n": 389,
+              "rate": 0.03598971722365039,
+              "ci_low": 0.019813043710845392,
+              "ci_high": 0.05964786704323548,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_p": 0.3833785355091095,
+            "threshold_anom": 10.984957125891365
+          }
+        }
+      },
+      "model_sha256": [
+        "1c1a87d57ec966e5bb6ab3ce951177bc9ad5cf75247217072f61491eb7886435",
+        "ab33302c708f8103f5648550003f42dae4ec6a4c5bf59823a243af7e39cc2168",
+        "5e1cbede6e87fc9c75f173c95200f837c3f06cf639342a8b52d63f92cbec07be"
+      ]
+    }
+  ],
+  "model_sha256": [
+    "0033ee5633545b9173305077f18d6d38093ea8c6e42eb10d60268a0c8bd9e3c5",
+    "1c1a87d57ec966e5bb6ab3ce951177bc9ad5cf75247217072f61491eb7886435",
+    "459cd084ea77b785631da3225f109f5632517ad2c7969545cd1e76207c6f1936",
+    "5e1cbede6e87fc9c75f173c95200f837c3f06cf639342a8b52d63f92cbec07be",
+    "77b05be169be3d6fae6f76c47134173f5259a208f6804f627e2df76e71b77920",
+    "7b9887dd743dd556bd14d49bd467a9830a129c7c0244caf9c8b50316f5a5c541",
+    "ab33302c708f8103f5648550003f42dae4ec6a4c5bf59823a243af7e39cc2168",
+    "d22e392be542cf2ee5971aa66b0a0d1a0f66f8ccaa6427eab078e00eb89aac07",
+    "fe31f96d618beadb2ff2be539c0be627f05c8c57a0a4c1dfaf37a304f1f2d8f9"
+  ]
+}
