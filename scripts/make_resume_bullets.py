@@ -311,6 +311,204 @@ def _build_separability_bullet(claims: dict[str, dict[str, Any]], results_dir: P
     )
 
 
+def _load_verdicts(results_dir: Path) -> dict[str, Any] | None:
+    """Load preregistration_verdicts.json from results directory if present."""
+    path = results_dir / "preregistration_verdicts.json"
+    if not path.exists():
+        return None
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else None
+    except (json.JSONDecodeError, OSError) as err:  # narrow reason: corrupt or unreadable JSON
+        sys.stderr.write(f"Warning: could not read {path}: {err}\n")
+        return None
+
+
+def _extract_invariant_aurocs(claim: dict[str, Any]) -> tuple[float, float, int] | None:
+    """Extract min AUROC, max AUROC, and fold count from invariant_loco claim."""
+    nums = claim.get("numbers", {})
+    aurocs = [float(v) for k, v in nums.items() if k.endswith("_fused_auroc")]
+    if len(aurocs) < 3:
+        return None
+    return min(aurocs), max(aurocs), len(aurocs)
+
+
+def _extract_invariant_16_counts(claim: dict[str, Any]) -> tuple[int, int] | None:
+    """Extract 1.6 mm crack detection counts from invariant_loco claim."""
+    nums = claim.get("numbers", {})
+    k, n = nums.get("crack_1.6_det_k"), nums.get("crack_1.6_det_n")
+    if k is None or n is None:
+        return None
+    return int(k), int(n)
+
+
+def _format_invariant_verdict_summary(cand_info: dict[str, Any]) -> str | None:
+    """Format invariant candidate verdict summary from candidate dictionary."""
+    raw_folds = cand_info.get("folds")
+    if not isinstance(raw_folds, dict) or not raw_folds:
+        return None
+    fold_verdicts: dict[str, str] = {}
+    for crack, item in raw_folds.items():
+        v = item.get("verdict") if isinstance(item, dict) else item
+        if isinstance(v, str):
+            fold_verdicts[str(crack)] = v
+    if not fold_verdicts:
+        return None
+    unique_v = set(fold_verdicts.values())
+    if len(unique_v) == 1:
+        v_word = next(iter(unique_v))
+        return f"{v_word} on {len(fold_verdicts)} of {len(fold_verdicts)} folds"
+    return ", ".join(f"{crack}: {v}" for crack, v in fold_verdicts.items())
+
+
+def _get_invariant_verdict_clause(results_dir: Path) -> str:
+    """Get verdict clause for invariant candidate if available."""
+    verdicts = _load_verdicts(results_dir)
+    if verdicts is None:
+        return ""
+    cand = verdicts.get("candidates", {}).get("invariant")
+    if not isinstance(cand, dict):
+        return ""
+    summary = _format_invariant_verdict_summary(cand)
+    return f"; pre-registered verdict: {summary}" if summary else ""
+
+
+def _build_invariant_loco_bullet(
+    claims: dict[str, dict[str, Any]], results_dir: Path
+) -> str | None:
+    """Build bullet for pre-registered invariant representation LOCO evaluation."""
+    inv_c = claims.get("invariant_loco")
+    sep_c = claims.get("separability_batchval")
+    if inv_c is None or sep_c is None:
+        return None
+    inv_aurocs = _extract_invariant_aurocs(inv_c)
+    sep_aurocs = _extract_separability_aurocs(sep_c)
+    inv_kn = _extract_invariant_16_counts(inv_c)
+    sep_counts = _extract_separability_16_counts(sep_c)
+    if any(x is None for x in (inv_aurocs, sep_aurocs, inv_kn, sep_counts)):
+        sys.stderr.write("Warning: missing invariant/baseline metrics; skipping bullet.\n")
+        return None
+    i_min, i_max, n_folds = inv_aurocs  # type: ignore[misc]
+    b_min, b_max, _ = sep_aurocs  # type: ignore[misc]
+    k_inv, n_inv = inv_kn  # type: ignore[misc]
+    target_fcr = int(round(float(inv_c.get("numbers", {}).get("target_fcr", 0.05)) * 100))
+    v_clause = _get_invariant_verdict_clause(results_dir)
+    text = (
+        f"Pre-registered a physics-augmented contrastive (invariant) crack representation; "
+        f"fused AUROC {_format_auroc(i_min)}-{_format_auroc(i_max)} across the {n_folds} folds "
+        f"vs baseline {_format_auroc(b_min)}-{_format_auroc(b_max)}, 1.6 mm detection "
+        f"{k_inv}/{n_inv} vs baseline {sep_counts.k}/{sep_counts.n} "  # type: ignore[union-attr]
+        f"at a {target_fcr}% false-call target{v_clause}"
+    )
+    return _ensure_scope(text, "leave-one-crack-out, 3 physical cracks, one public weld dataset")
+
+
+def _extract_shift_family_folds(nums: dict[str, Any]) -> dict[str, dict[str, float]]:
+    """Extract family -> {crack: all_clean_shifts} mapping from numbers dict."""
+    res: dict[str, dict[str, float]] = {}
+    for k, v in nums.items():
+        if not k.endswith("_all_clean_shifts") or "_crack_" not in k:
+            continue
+        prefix = k[: -len("_all_clean_shifts")]
+        fam, crack = prefix.split("_crack_", 1)
+        res.setdefault(fam, {})[f"crack_{crack}"] = float(v)
+    return res
+
+
+def _format_shift_family_clause(fam_folds: dict[str, dict[str, float]]) -> str:
+    """Format 'every family' or '<m> of <F>' clause based on all_clean_shifts."""
+    n_fams = len(fam_folds)
+    m = sum(1 for folds in fam_folds.values() if all(v >= 1.0 for v in folds.values()))
+    if m == n_fams:
+        return "every family flagged all clean scans under at least one shift"
+    return f"{m} of {n_fams} families flagged all clean scans under at least one shift"
+
+
+def _format_shift_crack_desc(folds: tuple[str, ...]) -> str:
+    """Format tuple of crack fold identifiers for shift robustness summary."""
+    if not folds:
+        return "none"
+    if len(folds) == 1:
+        return f"the {folds[0].replace('crack_', '')} mm crack only"
+    if len(folds) == 3:
+        return "all 3 folds"
+    cracks = [f.replace("crack_", "") + " mm" for f in folds]
+    return f"{' and '.join(cracks)} cracks"
+
+
+def _join_cand_names(cands: list[str]) -> str:
+    """Format list of candidate names into readable English string."""
+    if len(cands) <= 2:
+        return " and ".join(cands)
+    return f"{', '.join(cands[:-1])} and {cands[-1]}"
+
+
+def _format_shift_candidates_summary(candidates: dict[str, Any]) -> str | None:
+    """Format shift robustness candidates verdict summary."""
+    groups: dict[tuple[str, ...], list[str]] = {}
+    for cand_name, cand_info in candidates.items():
+        if not isinstance(cand_info, dict):
+            continue
+        folds = cand_info.get("folds", {})
+        better = tuple(
+            crack
+            for crack, f in folds.items()
+            if (f.get("verdict") if isinstance(f, dict) else f) == "more shift-robust"
+        )
+        groups.setdefault(better, []).append(str(cand_name))
+    if not groups:
+        return None
+    parts: list[str] = []
+    for folds_tup, cands in groups.items():
+        cand_str = _join_cand_names(cands)
+        if folds_tup:
+            parts.append(f"{cand_str} more shift-robust on {_format_shift_crack_desc(folds_tup)}")
+        else:
+            parts.append(f"{cand_str} on none")
+    return ", ".join(parts)
+
+
+def _get_shift_verdict_clause(results_dir: Path) -> str:
+    """Get ADR 0015 verdict clause for shift robustness if available."""
+    verdicts = _load_verdicts(results_dir)
+    if verdicts is None:
+        return ""
+    candidates = verdicts.get("shift_robustness", {}).get("candidates")
+    if not isinstance(candidates, dict) or not candidates:
+        return ""
+    summary = _format_shift_candidates_summary(candidates)
+    return f"; ADR 0015 verdict: {summary}" if summary else ""
+
+
+def _build_shift_robustness_bullet(
+    claims: dict[str, dict[str, Any]], results_dir: Path
+) -> str | None:
+    """Build bullet for shift robustness evaluation across model families."""
+    claim = claims.get("shift_robustness")
+    if claim is None:
+        return None
+    nums = claim.get("numbers", {})
+    fam_folds = _extract_shift_family_folds(nums)
+    shift_counts = [int(v) for k, v in nums.items() if k.endswith("_n_shifts")]
+    a_val = nums.get("loco_crack_1.6_all_clean_shifts")
+    if any((not fam_folds, not shift_counts, a_val is None)):
+        sys.stderr.write("Warning: missing shift robustness numbers; skipping bullet.\n")
+        return None
+    n_fams, n_shifts = len(fam_folds), shift_counts[0]
+    a_shifts = int(a_val)  # type: ignore[arg-type]
+    fam_clause = _format_shift_family_clause(fam_folds)
+    v_clause = _get_shift_verdict_clause(results_dir)
+    text = (
+        f"Stress-tested {n_fams} model families under {n_shifts} synthetic "
+        "gain/offset/noise shifts with thresholds fixed on unshifted clean scans: "
+        f"{fam_clause} (baseline under {a_shifts}/{n_shifts}), so site calibration is "
+        f"required before use{v_clause}; the false-call condition is met trivially when "
+        "the baseline already flags every clean scan"
+    )
+    return _ensure_scope(text, "real weld images, synthetic shifts, single shift seed")
+
+
 def _get_fcr(claim: dict[str, Any]) -> str | None:
     """Extract formatted false-call rate from claim numbers or text."""
     nums = claim.get("numbers", {})
@@ -712,6 +910,8 @@ def build_bullets(results_dir: Path) -> list[str]:
         (_build_leakage_bullet, (claims,)),
         (_build_loco_bullet, (claims, results_dir)),
         (_build_separability_bullet, (claims, results_dir)),
+        (_build_invariant_loco_bullet, (claims, results_dir)),
+        (_build_shift_robustness_bullet, (claims, results_dir)),
         (_build_false_call_bullet, (results_dir,)),
         (_build_anomaly_bullet, (claims,)),
         (_build_hybrid_bullet, (claims, results_dir)),

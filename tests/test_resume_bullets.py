@@ -510,7 +510,7 @@ def test_real_results() -> None:
     if not claims_path.exists():
         pytest.skip(f"{claims_path} does not exist yet")
     bullets = build_bullets(results_dir)
-    assert len(bullets) == 12  # includes the separability bullet
+    assert len(bullets) == 14  # includes separability, invariant, and shift bullets
     for bullet in bullets:
         assert bullet.endswith(").")
 
@@ -766,3 +766,263 @@ def test_separability_every_number_in_claims(tmp_path: Path) -> None:
     numbers = re.findall(r"\b\d+(?:\.\d+)?\b", sep_b)
     for num in numbers:
         assert _number_in_claims(num, claims), f"Number {num} in {sep_b!r} not in claims"
+
+
+def _make_fake_invariant_claim(*, k: float = 3923.0, n: float = 4014.0) -> dict[str, Any]:
+    """Build representative fake claim for invariant_loco."""
+    return {
+        "id": "invariant_loco",
+        "text": (
+            f"Invariant LOCO: crack_1.6: fused AUROC 0.996, at FCR 0.05 "
+            f"detection {int(k)}/{int(n)}; "
+            "crack_4.0: fused AUROC 0.990, at FCR 0.05 detection 3831/4078; "
+            "crack_8.6: fused AUROC 1.000, at FCR 0.05 detection 3925/3925."
+        ),
+        "evidence_file": "results/invariant_loco_metrics.json",
+        "evidence_path": "folds",
+        "scope_limit": "ML-NDT weld, 3 physical cracks, leave-one-crack-out",
+        "numbers": {
+            "crack_1.6_fused_auroc": 0.996,
+            "crack_1.6_det_k": k,
+            "crack_1.6_det_n": n,
+            "crack_4.0_fused_auroc": 0.99,
+            "crack_4.0_det_k": 3831.0,
+            "crack_4.0_det_n": 4078.0,
+            "crack_8.6_fused_auroc": 1.0,
+            "crack_8.6_det_k": 3925.0,
+            "crack_8.6_det_n": 3925.0,
+            "target_fcr": 0.05,
+        },
+    }
+
+
+def _make_fake_shift_numbers(*, every_family: bool = False) -> dict[str, float]:
+    """Build fake numbers dictionary for shift robustness."""
+    robust_16 = 1.0 if every_family else 0.0
+    return {
+        "loco_crack_1.6_worst_det": 0.632,
+        "loco_crack_1.6_worst_fcr": 1.0,
+        "loco_crack_1.6_all_clean_shifts": 4.0,
+        "loco_crack_1.6_n_shifts": 6.0,
+        "loco_crack_4.0_all_clean_shifts": 4.0,
+        "loco_crack_4.0_n_shifts": 6.0,
+        "loco_crack_8.6_all_clean_shifts": 4.0,
+        "loco_crack_8.6_n_shifts": 6.0,
+        "robust_crack_1.6_all_clean_shifts": robust_16,
+        "robust_crack_1.6_n_shifts": 6.0,
+        "robust_crack_4.0_all_clean_shifts": 2.0,
+        "robust_crack_4.0_n_shifts": 6.0,
+        "robust_crack_8.6_all_clean_shifts": 2.0,
+        "robust_crack_8.6_n_shifts": 6.0,
+        "lite_crack_1.6_all_clean_shifts": 2.0,
+        "lite_crack_1.6_n_shifts": 6.0,
+        "lite_crack_4.0_all_clean_shifts": 2.0,
+        "lite_crack_4.0_n_shifts": 6.0,
+        "lite_crack_8.6_all_clean_shifts": 2.0,
+        "lite_crack_8.6_n_shifts": 6.0,
+        "invariant_crack_1.6_all_clean_shifts": 1.0,
+        "invariant_crack_1.6_n_shifts": 6.0,
+        "invariant_crack_4.0_all_clean_shifts": 2.0,
+        "invariant_crack_4.0_n_shifts": 6.0,
+        "invariant_crack_8.6_all_clean_shifts": 2.0,
+        "invariant_crack_8.6_n_shifts": 6.0,
+    }
+
+
+def _make_fake_shift_claim(*, every_family: bool = False) -> dict[str, Any]:
+    """Build representative fake claim for shift_robustness."""
+    text = (
+        "Shift robustness at FCR 0.01: loco 4/6 shifts flagged every clean scan; "
+        "robust 2/6 shifts; lite 2/6 shifts; invariant 2/6 shifts; "
+        "thresholds fixed on unshifted clean scans, site calibration is required. "
+        "ADR 0015 rule applied."
+    )
+    return {
+        "id": "shift_robustness",
+        "text": text,
+        "evidence_file": "results/shift_robustness_metrics.json",
+        "evidence_path": "families",
+        "scope_limit": "ML-NDT weld, 3 physical cracks, leave-one-crack-out",
+        "numbers": _make_fake_shift_numbers(every_family=every_family),
+    }
+
+
+def _make_fake_preregistration_verdicts(*, invariant_mixed: bool = False) -> dict[str, Any]:
+    """Build representative fake verdicts dictionary."""
+    inv_verdict = "better" if invariant_mixed else "no improvement"
+    return {
+        "candidates": {
+            "invariant": {
+                "status": "evaluated",
+                "folds": {
+                    "crack_1.6": {"verdict": inv_verdict},
+                    "crack_4.0": {"verdict": "no improvement"},
+                    "crack_8.6": {"verdict": "no improvement"},
+                },
+            },
+        },
+        "shift_robustness": {
+            "candidates": {
+                "robust": {
+                    "folds": {
+                        "crack_1.6": {"verdict": "more shift-robust"},
+                        "crack_4.0": {"verdict": "no improvement"},
+                        "crack_8.6": {"verdict": "no improvement"},
+                    },
+                },
+                "lite": {
+                    "folds": {
+                        "crack_1.6": {"verdict": "more shift-robust"},
+                        "crack_4.0": {"verdict": "no improvement"},
+                        "crack_8.6": {"verdict": "no improvement"},
+                    },
+                },
+                "invariant": {
+                    "folds": {
+                        "crack_1.6": {"verdict": "no improvement"},
+                        "crack_4.0": {"verdict": "no improvement"},
+                        "crack_8.6": {"verdict": "no improvement"},
+                    },
+                },
+            },
+        },
+    }
+
+
+def test_invariant_loco_bullet_present(tmp_path: Path) -> None:
+    """Verify invariant LOCO bullet is generated right after separability with numbers."""
+    claims = _make_fake_claims() + [_make_separability_claim(), _make_fake_invariant_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    _write_json(tmp_path / "preregistration_verdicts.json", _make_fake_preregistration_verdicts())
+    bullets = build_bullets(tmp_path)
+    sep_idx = next(i for i, b in enumerate(bullets) if b.startswith("Showed that "))
+    inv_b = bullets[sep_idx + 1]
+    assert inv_b.startswith("Pre-registered a physics-augmented contrastive (invariant)")
+    assert "fused AUROC 0.99-1.0 across the 3 folds vs baseline 0.852-0.999" in inv_b
+    assert "1.6 mm detection 3923/4014 vs baseline 3000/4014 at a 5% false-call target" in inv_b
+    assert "pre-registered verdict: no improvement on 3 of 3 folds" in inv_b
+    assert inv_b.endswith("(leave-one-crack-out, 3 physical cracks, one public weld dataset).")
+
+
+def test_invariant_loco_verdict_mixed(tmp_path: Path) -> None:
+    """Verify invariant LOCO verdict lists per fold when outcomes are mixed."""
+    claims = _make_fake_claims() + [_make_separability_claim(), _make_fake_invariant_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    _write_json(
+        tmp_path / "preregistration_verdicts.json",
+        _make_fake_preregistration_verdicts(invariant_mixed=True),
+    )
+    bullets = build_bullets(tmp_path)
+    inv_b = [b for b in bullets if "physics-augmented contrastive" in b][0]
+    expected_mixed = "crack_1.6: better, crack_4.0: no improvement, crack_8.6: no improvement"
+    assert f"pre-registered verdict: {expected_mixed}" in inv_b
+
+
+def test_invariant_loco_verdict_skipped_when_missing_file(tmp_path: Path) -> None:
+    """Verify verdict clause is omitted when preregistration_verdicts.json is absent."""
+    claims = _make_fake_claims() + [_make_separability_claim(), _make_fake_invariant_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    inv_b = [b for b in bullets if "physics-augmented contrastive" in b][0]
+    assert "pre-registered verdict" not in inv_b
+    assert inv_b.endswith(
+        "at a 5% false-call target "
+        "(leave-one-crack-out, 3 physical cracks, one public weld dataset)."
+    )
+
+
+@pytest.mark.parametrize("missing_id", ["invariant_loco", "separability_batchval"])
+def test_invariant_loco_absent_when_claims_missing(tmp_path: Path, missing_id: str) -> None:
+    """Verify invariant bullet is skipped when invariant or baseline claim is missing."""
+    all_claims = _make_fake_claims() + [_make_separability_claim(), _make_fake_invariant_claim()]
+    claims = [c for c in all_claims if c["id"] != missing_id]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert not any("physics-augmented contrastive" in b for b in bullets)
+
+
+def test_shift_robustness_bullet_present(tmp_path: Path) -> None:
+    """Verify shift robustness bullet generated with expected counts and verdict."""
+    claims = _make_fake_claims() + [_make_separability_claim(), _make_fake_shift_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    _write_json(tmp_path / "preregistration_verdicts.json", _make_fake_preregistration_verdicts())
+    bullets = build_bullets(tmp_path)
+    sep_idx = next(i for i, b in enumerate(bullets) if b.startswith("Showed that "))
+    shift_b = bullets[sep_idx + 1]
+    assert shift_b.startswith("Stress-tested 4 model families under 6 synthetic gain/offset/noise")
+    assert "3 of 4 families flagged all clean scans under at least one shift" in shift_b
+    assert "(baseline under 4/6), so site calibration is required before use" in shift_b
+    assert (
+        "ADR 0015 verdict: robust and lite more shift-robust on the 1.6 mm "
+        "crack only, invariant on none"
+    ) in shift_b
+    assert (
+        "; the false-call condition is met trivially when the baseline "
+        "already flags every clean scan"
+    ) in shift_b
+    assert shift_b.endswith("(real weld images, synthetic shifts, single shift seed).")
+
+
+def test_shift_robustness_every_family_branch(tmp_path: Path) -> None:
+    """Verify 'every family' branch is selected when all families satisfy condition."""
+    claims = _make_fake_claims() + [
+        _make_separability_claim(),
+        _make_fake_shift_claim(every_family=True),
+    ]
+    _write_claims(tmp_path / "claims.json", claims)
+    _write_json(tmp_path / "preregistration_verdicts.json", _make_fake_preregistration_verdicts())
+    bullets = build_bullets(tmp_path)
+    shift_b = [b for b in bullets if b.startswith("Stress-tested 4 model families")][0]
+    assert "every family flagged all clean scans under at least one shift" in shift_b
+    assert "of 4 families" not in shift_b
+
+
+def test_shift_robustness_verdict_skipped_when_missing_file(tmp_path: Path) -> None:
+    """Verify ADR 0015 verdict clause is skipped when verdicts file is absent."""
+    claims = _make_fake_claims() + [_make_separability_claim(), _make_fake_shift_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    shift_b = [b for b in bullets if b.startswith("Stress-tested 4 model families")][0]
+    assert "ADR 0015 verdict" not in shift_b
+    assert (
+        "; the false-call condition is met trivially when the baseline "
+        "already flags every clean scan"
+    ) in shift_b
+
+
+def test_shift_robustness_absent_when_claim_missing(tmp_path: Path) -> None:
+    """Verify shift robustness bullet is omitted when shift_robustness claim is missing."""
+    claims = _make_fake_claims() + [_make_separability_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert not any("Stress-tested" in b for b in bullets)
+
+
+@pytest.mark.parametrize(
+    "word",
+    [
+        "verified",
+        "confirming",
+        "establishing",
+        "ensuring",
+        "guarantee",
+        "certif",
+        "validated",
+        "production",
+        "deployed",
+    ],
+)
+def test_new_bullets_forbidden_check_passes(tmp_path: Path, word: str) -> None:
+    """Verify new bullets do not contain any forbidden word."""
+    claims = _make_fake_claims() + [
+        _make_separability_claim(),
+        _make_fake_invariant_claim(),
+        _make_fake_shift_claim(),
+    ]
+    _write_claims(tmp_path / "claims.json", claims)
+    _write_json(tmp_path / "preregistration_verdicts.json", _make_fake_preregistration_verdicts())
+    bullets = build_bullets(tmp_path)
+    inv_b = [b for b in bullets if "physics-augmented contrastive" in b][0]
+    shift_b = [b for b in bullets if b.startswith("Stress-tested")][0]
+    assert word.lower() not in inv_b.lower()
+    assert word.lower() not in shift_b.lower()
