@@ -1,0 +1,624 @@
+{
+  "label": "Real data (ML-NDT weld, 3 physical cracks)",
+  "preregistration": "docs/decisions/0013-lite-hybrid-preregistration.md",
+  "config": {
+    "device": "cuda",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "epochs": 40,
+    "batch_size": 512,
+    "patience": 6,
+    "width": 16,
+    "threads": 4,
+    "quick": false,
+    "out": "results\\lite_hybrid_metrics.json",
+    "models_dir": "models"
+  },
+  "gpu_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+  "wall_time_s": 1167.301362099999,
+  "training_summary": [
+    {
+      "held_out": "crack_1.6",
+      "seed": 0,
+      "best_epoch": 39,
+      "best_val_loss": 0.017247185111045837,
+      "seconds": 84.35214289999567,
+      "model_path": "models\\lite_crack_1.6_s0.pt",
+      "model_sha256": "b7ee52cc78304a0561d87949ef5e521d3e7f6487e469331d22a4acabb37236cb"
+    },
+    {
+      "held_out": "crack_1.6",
+      "seed": 1,
+      "best_epoch": 38,
+      "best_val_loss": 0.017839796841144562,
+      "seconds": 68.51126490000752,
+      "model_path": "models\\lite_crack_1.6_s1.pt",
+      "model_sha256": "21dee1952f64ffe38a8d23188f649e7696d1d3d12587c34e2232563349c5ad91"
+    },
+    {
+      "held_out": "crack_1.6",
+      "seed": 2,
+      "best_epoch": 34,
+      "best_val_loss": 0.019793787971138954,
+      "seconds": 68.93097059999127,
+      "model_path": "models\\lite_crack_1.6_s2.pt",
+      "model_sha256": "6bd4c711b8975bff8f368f5d365582257ed2c1ee50670d057de17987776e86cd"
+    },
+    {
+      "held_out": "crack_1.6",
+      "seed": 3,
+      "best_epoch": 37,
+      "best_val_loss": 0.014909590594470501,
+      "seconds": 68.94017349998467,
+      "model_path": "models\\lite_crack_1.6_s3.pt",
+      "model_sha256": "018218434b555e287bfa310e9f78bb894edb2572229a411bfc19b2679be87ec2"
+    },
+    {
+      "held_out": "crack_1.6",
+      "seed": 4,
+      "best_epoch": 39,
+      "best_val_loss": 0.013864927925169468,
+      "seconds": 69.21911629999522,
+      "model_path": "models\\lite_crack_1.6_s4.pt",
+      "model_sha256": "20979737d45c82b67b6d8103a111d2a2e5857cf002831aa81584e2a11bc679f0"
+    },
+    {
+      "held_out": "crack_4.0",
+      "seed": 0,
+      "best_epoch": 38,
+      "best_val_loss": 0.018637504428625107,
+      "seconds": 70.96805389999645,
+      "model_path": "models\\lite_crack_4.0_s0.pt",
+      "model_sha256": "96bb97a5c5c55b865a2a1cc050eede5cec28e55b73d78281489388a84013bf54"
+    },
+    {
+      "held_out": "crack_4.0",
+      "seed": 1,
+      "best_epoch": 36,
+      "best_val_loss": 0.02084420993924141,
+      "seconds": 69.17172759998357,
+      "model_path": "models\\lite_crack_4.0_s1.pt",
+      "model_sha256": "589277b19fb482320ab304f8d21addfa91b8590c7fa11d18657af7b0253bab38"
+    },
+    {
+      "held_out": "crack_4.0",
+      "seed": 2,
+      "best_epoch": 38,
+      "best_val_loss": 0.021335842087864876,
+      "seconds": 69.88048249998246,
+      "model_path": "models\\lite_crack_4.0_s2.pt",
+      "model_sha256": "1172fb9f58025c4c3c1beb381aa106b86d60531e6aa848fdaf810375c25bc934"
+    },
+    {
+      "held_out": "crack_4.0",
+      "seed": 3,
+      "best_epoch": 37,
+      "best_val_loss": 0.013682237826287746,
+      "seconds": 69.65070570001262,
+      "model_path": "models\\lite_crack_4.0_s3.pt",
+      "model_sha256": "17fd92bebe21550dcc466dcf9c63b0345011b637cceddd9d24312b29673e74c9"
+    },
+    {
+      "held_out": "crack_4.0",
+      "seed": 4,
+      "best_epoch": 34,
+      "best_val_loss": 0.014895956963300705,
+      "seconds": 69.7420051000081,
+      "model_path": "models\\lite_crack_4.0_s4.pt",
+      "model_sha256": "440a80315181e5bc2f07685557e8c3e192d2a51224386feaf028c1fa509fd7ea"
+    },
+    {
+      "held_out": "crack_8.6",
+      "seed": 0,
+      "best_epoch": 38,
+      "best_val_loss": 0.029939107596874237,
+      "seconds": 72.6929863000114,
+      "model_path": "models\\lite_crack_8.6_s0.pt",
+      "model_sha256": "66d9c24271583118b602b42c6b09ab935c504f38a02815af28ff331bc0839e35"
+    },
+    {
+      "held_out": "crack_8.6",
+      "seed": 1,
+      "best_epoch": 39,
+      "best_val_loss": 0.028419243171811104,
+      "seconds": 70.44534890001523,
+      "model_path": "models\\lite_crack_8.6_s1.pt",
+      "model_sha256": "89b01d5c7b4b8b6eb971a78a83b7b989c469f792b57e3f9b36fe35f181431b16"
+    },
+    {
+      "held_out": "crack_8.6",
+      "seed": 2,
+      "best_epoch": 38,
+      "best_val_loss": 0.03119562566280365,
+      "seconds": 70.43197599999257,
+      "model_path": "models\\lite_crack_8.6_s2.pt",
+      "model_sha256": "8d601d2bcc373828a3acb29b5c23492d22320cbde09607e863cf801e289322e8"
+    },
+    {
+      "held_out": "crack_8.6",
+      "seed": 3,
+      "best_epoch": 39,
+      "best_val_loss": 0.0396907702088356,
+      "seconds": 70.04752039999585,
+      "model_path": "models\\lite_crack_8.6_s3.pt",
+      "model_sha256": "87cd785b9b03b7e6eb250cd7e0c9ae6c88b353b65e20b0d8d45e518ae5f9337a"
+    },
+    {
+      "held_out": "crack_8.6",
+      "seed": 4,
+      "best_epoch": 37,
+      "best_val_loss": 0.028569864109158516,
+      "seconds": 70.86992550001014,
+      "model_path": "models\\lite_crack_8.6_s4.pt",
+      "model_sha256": "62384a3b50d7bc3b6c8484595c6b0008766619ed93c5a2bf38910959cb060f68"
+    }
+  ],
+  "folds": {
+    "crack_1.6": {
+      "held_out": "crack_1.6",
+      "n_train": 14219,
+      "n_val": 159,
+      "n_test_flawed": 4014,
+      "n_clean_calib": 389,
+      "n_clean_eval": 389,
+      "operating_points": {
+        "fcr_0.01": {
+          "target_fcr": 0.01,
+          "cnn_only": {
+            "detection": {
+              "k": 3677,
+              "n": 4014,
+              "rate": 0.9160438465371201,
+              "ci_low": 0.9070340859302026,
+              "ci_high": 0.9244423820956863,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 4,
+              "n": 389,
+              "rate": 0.010282776349614395,
+              "ci_low": 0.0028086184919814032,
+              "ci_high": 0.0261174148660797,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.09862619638442993
+          },
+          "anomaly_only": {
+            "detection": {
+              "k": 3108,
+              "n": 4014,
+              "rate": 0.7742899850523169,
+              "ci_low": 0.7610356657946391,
+              "ci_high": 0.787143863228079,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 6,
+              "n": 389,
+              "rate": 0.015424164524421594,
+              "ci_low": 0.00568088522248199,
+              "ci_high": 0.03326806000834118,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 4.832418702172824
+          },
+          "hybrid": {
+            "detection": {
+              "k": 3670,
+              "n": 4014,
+              "rate": 0.9142999501743896,
+              "ci_low": 0.9052112136399696,
+              "ci_high": 0.9227801286676549,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 3,
+              "n": 389,
+              "rate": 0.007712082262210797,
+              "ci_low": 0.0015932492859270654,
+              "ci_high": 0.02237144346398195,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_cnn": 0.11686019599437714,
+            "threshold_anom": 5.522505280089711
+          }
+        },
+        "fcr_0.05": {
+          "target_fcr": 0.05,
+          "cnn_only": {
+            "detection": {
+              "k": 3945,
+              "n": 4014,
+              "rate": 0.9828101644245142,
+              "ci_low": 0.9782949496609062,
+              "ci_high": 0.9866012995859771,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 13,
+              "n": 389,
+              "rate": 0.033419023136246784,
+              "ci_low": 0.017911912035102028,
+              "ci_high": 0.056469600623069244,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.04780153930187225
+          },
+          "anomaly_only": {
+            "detection": {
+              "k": 3634,
+              "n": 4014,
+              "rate": 0.9053313403089188,
+              "ci_low": 0.895852716830836,
+              "ci_high": 0.9142150604473968,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 28,
+              "n": 389,
+              "rate": 0.07197943444730077,
+              "ci_low": 0.04835977056749351,
+              "ci_high": 0.10235200443338145,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 3.2303618723981025
+          },
+          "hybrid": {
+            "detection": {
+              "k": 3883,
+              "n": 4014,
+              "rate": 0.9673642252117588,
+              "ci_low": 0.9613917085806878,
+              "ci_high": 0.9726430063268353,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 19,
+              "n": 389,
+              "rate": 0.04884318766066838,
+              "ci_low": 0.02965944685929064,
+              "ci_high": 0.07522596194358404,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_cnn": 0.06730777025222778,
+            "threshold_anom": 4.729861465656142
+          }
+        }
+      },
+      "threshold_free": {
+        "cnn": {
+          "auroc": 0.9965935421397858,
+          "average_precision": 0.999660369932421
+        },
+        "anomaly": {
+          "auroc": 0.9800428577100969,
+          "average_precision": 0.9979148493257031
+        },
+        "fused": {
+          "auroc": 0.9942396342877051,
+          "average_precision": 0.9992347036676884
+        }
+      }
+    },
+    "crack_4.0": {
+      "held_out": "crack_4.0",
+      "n_train": 14153,
+      "n_val": 167,
+      "n_test_flawed": 4078,
+      "n_clean_calib": 389,
+      "n_clean_eval": 389,
+      "operating_points": {
+        "fcr_0.01": {
+          "target_fcr": 0.01,
+          "cnn_only": {
+            "detection": {
+              "k": 3908,
+              "n": 4078,
+              "rate": 0.9583128984796468,
+              "ci_low": 0.9517188820856242,
+              "ci_high": 0.9642395347198246,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 0,
+              "n": 389,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.009438158934181894,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.1022234559059143
+          },
+          "anomaly_only": {
+            "detection": {
+              "k": 2255,
+              "n": 4078,
+              "rate": 0.5529671407552722,
+              "ci_low": 0.5375515156805736,
+              "ci_high": 0.5683068089170817,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 6,
+              "n": 389,
+              "rate": 0.015424164524421594,
+              "ci_low": 0.00568088522248199,
+              "ci_high": 0.03326806000834118,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 4.832418702172824
+          },
+          "hybrid": {
+            "detection": {
+              "k": 3833,
+              "n": 4078,
+              "rate": 0.939921530161844,
+              "ci_low": 0.9321847897740833,
+              "ci_high": 0.9470202429043023,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 1,
+              "n": 389,
+              "rate": 0.002570694087403599,
+              "ci_low": 6.508222135157167e-05,
+              "ci_high": 0.014239109513372976,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_cnn": 0.13654956221580505,
+            "threshold_anom": 5.522505280089711
+          }
+        },
+        "fcr_0.05": {
+          "target_fcr": 0.05,
+          "cnn_only": {
+            "detection": {
+              "k": 4026,
+              "n": 4078,
+              "rate": 0.9872486512996567,
+              "ci_low": 0.9833115561102039,
+              "ci_high": 0.9904624183806616,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 11,
+              "n": 389,
+              "rate": 0.028277634961439587,
+              "ci_low": 0.014198835686796037,
+              "ci_high": 0.05003236400811133,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.040970273315906525
+          },
+          "anomaly_only": {
+            "detection": {
+              "k": 2773,
+              "n": 4078,
+              "rate": 0.6799901912702305,
+              "ci_low": 0.6654252546503919,
+              "ci_high": 0.6942968374906855,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 28,
+              "n": 389,
+              "rate": 0.07197943444730077,
+              "ci_low": 0.04835977056749351,
+              "ci_high": 0.10235200443338145,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 3.2303618723981025
+          },
+          "hybrid": {
+            "detection": {
+              "k": 4005,
+              "n": 4078,
+              "rate": 0.9820990681706719,
+              "ci_low": 0.9775442557198732,
+              "ci_high": 0.9859429508963202,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 18,
+              "n": 389,
+              "rate": 0.04627249357326478,
+              "ci_low": 0.02765121704984377,
+              "ci_high": 0.07214645162694391,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_cnn": 0.05613905191421509,
+            "threshold_anom": 4.729861465656142
+          }
+        }
+      },
+      "threshold_free": {
+        "cnn": {
+          "auroc": 0.997669481108109,
+          "average_precision": 0.9997821529186226
+        },
+        "anomaly": {
+          "auroc": 0.923132590576307,
+          "average_precision": 0.9916570808572462
+        },
+        "fused": {
+          "auroc": 0.9944602109759435,
+          "average_precision": 0.9993308256135562
+        }
+      }
+    },
+    "crack_8.6": {
+      "held_out": "crack_8.6",
+      "n_train": 14263,
+      "n_val": 163,
+      "n_test_flawed": 3925,
+      "n_clean_calib": 389,
+      "n_clean_eval": 389,
+      "operating_points": {
+        "fcr_0.01": {
+          "target_fcr": 0.01,
+          "cnn_only": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 1,
+              "n": 389,
+              "rate": 0.002570694087403599,
+              "ci_low": 6.508222135157167e-05,
+              "ci_high": 0.014239109513372976,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.17772260308265686
+          },
+          "anomaly_only": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 6,
+              "n": 389,
+              "rate": 0.015424164524421594,
+              "ci_low": 0.00568088522248199,
+              "ci_high": 0.03326806000834118,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 4.832418702172824
+          },
+          "hybrid": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 1,
+              "n": 389,
+              "rate": 0.002570694087403599,
+              "ci_low": 6.508222135157167e-05,
+              "ci_high": 0.014239109513372976,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_cnn": 0.22936871647834778,
+            "threshold_anom": 5.522505280089711
+          }
+        },
+        "fcr_0.05": {
+          "target_fcr": 0.05,
+          "cnn_only": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 19,
+              "n": 389,
+              "rate": 0.04884318766066838,
+              "ci_low": 0.02965944685929064,
+              "ci_high": 0.07522596194358404,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 0.08961159735918045
+          },
+          "anomaly_only": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 28,
+              "n": 389,
+              "rate": 0.07197943444730077,
+              "ci_low": 0.04835977056749351,
+              "ci_high": 0.10235200443338145,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold": 3.2303618723981025
+          },
+          "hybrid": {
+            "detection": {
+              "k": 3925,
+              "n": 3925,
+              "rate": 1.0,
+              "ci_low": 0.999060599613932,
+              "ci_high": 1.0,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "false_calls": {
+              "k": 19,
+              "n": 389,
+              "rate": 0.04884318766066838,
+              "ci_low": 0.02965944685929064,
+              "ci_high": 0.07522596194358404,
+              "method": "Clopper-Pearson two-sided 95"
+            },
+            "threshold_cnn": 0.11282356828451157,
+            "threshold_anom": 4.729861465656142
+          }
+        }
+      },
+      "threshold_free": {
+        "cnn": {
+          "auroc": 1.0,
+          "average_precision": 1.0
+        },
+        "anomaly": {
+          "auroc": 1.0,
+          "average_precision": 1.0
+        },
+        "fused": {
+          "auroc": 0.9987146529562982,
+          "average_precision": 0.999745287824758
+        }
+      }
+    }
+  },
+  "latency": {
+    "cpu_name": "Intel(R) Core(TM) Ultra 9 275HX",
+    "threads": 4,
+    "note": "measured on the development machine CPU limited to 4 threads, not on the target i5 laptop",
+    "litenet": {
+      "median_ms": 0.7436999876517802,
+      "p95_ms": 1.5148850055993537,
+      "params": 8913
+    },
+    "anomaly": {
+      "median_ms": 0.8947000023908913,
+      "p95_ms": 0.9545549924951047
+    },
+    "total": {
+      "median_ms": 1.7730499967001379,
+      "p95_ms": 2.236504999746103
+    },
+    "mlndtnet": {
+      "median_ms": 10.982949999743141,
+      "p95_ms": 14.916009982698599,
+      "params": 1226850
+    }
+  }
+}
