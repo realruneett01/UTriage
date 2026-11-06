@@ -1,0 +1,334 @@
+{
+  "label": "Real data (ML-NDT weld, 3 physical cracks)",
+  "reading": "AUROC 0.5 = no separation, 1.0 = perfect ranking; thresholds set on clean scans only",
+  "seed": 0,
+  "protocol_descriptions": {
+    "batchval": "Leave-one-crack-out (LOCO) deep ensemble cross-validation across 3 physical cracks. Train on 2 cracks and non-holdout unflawed, validation on official validation batches without held-out crack, test on held-out crack and holdout-batch unflawed only.",
+    "crackval": "Leave-one-crack-out (LOCO) cross-validation with crack-held-out validation. Train on 1 remaining crack and non-holdout unflawed, validation on held-out validation crack and official validation unflawed, test on held-out test crack and holdout-batch unflawed only."
+  },
+  "protocols": {
+    "batchval": {
+      "description": "Leave-one-crack-out (LOCO) deep ensemble cross-validation across 3 physical cracks. Train on 2 cracks and non-holdout unflawed, validation on official validation batches without held-out crack, test on held-out crack and holdout-batch unflawed only.",
+      "status": "evaluated",
+      "folds": [
+        {
+          "held_out": "crack_1.6",
+          "n_flawed": 4014,
+          "n_clean": 778,
+          "auroc": 0.999965096455465,
+          "average_precision": 0.9999932474702065,
+          "operating_points": {
+            "0.01": {
+              "target_fcr": 0.01,
+              "threshold": 0.000190215403563343,
+              "detection": {
+                "k": 4010,
+                "n": 4014,
+                "rate": 0.9990034877927254,
+                "ci_low": 0.9974505160871684,
+                "ci_high": 0.9997284193332667
+              },
+              "false_calls": {
+                "k": 6,
+                "n": 389,
+                "rate": 0.015424164524421594,
+                "ci_low": 0.00568088522248199,
+                "ci_high": 0.03326806000834118
+              }
+            },
+            "0.05": {
+              "target_fcr": 0.05,
+              "threshold": 0.00010522189404582605,
+              "detection": {
+                "k": 4014,
+                "n": 4014,
+                "rate": 1.0,
+                "ci_low": 0.9990814188024528,
+                "ci_high": 1.0
+              },
+              "false_calls": {
+                "k": 28,
+                "n": 389,
+                "rate": 0.07197943444730077,
+                "ci_low": 0.04835977056749351,
+                "ci_high": 0.10235200443338145
+              }
+            }
+          },
+          "model_sha256": [
+            "430ad4982608b12dee45cb652464a5c268c1ce126e1db3aed0ce7087be97a7c3",
+            "2aba3e9556f15e84451966ec0646ce40d3db5d8b8f93094a71caf14733e72710",
+            "b9f780b2def10efb32a42c27e5a661708c8320c1ce343a3f8fc3ec9ac5bf57ec"
+          ]
+        },
+        {
+          "held_out": "crack_4.0",
+          "n_flawed": 4078,
+          "n_clean": 778,
+          "auroc": 0.9980445578570069,
+          "average_precision": 0.999623463328217,
+          "operating_points": {
+            "0.01": {
+              "target_fcr": 0.01,
+              "threshold": 0.0006236335611902177,
+              "detection": {
+                "k": 3896,
+                "n": 4078,
+                "rate": 0.9553702795487984,
+                "ci_low": 0.9485758939015023,
+                "ci_high": 0.9615021058167339
+              },
+              "false_calls": {
+                "k": 2,
+                "n": 389,
+                "rate": 0.005141388174807198,
+                "ci_low": 0.0006232535611988801,
+                "ci_high": 0.01844815528196217
+              }
+            },
+            "0.05": {
+              "target_fcr": 0.05,
+              "threshold": 0.00020201399456709623,
+              "detection": {
+                "k": 4038,
+                "n": 4078,
+                "rate": 0.9901912702305051,
+                "ci_low": 0.9866670162364857,
+                "ci_high": 0.9929835134556113
+              },
+              "false_calls": {
+                "k": 18,
+                "n": 389,
+                "rate": 0.04627249357326478,
+                "ci_low": 0.02765121704984377,
+                "ci_high": 0.07214645162694391
+              }
+            }
+          },
+          "model_sha256": [
+            "36938c97203f4fcdc25400376ccf1b4e5cdf50e0c2c30cfa0939d7f5a98d82e0",
+            "934e5c8f75f724760ee61bf47d6393557100c110e0d0107f8b7e8300f576b41d",
+            "cbada037b3bc7126919e20aeee8160a39563cc35f999defd55ced091585e36ea"
+          ]
+        },
+        {
+          "held_out": "crack_8.6",
+          "n_flawed": 3925,
+          "n_clean": 778,
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "operating_points": {
+            "0.01": {
+              "target_fcr": 0.01,
+              "threshold": 0.0015493192477151752,
+              "detection": {
+                "k": 3925,
+                "n": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0
+              },
+              "false_calls": {
+                "k": 1,
+                "n": 389,
+                "rate": 0.002570694087403599,
+                "ci_low": 6.508222135157167e-05,
+                "ci_high": 0.014239109513372976
+              }
+            },
+            "0.05": {
+              "target_fcr": 0.05,
+              "threshold": 0.000550414202734828,
+              "detection": {
+                "k": 3925,
+                "n": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0
+              },
+              "false_calls": {
+                "k": 35,
+                "n": 389,
+                "rate": 0.08997429305912596,
+                "ci_low": 0.06347111671912022,
+                "ci_high": 0.12291011275719671
+              }
+            }
+          },
+          "model_sha256": [
+            "7285c522ffcc0e169a9dceec9baf2c1b4153803dc995b06c05a889619c96c31e",
+            "a9931327e1223927252e68c0a4969062ec52661ae15117d9a47e070520fceda8",
+            "7b56f64f6e0e697b5eae164733701fef04f8861bc50665d489ba499778f7844f"
+          ]
+        }
+      ]
+    },
+    "crackval": {
+      "description": "Leave-one-crack-out (LOCO) cross-validation with crack-held-out validation. Train on 1 remaining crack and non-holdout unflawed, validation on held-out validation crack and official validation unflawed, test on held-out test crack and holdout-batch unflawed only.",
+      "status": "evaluated",
+      "folds": [
+        {
+          "held_out": "crack_1.6",
+          "n_flawed": 4014,
+          "n_clean": 778,
+          "auroc": 0.8760571931402048,
+          "average_precision": 0.9752537836800665,
+          "operating_points": {
+            "0.01": {
+              "target_fcr": 0.01,
+              "threshold": 0.9705356955528259,
+              "detection": {
+                "k": 2539,
+                "n": 4014,
+                "rate": 0.6325361235675137,
+                "ci_low": 0.617404854100112,
+                "ci_high": 0.6474742222258549
+              },
+              "false_calls": {
+                "k": 1,
+                "n": 389,
+                "rate": 0.002570694087403599,
+                "ci_low": 6.508222135157167e-05,
+                "ci_high": 0.014239109513372976
+              }
+            },
+            "0.05": {
+              "target_fcr": 0.05,
+              "threshold": 0.9560108184814453,
+              "detection": {
+                "k": 2873,
+                "n": 4014,
+                "rate": 0.7157448928749377,
+                "ci_low": 0.7015129626528949,
+                "ci_high": 0.7296621409024497
+              },
+              "false_calls": {
+                "k": 10,
+                "n": 389,
+                "rate": 0.02570694087403599,
+                "ci_low": 0.012394795678428905,
+                "ci_high": 0.04676676291456643
+              }
+            }
+          },
+          "model_sha256": [
+            "ae0801f0fb2d5e75294c285d0b97803eff26f53309325940dd64d89688e94e6b"
+          ],
+          "val_crack": "crack_4.0"
+        },
+        {
+          "held_out": "crack_4.0",
+          "n_flawed": 4078,
+          "n_clean": 778,
+          "auroc": 0.9845291872748752,
+          "average_precision": 0.9971016450286805,
+          "operating_points": {
+            "0.01": {
+              "target_fcr": 0.01,
+              "threshold": 0.032816752791404724,
+              "detection": {
+                "k": 3548,
+                "n": 4078,
+                "rate": 0.8700343305541932,
+                "ci_low": 0.8593255888203747,
+                "ci_high": 0.8802097805691832
+              },
+              "false_calls": {
+                "k": 4,
+                "n": 389,
+                "rate": 0.010282776349614395,
+                "ci_low": 0.0028086184919814032,
+                "ci_high": 0.0261174148660797
+              }
+            },
+            "0.05": {
+              "target_fcr": 0.05,
+              "threshold": 0.015552142634987831,
+              "detection": {
+                "k": 3776,
+                "n": 4078,
+                "rate": 0.9259440902403139,
+                "ci_low": 0.9174752546910773,
+                "ci_high": 0.9337963934221893
+              },
+              "false_calls": {
+                "k": 14,
+                "n": 389,
+                "rate": 0.03598971722365039,
+                "ci_low": 0.019813043710845392,
+                "ci_high": 0.05964786704323548
+              }
+            }
+          },
+          "model_sha256": [
+            "9e8a76f751a72eb2205d21fdd7c9a8748a0d6dceb806ee77b4000341438fbf0b"
+          ],
+          "val_crack": "crack_8.6"
+        },
+        {
+          "held_out": "crack_8.6",
+          "n_flawed": 3925,
+          "n_clean": 778,
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "operating_points": {
+            "0.01": {
+              "target_fcr": 0.01,
+              "threshold": 0.6353455185890198,
+              "detection": {
+                "k": 3925,
+                "n": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0
+              },
+              "false_calls": {
+                "k": 3,
+                "n": 389,
+                "rate": 0.007712082262210797,
+                "ci_low": 0.0015932492859270654,
+                "ci_high": 0.02237144346398195
+              }
+            },
+            "0.05": {
+              "target_fcr": 0.05,
+              "threshold": 0.2724912762641907,
+              "detection": {
+                "k": 3925,
+                "n": 3925,
+                "rate": 1.0,
+                "ci_low": 0.999060599613932,
+                "ci_high": 1.0
+              },
+              "false_calls": {
+                "k": 23,
+                "n": 389,
+                "rate": 0.05912596401028278,
+                "ci_low": 0.03784628228824355,
+                "ci_high": 0.0873996758676103
+              }
+            }
+          },
+          "model_sha256": [
+            "b2ed5656608fc0dc3d697361cd569457a6ceb93e211bfe171e97445939497b76"
+          ],
+          "val_crack": "crack_1.6"
+        }
+      ]
+    }
+  },
+  "model_sha256": [
+    "2aba3e9556f15e84451966ec0646ce40d3db5d8b8f93094a71caf14733e72710",
+    "36938c97203f4fcdc25400376ccf1b4e5cdf50e0c2c30cfa0939d7f5a98d82e0",
+    "430ad4982608b12dee45cb652464a5c268c1ce126e1db3aed0ce7087be97a7c3",
+    "7285c522ffcc0e169a9dceec9baf2c1b4153803dc995b06c05a889619c96c31e",
+    "7b56f64f6e0e697b5eae164733701fef04f8861bc50665d489ba499778f7844f",
+    "934e5c8f75f724760ee61bf47d6393557100c110e0d0107f8b7e8300f576b41d",
+    "9e8a76f751a72eb2205d21fdd7c9a8748a0d6dceb806ee77b4000341438fbf0b",
+    "a9931327e1223927252e68c0a4969062ec52661ae15117d9a47e070520fceda8",
+    "ae0801f0fb2d5e75294c285d0b97803eff26f53309325940dd64d89688e94e6b",
+    "b2ed5656608fc0dc3d697361cd569457a6ceb93e211bfe171e97445939497b76",
+    "b9f780b2def10efb32a42c27e5a661708c8320c1ce343a3f8fc3ec9ac5bf57ec",
+    "cbada037b3bc7126919e20aeee8160a39563cc35f999defd55ced091585e36ea"
+  ]
+}
