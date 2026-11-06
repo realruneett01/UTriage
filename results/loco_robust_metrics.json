@@ -1,0 +1,544 @@
+{
+  "label": "Real data (ML-NDT weld, 3 physical cracks)",
+  "preregistration": "docs/decisions/0012-robust-loco-preregistration.md",
+  "gpu_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+  "device_name": "cuda",
+  "wall_time_seconds": 4777.22,
+  "config": {
+    "device": "cuda",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "epochs": 40,
+    "batch_size": 256,
+    "patience": 6,
+    "quick": false,
+    "models_dir": "models",
+    "out": "results\\loco_robust_metrics.json"
+  },
+  "folds": [
+    {
+      "held_out": "crack_1.6",
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "seed_history": [
+        {
+          "auroc": 0.9399556564876403,
+          "average_precision": 0.987935993633609,
+          "seed": 0,
+          "best_epoch": 28,
+          "best_val_loss": 0.0011974067892879248
+        },
+        {
+          "auroc": 0.9840080924988759,
+          "average_precision": 0.9968696959758718,
+          "seed": 1,
+          "best_epoch": 30,
+          "best_val_loss": 0.0009024653118103743
+        },
+        {
+          "auroc": 0.9791281606920764,
+          "average_precision": 0.9959186911103857,
+          "seed": 2,
+          "best_epoch": 21,
+          "best_val_loss": 0.002332545816898346
+        },
+        {
+          "auroc": 0.9686233145430581,
+          "average_precision": 0.994024233405304,
+          "seed": 3,
+          "best_epoch": 5,
+          "best_val_loss": 0.005806423723697662
+        },
+        {
+          "auroc": 0.9782044976259185,
+          "average_precision": 0.9958103199788415,
+          "seed": 4,
+          "best_epoch": 16,
+          "best_val_loss": 0.001789795933291316
+        }
+      ],
+      "seed_metrics": [
+        {
+          "auroc": 0.9399556564876403,
+          "average_precision": 0.987935993633609,
+          "seed": 0,
+          "best_epoch": 28,
+          "best_val_loss": 0.0011974067892879248
+        },
+        {
+          "auroc": 0.9840080924988759,
+          "average_precision": 0.9968696959758718,
+          "seed": 1,
+          "best_epoch": 30,
+          "best_val_loss": 0.0009024653118103743
+        },
+        {
+          "auroc": 0.9791281606920764,
+          "average_precision": 0.9959186911103857,
+          "seed": 2,
+          "best_epoch": 21,
+          "best_val_loss": 0.002332545816898346
+        },
+        {
+          "auroc": 0.9686233145430581,
+          "average_precision": 0.994024233405304,
+          "seed": 3,
+          "best_epoch": 5,
+          "best_val_loss": 0.005806423723697662
+        },
+        {
+          "auroc": 0.9782044976259185,
+          "average_precision": 0.9958103199788415,
+          "seed": 4,
+          "best_epoch": 16,
+          "best_val_loss": 0.001789795933291316
+        }
+      ],
+      "seed_summary": {
+        "auroc_mean": 0.969983944369514,
+        "auroc_min": 0.9399556564876403,
+        "auroc_max": 0.9840080924988759,
+        "ap_mean": 0.9941117868208025,
+        "ap_min": 0.987935993633609,
+        "ap_max": 0.9968696959758718
+      },
+      "ensemble_metrics": {
+        "auroc": 0.9878849476703004,
+        "average_precision": 0.9976863538602531,
+        "n_clean": 778,
+        "fcr_0.01": {
+          "target_fcr": 0.01,
+          "threshold": 0.00135040283203125,
+          "detections": {
+            "rate": 0.8799202790234181,
+            "ci_95": [
+              0.8694625187990271,
+              0.8898214095313075
+            ],
+            "n_hit": 3532,
+            "n_flawed": 4014
+          },
+          "false_calls": {
+            "rate": 0.015424164524421594,
+            "ci_95": [
+              0.00568088522248199,
+              0.03326806000834118
+            ],
+            "n_false": 6,
+            "n_clean": 389
+          }
+        },
+        "fcr_0.05": {
+          "target_fcr": 0.05,
+          "threshold": 0.0005898475646972656,
+          "detections": {
+            "rate": 0.9412057797708022,
+            "ci_95": [
+              0.9334769147538157,
+              0.9482843028365227
+            ],
+            "n_hit": 3778,
+            "n_flawed": 4014
+          },
+          "false_calls": {
+            "rate": 0.05912596401028278,
+            "ci_95": [
+              0.03784628228824355,
+              0.0873996758676103
+            ],
+            "n_false": 23,
+            "n_clean": 389
+          }
+        }
+      },
+      "models": [
+        {
+          "seed": 0,
+          "path": "models\\robust_crack_1.6_s0.pt",
+          "sha256": "bc188f120cbf62ab9711e76c97cf8ce29212e97228d830dc4824b2954e2261a2"
+        },
+        {
+          "seed": 1,
+          "path": "models\\robust_crack_1.6_s1.pt",
+          "sha256": "43fcaf26281f992de8fab7ef4243508d1a5c04564de63307089d13a0cb424197"
+        },
+        {
+          "seed": 2,
+          "path": "models\\robust_crack_1.6_s2.pt",
+          "sha256": "3a61238141b988c9bb516427b6662b687782d39a14e729292df125b220443731"
+        },
+        {
+          "seed": 3,
+          "path": "models\\robust_crack_1.6_s3.pt",
+          "sha256": "bc7232b0f0b6b5f7cd15545ac7dfbde94cd409d8259fd95cf0db77155fc5bb03"
+        },
+        {
+          "seed": 4,
+          "path": "models\\robust_crack_1.6_s4.pt",
+          "sha256": "e0f065b8702c0a648d7ce738cda92a2e9955a5db9735aeeccff8a373e0482382"
+        }
+      ],
+      "n_train": 14219,
+      "n_val": 159,
+      "n_test_flawed": 4014,
+      "n_test_unflawed": 778,
+      "wall_time_seconds": 1594.19
+    },
+    {
+      "held_out": "crack_4.0",
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "seed_history": [
+        {
+          "auroc": 0.8965532022729021,
+          "average_precision": 0.9776720120575916,
+          "seed": 0,
+          "best_epoch": 16,
+          "best_val_loss": 0.0016868752427399158
+        },
+        {
+          "auroc": 0.9882738085482199,
+          "average_precision": 0.9976855709865307,
+          "seed": 1,
+          "best_epoch": 8,
+          "best_val_loss": 0.0024162603076547384
+        },
+        {
+          "auroc": 0.980437068425346,
+          "average_precision": 0.9962485568692732,
+          "seed": 2,
+          "best_epoch": 29,
+          "best_val_loss": 0.0008186083869077265
+        },
+        {
+          "auroc": 0.9886503036545713,
+          "average_precision": 0.9978819854012856,
+          "seed": 3,
+          "best_epoch": 12,
+          "best_val_loss": 0.002386621432378888
+        },
+        {
+          "auroc": 0.9607663416842017,
+          "average_precision": 0.9921256922084983,
+          "seed": 4,
+          "best_epoch": 6,
+          "best_val_loss": 0.002360270358622074
+        }
+      ],
+      "seed_metrics": [
+        {
+          "auroc": 0.8965532022729021,
+          "average_precision": 0.9776720120575916,
+          "seed": 0,
+          "best_epoch": 16,
+          "best_val_loss": 0.0016868752427399158
+        },
+        {
+          "auroc": 0.9882738085482199,
+          "average_precision": 0.9976855709865307,
+          "seed": 1,
+          "best_epoch": 8,
+          "best_val_loss": 0.0024162603076547384
+        },
+        {
+          "auroc": 0.980437068425346,
+          "average_precision": 0.9962485568692732,
+          "seed": 2,
+          "best_epoch": 29,
+          "best_val_loss": 0.0008186083869077265
+        },
+        {
+          "auroc": 0.9886503036545713,
+          "average_precision": 0.9978819854012856,
+          "seed": 3,
+          "best_epoch": 12,
+          "best_val_loss": 0.002386621432378888
+        },
+        {
+          "auroc": 0.9607663416842017,
+          "average_precision": 0.9921256922084983,
+          "seed": 4,
+          "best_epoch": 6,
+          "best_val_loss": 0.002360270358622074
+        }
+      ],
+      "seed_summary": {
+        "auroc_mean": 0.9629361449170482,
+        "auroc_min": 0.8965532022729021,
+        "auroc_max": 0.9886503036545713,
+        "ap_mean": 0.9923227635046358,
+        "ap_min": 0.9776720120575916,
+        "ap_max": 0.9978819854012856
+      },
+      "ensemble_metrics": {
+        "auroc": 0.9880556966908774,
+        "average_precision": 0.9977269690743336,
+        "n_clean": 778,
+        "fcr_0.01": {
+          "target_fcr": 0.01,
+          "threshold": 0.0020999908447265625,
+          "detections": {
+            "rate": 0.832270720941638,
+            "ci_95": [
+              0.8204437910652987,
+              0.8436195172785024
+            ],
+            "n_hit": 3394,
+            "n_flawed": 4078
+          },
+          "false_calls": {
+            "rate": 0.010282776349614395,
+            "ci_95": [
+              0.0028086184919814032,
+              0.0261174148660797
+            ],
+            "n_false": 4,
+            "n_clean": 389
+          }
+        },
+        "fcr_0.05": {
+          "target_fcr": 0.05,
+          "threshold": 0.0008392333984375,
+          "detections": {
+            "rate": 0.9516920058852378,
+            "ci_95": [
+              0.9446576341831059,
+              0.9580697642106272
+            ],
+            "n_hit": 3881,
+            "n_flawed": 4078
+          },
+          "false_calls": {
+            "rate": 0.04627249357326478,
+            "ci_95": [
+              0.02765121704984377,
+              0.07214645162694391
+            ],
+            "n_false": 18,
+            "n_clean": 389
+          }
+        }
+      },
+      "models": [
+        {
+          "seed": 0,
+          "path": "models\\robust_crack_4.0_s0.pt",
+          "sha256": "74cd6d5c519a8ac1a26d92841f8162d268f2dcc3548d63ab3c3a965df1249428"
+        },
+        {
+          "seed": 1,
+          "path": "models\\robust_crack_4.0_s1.pt",
+          "sha256": "c1e11f8f814f72367b3b9893db56ae29f9eaf74d7cd941889972160b5850feb5"
+        },
+        {
+          "seed": 2,
+          "path": "models\\robust_crack_4.0_s2.pt",
+          "sha256": "4bb0b83deaf8c998d7217dc446d4ac86e0360b28446f4237c5647f32e88811a9"
+        },
+        {
+          "seed": 3,
+          "path": "models\\robust_crack_4.0_s3.pt",
+          "sha256": "01a10082be265e4244a8f12957754b17ab5cd6d65799203996577e71775fc1de"
+        },
+        {
+          "seed": 4,
+          "path": "models\\robust_crack_4.0_s4.pt",
+          "sha256": "92db10c06b263e9fc8661c57ede38a6b1b596a87b6a8246b70c830fdc35d0590"
+        }
+      ],
+      "n_train": 14153,
+      "n_val": 167,
+      "n_test_flawed": 4078,
+      "n_test_unflawed": 778,
+      "wall_time_seconds": 1225.69
+    },
+    {
+      "held_out": "crack_8.6",
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "seed_history": [
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 0,
+          "best_epoch": 24,
+          "best_val_loss": 0.00045061702257953584
+        },
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 1,
+          "best_epoch": 37,
+          "best_val_loss": 0.0005547400796785951
+        },
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 2,
+          "best_epoch": 30,
+          "best_val_loss": 0.0003323592827655375
+        },
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 3,
+          "best_epoch": 21,
+          "best_val_loss": 0.0006438171258196235
+        },
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 4,
+          "best_epoch": 22,
+          "best_val_loss": 0.0004529431171249598
+        }
+      ],
+      "seed_metrics": [
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 0,
+          "best_epoch": 24,
+          "best_val_loss": 0.00045061702257953584
+        },
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 1,
+          "best_epoch": 37,
+          "best_val_loss": 0.0005547400796785951
+        },
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 2,
+          "best_epoch": 30,
+          "best_val_loss": 0.0003323592827655375
+        },
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 3,
+          "best_epoch": 21,
+          "best_val_loss": 0.0006438171258196235
+        },
+        {
+          "auroc": 1.0,
+          "average_precision": 1.0,
+          "seed": 4,
+          "best_epoch": 22,
+          "best_val_loss": 0.0004529431171249598
+        }
+      ],
+      "seed_summary": {
+        "auroc_mean": 1.0,
+        "auroc_min": 1.0,
+        "auroc_max": 1.0,
+        "ap_mean": 1.0,
+        "ap_min": 1.0,
+        "ap_max": 1.0
+      },
+      "ensemble_metrics": {
+        "auroc": 1.0,
+        "average_precision": 1.0,
+        "n_clean": 778,
+        "fcr_0.01": {
+          "target_fcr": 0.01,
+          "threshold": 0.0002753734588623047,
+          "detections": {
+            "rate": 1.0,
+            "ci_95": [
+              0.999060599613932,
+              1.0
+            ],
+            "n_hit": 3925,
+            "n_flawed": 3925
+          },
+          "false_calls": {
+            "rate": 0.017994858611825194,
+            "ci_95": [
+              0.0072647117730278606,
+              0.03672334725240288
+            ],
+            "n_false": 7,
+            "n_clean": 389
+          }
+        },
+        "fcr_0.05": {
+          "target_fcr": 0.05,
+          "threshold": 0.0001703500747680664,
+          "detections": {
+            "rate": 1.0,
+            "ci_95": [
+              0.999060599613932,
+              1.0
+            ],
+            "n_hit": 3925,
+            "n_flawed": 3925
+          },
+          "false_calls": {
+            "rate": 0.04113110539845758,
+            "ci_95": [
+              0.02368974710667882,
+              0.06593628363404892
+            ],
+            "n_false": 16,
+            "n_clean": 389
+          }
+        }
+      },
+      "models": [
+        {
+          "seed": 0,
+          "path": "models\\robust_crack_8.6_s0.pt",
+          "sha256": "08c6b0e725dfacdffdbe5e180b7d348afb20aa359259251e9b161886cc56ec1b"
+        },
+        {
+          "seed": 1,
+          "path": "models\\robust_crack_8.6_s1.pt",
+          "sha256": "6ee88a5e0e65be0637856b30ea2404d5ac5936db7e9ad25ae8fe641136987df3"
+        },
+        {
+          "seed": 2,
+          "path": "models\\robust_crack_8.6_s2.pt",
+          "sha256": "0c5fa472c525bbcec4ec4dfec771ccfa0820c5e13d0c1882cfc067d37798b18a"
+        },
+        {
+          "seed": 3,
+          "path": "models\\robust_crack_8.6_s3.pt",
+          "sha256": "6e0a9a3859959e87e32df7639d53635c9ae03c4e1a656fa519b054545c9f0a83"
+        },
+        {
+          "seed": 4,
+          "path": "models\\robust_crack_8.6_s4.pt",
+          "sha256": "63d92e49cdb1fee9d74ee918f277c19f369f0880db04c67ffc646964d80d68ce"
+        }
+      ],
+      "n_train": 14263,
+      "n_val": 163,
+      "n_test_flawed": 3925,
+      "n_test_unflawed": 778,
+      "wall_time_seconds": 1957.15
+    }
+  ]
+}
