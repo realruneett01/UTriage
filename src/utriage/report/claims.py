@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from utriage.report.claims_ml import collect_ml_claims
+
 FORBIDDEN: tuple[str, ...] = (
     "perfect",
     "100%",
@@ -1446,5 +1448,6 @@ def build_claims(results_dir: Path | str) -> list[Claim]:
     c_fca = _build_false_call_analysis_claim(r_dir)
     if c_fca is not None:
         claims.append(c_fca)
+    claims.extend(collect_ml_claims(r_dir))
     claims.extend(_collect_final_claims(r_dir, mat_dict))
     return claims
