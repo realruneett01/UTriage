@@ -293,7 +293,7 @@ def test_shift_robustness_claim_built_correctly(tmp_path: Path) -> None:
     assert c.id == "shift_robustness"
     assert "Shift robustness at FCR 0.01:" in c.text
     assert "worst-case detection 0.632, worst-case false calls 1.000" in c.text
-    assert "1 shifts flagged every clean_eval scan" in c.text
+    assert "1/2 shifts flagged every clean_eval scan" in c.text
     assert "thresholds fixed on unshifted clean scans" in c.text
     assert "shifts are synthetic gain/offset/noise perturbations of real weld images" in c.text
     assert (
@@ -339,7 +339,8 @@ def test_all_clean_flagged_shift_count_computation(
     (tmp_path / "shift_robustness_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
     claims = collect_ml_claims(tmp_path)
     assert len(claims) == 1
-    assert f"{expected_count} shifts flagged every clean_eval scan" in claims[0].text
+    expected = f"{expected_count}/{len(shifts_config)} shifts flagged every clean_eval scan"
+    assert expected in claims[0].text
     assert claims[0].numbers["robust_crack_4.0_all_clean_shifts"] == float(expected_count)
 
 

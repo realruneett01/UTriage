@@ -300,7 +300,10 @@ def _build_loco_robust_claim(
         f"Robust LOCO seed ensemble ({n_seeds} seeds): {'; '.join(parts)}. "
         "Thresholds were set on clean scans only."
     )
-    verdict = _extract_verdict(verdicts, "loco_robust")
+    # the judge names this candidate "robust"
+    verdict = _extract_verdict(verdicts, "candidates.robust") or _extract_verdict(
+        verdicts, "loco_robust"
+    )
     text = _append_verdict(text, verdict)
     return Claim(
         id="loco_robust",
@@ -407,16 +410,14 @@ def _build_lite_hybrid_claim(
 def _format_invariant_fold(fold: dict[str, Any]) -> tuple[str, dict[str, float]]:
     """Format single fold metrics for invariant LOCO evaluation."""
     held_out = str(fold.get("held_out", ""))
-    fused = fold.get("fused", {})
-    auroc = float(fused.get("auroc", fold.get("ranking", {}).get("fused", {}).get("auroc", 0.0)))
-    fused_ops = fused.get("operating_points", {})
-    op_05 = fused_ops.get("0.05", fold.get("operating_points", {}).get("0.05", {}).get("fused", {}))
-    det = op_05.get("detection", {})
-    fc = op_05.get("false_calls", {})
-    k_det = int(det.get("k", det.get("n_hit", 0)))
-    n_det = int(det.get("n", det.get("n_flawed", 0)))
-    k_fc = int(fc.get("k", fc.get("n_false", 0)))
-    n_fc = int(fc.get("n", fc.get("n_clean", 0)))
+    # keys as written by experiments/run_invariant_loco.py build_fold_record;
+    # a missing key raises instead of reporting a fake 0
+    fused = fold["fused"]
+    auroc = float(fused["auroc"])
+    op_05 = fused["operating_points"]["0.05"]
+    det, fc = op_05["detection"], op_05["false_calls"]
+    k_det, n_det = int(det["k"]), int(det["n"])
+    k_fc, n_fc = int(fc["k"]), int(fc["n"])
     part = (
         f"{held_out}: fused AUROC {auroc:.3f}, "
         f"at FCR 0.05 detection {k_det}/{n_det}, false calls {k_fc}/{n_fc}"
@@ -495,28 +496,12 @@ def _count_clean_flagged_shifts(shifts: list[dict[str, Any]]) -> int:
 
 def _extract_worst_rates(fold: dict[str, Any]) -> tuple[float, float]:
     """Extract worst-case detection and false-call rates at FCR 0.01."""
-    summary = fold.get("summary")
-    if isinstance(summary, dict):
-        det = summary.get(
-            "worst_case_detection_rate_0.01", summary.get("worst_case_detection_rate")
-        )
-        fcr = summary.get(
-            "worst_case_false_call_rate_0.01", summary.get("worst_case_false_call_rate")
-        )
-        if det is not None and fcr is not None:
-            return float(det), float(fcr)
-    shifts = [s for s in fold.get("shifts", []) if isinstance(s, dict)]
-    det_vals = [
-        float(s.get("operating_points", {}).get("0.01", {}).get("detection", {}).get("rate", 0.0))
-        for s in shifts
-    ]
-    fc_vals = [
-        float(s.get("operating_points", {}).get("0.01", {}).get("false_calls", {}).get("rate", 0.0))
-        for s in shifts
-    ]
-    worst_det = min(det_vals) if det_vals else 0.0
-    worst_fc = max(fc_vals) if fc_vals else 0.0
-    return worst_det, worst_fc
+    # summary keys as written by experiments/run_shift_robustness.py
+    summary = fold["summary"]
+    return (
+        float(summary["worst_case_detection_rate_0.01"]),
+        float(summary["worst_case_false_call_rate_0.01"]),
+    )
 
 
 def _format_shift_fold(
@@ -531,12 +516,13 @@ def _format_shift_fold(
     part = (
         f"{held_out}: worst-case detection {worst_det:.3f}, "
         f"worst-case false calls {worst_fc:.3f}, "
-        f"{all_clean} shifts flagged every clean_eval scan"
+        f"{all_clean}/{len(shifts)} shifts flagged every clean_eval scan"
     )
     nums = {
         f"{family}_{held_out}_worst_det": float(f"{worst_det:.3f}"),
         f"{family}_{held_out}_worst_fcr": float(f"{worst_fc:.3f}"),
         f"{family}_{held_out}_all_clean_shifts": float(all_clean),
+        f"{family}_{held_out}_n_shifts": float(len(shifts)),
     }
     return part, nums
 
@@ -565,7 +551,9 @@ def _format_shift_family(
 SHIFT_ROBUSTNESS_NOTE: str = (
     "thresholds fixed on unshifted clean scans, "
     "shifts are synthetic gain/offset/noise perturbations of real weld images, "
-    "site calibration (ADR 0011) is the intended mitigation and was not applied here"
+    "site calibration (ADR 0011) is the intended mitigation and was not applied here; "
+    "the false-call condition of the ADR 0015 rule is met trivially wherever the "
+    "baseline worst-case false-call rate is already at its maximum"
 )
 
 

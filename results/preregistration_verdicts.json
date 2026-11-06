@@ -121,5 +121,100 @@
         }
       }
     }
+  },
+  "shift_robustness": {
+    "adr": "docs/decisions/0015-shift-robustness-preregistration.md",
+    "rule": "candidate is 'more shift-robust' on a fold iff cand_worst_det >= base_worst_det + 0.10 AND cand_worst_fcr <= base_worst_fcr + 0.01; otherwise 'no improvement'; NaN/missing -> 'not evaluable'.",
+    "baseline_family": "loco",
+    "note": "shifts are synthetic gain/offset/noise perturbations of real ML-NDT images; thresholds fixed on unshifted clean scans",
+    "candidates": {
+      "robust": {
+        "status": "evaluated",
+        "folds": {
+          "crack_1.6": {
+            "base_worst_det": 0.6317887394120578,
+            "cand_worst_det": 0.8111609367214748,
+            "base_worst_fcr": 1.0,
+            "cand_worst_fcr": 0.6760925449871465,
+            "delta_det": 0.179372,
+            "verdict": "more shift-robust"
+          },
+          "crack_4.0": {
+            "base_worst_det": 0.9553702795487984,
+            "cand_worst_det": 0.20451201569396762,
+            "base_worst_fcr": 1.0,
+            "cand_worst_fcr": 1.0,
+            "delta_det": -0.750858,
+            "verdict": "no improvement"
+          },
+          "crack_8.6": {
+            "base_worst_det": 1.0,
+            "cand_worst_det": 1.0,
+            "base_worst_fcr": 1.0,
+            "cand_worst_fcr": 1.0,
+            "delta_det": 0.0,
+            "verdict": "no improvement"
+          }
+        }
+      },
+      "lite": {
+        "status": "evaluated",
+        "folds": {
+          "crack_1.6": {
+            "base_worst_det": 0.6317887394120578,
+            "cand_worst_det": 0.7491280518186347,
+            "base_worst_fcr": 1.0,
+            "cand_worst_fcr": 1.0,
+            "delta_det": 0.117339,
+            "verdict": "more shift-robust"
+          },
+          "crack_4.0": {
+            "base_worst_det": 0.9553702795487984,
+            "cand_worst_det": 0.8925944090240314,
+            "base_worst_fcr": 1.0,
+            "cand_worst_fcr": 1.0,
+            "delta_det": -0.062776,
+            "verdict": "no improvement"
+          },
+          "crack_8.6": {
+            "base_worst_det": 1.0,
+            "cand_worst_det": 1.0,
+            "base_worst_fcr": 1.0,
+            "cand_worst_fcr": 1.0,
+            "delta_det": 0.0,
+            "verdict": "no improvement"
+          }
+        }
+      },
+      "invariant": {
+        "status": "evaluated",
+        "folds": {
+          "crack_1.6": {
+            "base_worst_det": 0.6317887394120578,
+            "cand_worst_det": 0.5264075734927753,
+            "base_worst_fcr": 1.0,
+            "cand_worst_fcr": 1.0,
+            "delta_det": -0.105381,
+            "verdict": "no improvement"
+          },
+          "crack_4.0": {
+            "base_worst_det": 0.9553702795487984,
+            "cand_worst_det": 0.4769494850416871,
+            "base_worst_fcr": 1.0,
+            "cand_worst_fcr": 1.0,
+            "delta_det": -0.478421,
+            "verdict": "no improvement"
+          },
+          "crack_8.6": {
+            "base_worst_det": 1.0,
+            "cand_worst_det": 1.0,
+            "base_worst_fcr": 1.0,
+            "cand_worst_fcr": 1.0,
+            "delta_det": 0.0,
+            "verdict": "no improvement"
+          }
+        }
+      }
+    }
   }
 }

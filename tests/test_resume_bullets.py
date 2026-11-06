@@ -510,7 +510,7 @@ def test_real_results() -> None:
     if not claims_path.exists():
         pytest.skip(f"{claims_path} does not exist yet")
     bullets = build_bullets(results_dir)
-    assert len(bullets) == 11
+    assert len(bullets) == 12  # includes the separability bullet
     for bullet in bullets:
         assert bullet.endswith(").")
 

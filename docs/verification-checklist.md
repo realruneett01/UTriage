@@ -39,6 +39,26 @@ Values are placeholders until Ruri fills the `Verified against` column from a le
 | materials.yaml | maraging250.density_kg_m3 | 8000.0 | _kg_m3 | UNVERIFIED - Ruri to check (velocity/density typical handbook values; attenuation and grain_noise are simulator model choices) |  |  |
 | materials.yaml | maraging250.attenuation_db_mm_mhz | 0.003 | _db_mm_mhz | UNVERIFIED - Ruri to check (velocity/density typical handbook values; attenuation and grain_noise are simulator model choices) |  |  |
 | materials.yaml | maraging250.grain_noise | 0.012 |  | UNVERIFIED - Ruri to check (velocity/density typical handbook values; attenuation and grain_noise are simulator model choices) |  |  |
+| probe.yaml | p5.frequency_mhz | 5.0 | _mhz | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p5.fractional_bandwidth | 0.6 |  | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p5.water_path_mm | 50.0 | _mm | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p5.focal_depth_mm | 15.0 | _mm | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p5.focal_zone_mm | 12.0 | _mm | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p5.beam_sigma_mm | 0.6 | _mm | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p5.sampling_mhz | 100.0 | _mhz | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p5.gain_db | 0.0 |  | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p5.electronic_noise | 0.0015 |  | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p5.k_fbh | 0.8 |  | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.frequency_mhz | 10.0 | _mhz | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.fractional_bandwidth | 0.6 |  | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.water_path_mm | 50.0 | _mm | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.focal_depth_mm | 15.0 | _mm | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.focal_zone_mm | 8.0 | _mm | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.beam_sigma_mm | 0.4 | _mm | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.sampling_mhz | 100.0 | _mhz | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.gain_db | 0.0 |  | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.electronic_noise | 0.0015 |  | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
+| probe.yaml | p10.k_fbh | 0.8 |  | UNVERIFIED - Ruri to check (simulator default, not from an instrument datasheet) |  |  |
 | randomization.yaml | ranges.velocity_scale.min | 0.95 |  | UNVERIFIED — Ruri to check |  |  |
 | randomization.yaml | ranges.velocity_scale.max | 1.05 |  | UNVERIFIED — Ruri to check |  |  |
 | randomization.yaml | ranges.attenuation_scale.min | 0.5 |  | UNVERIFIED — Ruri to check |  |  |
