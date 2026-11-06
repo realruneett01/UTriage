@@ -5,16 +5,23 @@ leave-one-crack-out folds, evaluates hybrid operating points and ranking metrics
 and benchmarks CPU latency against baseline MlNdtNet.
 """
 
+# ruff: noqa: E402  (repo root is added to sys.path before the local imports)
 from __future__ import annotations
 
 import argparse
 import copy
 import json
+import sys
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+
+# repo root on sys.path so `experiments.*` imports work when run as a script
+_ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
 
 import numpy as np
 import torch

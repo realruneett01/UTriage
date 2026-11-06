@@ -166,7 +166,7 @@ def nt_xent_loss(
     norm_z1 = F.normalize(z1.float(), p=2.0, dim=-1)
     norm_z2 = F.normalize(z2.float(), p=2.0, dim=-1)
     z = torch.cat([norm_z1, norm_z2], dim=0)
-    sim = torch.matmul(z, z.T) / temperature
+    sim = (torch.matmul(z, z.T) / temperature).float()  # autocast re-casts matmul to fp16
     diag_mask = torch.eye(2 * b, dtype=torch.bool, device=z.device)
     sim = sim.masked_fill(diag_mask, -1e9)
     targets = torch.cat(
@@ -198,7 +198,7 @@ def supcon_loss(
     """Supervised contrastive loss (Khosla et al. 2020) with positive-less anchor skipping."""
     _validate_supcon_inputs(z, labels, temperature)
     norm_z = F.normalize(z.float(), p=2.0, dim=-1)  # float32: fp16-safe mask
-    sim = torch.matmul(norm_z, norm_z.T) / temperature
+    sim = (torch.matmul(norm_z, norm_z.T) / temperature).float()  # autocast-safe
     eye = torch.eye(z.shape[0], dtype=torch.bool, device=z.device)
     label_col = labels.contiguous().view(-1, 1)
     pos_mask = torch.eq(label_col, label_col.T) & (~eye)
