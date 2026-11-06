@@ -646,3 +646,123 @@ def test_missing_values_skip_bullets(
     assert len(bullets) == 6
     captured = capsys.readouterr()
     assert "Warning:" in captured.err
+
+
+def _make_separability_numbers(k: float, n: float, fk: float, fn: float) -> dict[str, float]:
+    """Helper to build separability numbers dictionary."""
+    return {
+        "target_fcr": 0.05,
+        "crack_1.6_auroc": 0.852,
+        "crack_1.6_ap": 0.741,
+        "crack_1.6_det_k": k,
+        "crack_1.6_det_n": n,
+        "crack_1.6_fc_k": fk,
+        "crack_1.6_fc_n": fn,
+        "crack_4.0_auroc": 0.921,
+        "crack_4.0_ap": 0.850,
+        "crack_8.6_auroc": 0.999,
+        "crack_8.6_ap": 0.998,
+        "default_threshold": 0.5,
+    }
+
+
+def _make_separability_claim(
+    *, k: float = 3000.0, n: float = 4014.0, fk: float = 200.0, fn: float = 4000.0
+) -> dict[str, Any]:
+    """Build representative fake claim for separability_batchval."""
+    text = (
+        "Separability (batch-held-out early stopping): "
+        "crack_1.6: AUROC 0.852, AP 0.741, at FCR 0.05 detection 3000/4014, false calls 200/4000; "
+        "crack_4.0: AUROC 0.921, AP 0.850; crack_8.6: AUROC 0.999, AP 0.998. "
+        "Thresholds were set on clean scans only."
+    )
+    return {
+        "id": "separability_batchval",
+        "text": text,
+        "evidence_file": "results/separability_metrics.json",
+        "evidence_path": "protocols.batchval.folds",
+        "scope_limit": "ML-NDT weld, 3 physical cracks, leave-one-crack-out, clean test scans",
+        "numbers": _make_separability_numbers(k, n, fk, fn),
+    }
+
+
+def test_separability_bullet_present_with_numbers(tmp_path: Path) -> None:
+    """Verify separability bullet is generated right after LOCO with correct numbers."""
+    claims = _make_fake_claims() + [_make_separability_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    loco_idx = next(i for i, b in enumerate(bullets) if b.startswith("Detected "))
+    sep_b = bullets[loco_idx + 1]
+    assert sep_b.startswith(
+        "Showed that the leave-one-crack-out classifier ranked held-out cracks "
+    )
+    assert "almost perfectly (AUROC 0.852-0.999 across the 3 folds)" in sep_b
+    assert (
+        "calibration recovered detection (3000/4014 on the 1.6 mm crack at a 5% "
+        "false-call target, 200/4000 false calls)" in sep_b
+    )
+    assert ", while the default 0.5 threshold missed most of that crack" in sep_b
+    assert sep_b.endswith(
+        "(leave-one-crack-out, 3 physical cracks, clean scans from the same weld)."
+    )
+
+
+def test_separability_bullet_absent_when_missing(tmp_path: Path) -> None:
+    """Verify separability bullet is omitted when separability_batchval claim is missing."""
+    claims = _make_fake_claims()
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert not any("Showed that the leave-one-crack-out classifier" in b for b in bullets)
+
+
+def test_separability_clause_dropped_when_above_half(tmp_path: Path) -> None:
+    """Verify 'missed most' clause is dropped when batch LOCO detection is above half."""
+    claims = _make_fake_claims()
+    for c in claims:
+        if c["id"] == "loco_crack_1.6":
+            c["numbers"]["k"] = 3500.0
+            c["text"] = "LOCO crack_1.6: detection 3500/4014, false calls 0/778."
+    claims.append(_make_separability_claim())
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    sep_b = [b for b in bullets if b.startswith("Showed that ")][0]
+    assert "missed most" not in sep_b
+    assert "default 0.5 threshold" not in sep_b
+    assert sep_b.endswith(
+        "200/4000 false calls) "
+        "(leave-one-crack-out, 3 physical cracks, clean scans from the same weld)."
+    )
+
+
+@pytest.mark.parametrize(
+    "word",
+    [
+        "verified",
+        "confirming",
+        "establishing",
+        "ensuring",
+        "guarantee",
+        "certif",
+        "validated",
+        "production",
+        "deployed",
+    ],
+)
+def test_separability_forbidden_check_passes(tmp_path: Path, word: str) -> None:
+    """Verify separability bullet does not contain any forbidden word."""
+    claims = _make_fake_claims() + [_make_separability_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    sep_b = [b for b in bullets if b.startswith("Showed that ")][0]
+    assert word.lower() not in sep_b.lower()
+
+
+def test_separability_every_number_in_claims(tmp_path: Path) -> None:
+    """Verify every number in the separability bullet appears in claims."""
+    claims = _make_fake_claims(include_cross=True) + [_make_separability_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    sep_b = [b for b in bullets if b.startswith("Showed that ")][0]
+    numbers = re.findall(r"\b\d+(?:\.\d+)?\b", sep_b)
+    for num in numbers:
+        assert _number_in_claims(num, claims), f"Number {num} in {sep_b!r} not in claims"
