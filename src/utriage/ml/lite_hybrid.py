@@ -113,12 +113,19 @@ def _apply_noise(x: torch.Tensor, gen: torch.Generator, std: torch.Tensor) -> to
     return x + noise * noise_std
 
 
-def _roll_and_flip_sample(sample: torch.Tensor, gen: torch.Generator) -> torch.Tensor:
-    """Roll sample along TIME_AXIS up to +-16 and flip along SCAN_AXIS with p=0.5."""
-    shift = int(torch.randint(-16, 17, (1,), device=gen.device, generator=gen).item())
-    rolled = torch.roll(sample, shifts=shift, dims=TIME_AXIS)
-    do_flip = bool(torch.rand((1,), device=gen.device, generator=gen).item() < 0.5)
-    return torch.flip(rolled, dims=[SCAN_AXIS]) if do_flip else rolled
+def _circular_shift(x: torch.Tensor, shifts: torch.Tensor) -> torch.Tensor:
+    """Perform circular roll along TIME_AXIS given per-sample shifts."""
+    if x.shape[0] == 0:
+        return x.clone()
+    h = x.shape[TIME_AXIS]
+    grid_shape = [1] * x.ndim
+    grid_shape[TIME_AXIS] = h
+    shift_shape = [1] * x.ndim
+    shift_shape[0] = x.shape[0]
+    grid = torch.arange(h, device=x.device, dtype=torch.int64).view(grid_shape)
+    shifts_tensor = shifts.to(device=x.device).reshape(shift_shape)
+    idx = ((grid - shifts_tensor) % h).long().expand_as(x)
+    return torch.gather(x, dim=TIME_AXIS, index=idx)
 
 
 def augment_batch(x: torch.Tensor, gen: torch.Generator) -> torch.Tensor:
@@ -137,8 +144,11 @@ def augment_batch(x: torch.Tensor, gen: torch.Generator) -> torch.Tensor:
     x_aug = _apply_gain(x, gen)
     x_aug = _apply_offset(x_aug, gen, std)
     x_aug = _apply_noise(x_aug, gen, std)
-    samples = [_roll_and_flip_sample(x_aug[i], gen) for i in range(x.shape[0])]
-    return torch.stack(samples, dim=0)
+    shifts = torch.randint(-16, 17, (x.shape[0],), device=gen.device, generator=gen)
+    x_aug = _circular_shift(x_aug, shifts)
+    mask_shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+    mask = (torch.rand(mask_shape, device=gen.device, generator=gen) < 0.5).to(x.device)
+    return torch.where(mask, x_aug.flip(SCAN_AXIS), x_aug)
 
 
 class CleanFeatureModel:

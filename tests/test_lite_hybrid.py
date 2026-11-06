@@ -20,6 +20,7 @@ from utriage.ml.lite_hybrid import (  # noqa: E402
     TIME_AXIS,
     CleanFeatureModel,
     LiteNet,
+    _circular_shift,
     augment_batch,
     clean_threshold,
     count_params,
@@ -64,6 +65,35 @@ def test_augment_batch_deterministic_per_seed() -> None:
     gen2 = torch.Generator().manual_seed(202)
     out2 = augment_batch(x, gen2)
     assert torch.equal(out1, out2)
+
+
+def test_augment_batch_different_seeds_differ() -> None:
+    """Verify augment_batch outputs differ when run with different seeds."""
+    x = torch.randn(4, 1, 32, 32, dtype=torch.float32)
+    out1 = augment_batch(x, torch.Generator().manual_seed(202))
+    out2 = augment_batch(x, torch.Generator().manual_seed(303))
+    assert not torch.equal(out1, out2)
+
+
+@pytest.mark.parametrize("shifts_list", [[0, 5, -7, 16], [-16, 1, -1, 8]])
+def test_circular_shift_matches_torch_roll(shifts_list: list[int]) -> None:
+    """Verify _circular_shift matches per-sample torch.roll along TIME_AXIS."""
+    x = torch.randn(len(shifts_list), 1, 32, 20, dtype=torch.float32)
+    shifts = torch.tensor(shifts_list, dtype=torch.int64)
+    out = _circular_shift(x, shifts)
+    expected = torch.stack(
+        [torch.roll(x[i], shifts=s, dims=TIME_AXIS) for i, s in enumerate(shifts_list)],
+        dim=0,
+    )
+    assert torch.equal(out, expected)
+
+
+def test_circular_shift_empty() -> None:
+    """Verify _circular_shift handles empty batch tensor gracefully."""
+    x = torch.empty(0, 1, 16, 16, dtype=torch.float32)
+    shifts = torch.empty(0, dtype=torch.int64)
+    out = _circular_shift(x, shifts)
+    assert out.shape == x.shape
 
 
 def test_augment_batch_gain_range_respected() -> None:
