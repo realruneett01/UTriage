@@ -117,6 +117,65 @@ def _make_fake_lite_hybrid_data() -> dict[str, Any]:
     }
 
 
+def _make_fake_invariant_loco_data() -> dict[str, Any]:
+    """Construct minimal payload matching invariant_loco_metrics.json."""
+    return {
+        "folds": [
+            {
+                "held_out": "crack_1.6",
+                "fused": {
+                    "auroc": 0.9958,
+                    "operating_points": {
+                        "0.05": {
+                            "detection": {"k": 3923, "n": 4014},
+                            "false_calls": {"k": 13, "n": 389},
+                        }
+                    },
+                },
+            }
+        ]
+    }
+
+
+def _make_fake_shift_robustness_data() -> dict[str, Any]:
+    """Construct minimal payload matching shift_robustness_metrics.json."""
+    shifts = [
+        {
+            "shift_name": "identity",
+            "operating_points": {"0.01": {"false_calls": {"k": 6, "n": 389}}},
+        },
+        {
+            "shift_name": "combined",
+            "operating_points": {"0.01": {"false_calls": {"k": 389, "n": 389}}},
+        },
+    ]
+    summary = {"worst_case_detection_rate_0.01": 0.632, "worst_case_false_call_rate_0.01": 1.0}
+    fold = {"held_out": "crack_1.6", "summary": summary, "shifts": shifts}
+    return {"families": {"loco": {"folds": [fold]}}}
+
+
+def _make_fake_shift_verdict_data() -> dict[str, Any]:
+    """Construct shift_robustness verdict matching preregistration schema."""
+    fold_record = {
+        "base_worst_det": 0.632,
+        "cand_worst_det": 0.811,
+        "base_worst_fcr": 1.0,
+        "cand_worst_fcr": 0.676,
+        "delta_det": 0.179,
+        "verdict": "more shift-robust",
+    }
+    candidate = {"status": "evaluated", "folds": {"crack_1.6": fold_record}}
+    return {
+        "shift_robustness": {
+            "adr": "docs/decisions/0015-shift-robustness-preregistration.md",
+            "rule": "test rule",
+            "baseline_family": "loco",
+            "note": "shifts are synthetic",
+            "candidates": {"robust": candidate},
+        }
+    }
+
+
 def _assert_numbers_match_text(text: str, numbers: dict[str, float]) -> None:
     """Verify each number in dictionary appears formatted in claim text."""
     assert len(numbers) > 0
@@ -206,6 +265,119 @@ def test_lite_hybrid_claim_built_correctly(tmp_path: Path) -> None:
     _assert_no_forbidden_words(c.text, c.scope_limit)
 
 
+def test_invariant_loco_claim_built_correctly(tmp_path: Path) -> None:
+    """Verify invariant_loco claim formats fused AUROC and FCR 0.05 counts."""
+    payload = _make_fake_invariant_loco_data()
+    (tmp_path / "invariant_loco_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ml_claims(tmp_path)
+    assert len(claims) == 1
+    c = claims[0]
+    assert c.id == "invariant_loco"
+    assert "Invariant LOCO:" in c.text
+    assert "crack_1.6: fused AUROC 0.996" in c.text
+    assert "at FCR 0.05 detection 3923/4014, false calls 13/389" in c.text
+    assert c.scope_limit == SCOPE_LIMIT
+    _assert_numbers_match_text(c.text, c.numbers)
+    _assert_no_forbidden_words(c.text, c.scope_limit)
+
+
+def test_shift_robustness_claim_built_correctly(tmp_path: Path) -> None:
+    """Verify shift_robustness claim formats worst-case rates, shifts count, and caveats."""
+    payload = _make_fake_shift_robustness_data()
+    (tmp_path / "shift_robustness_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ml_claims(tmp_path)
+    assert len(claims) == 1
+    c = claims[0]
+    assert c.id == "shift_robustness"
+    assert "Shift robustness at FCR 0.01:" in c.text
+    assert "worst-case detection 0.632, worst-case false calls 1.000" in c.text
+    assert "1 shifts flagged every clean_eval scan" in c.text
+    assert "thresholds fixed on unshifted clean scans" in c.text
+    assert "shifts are synthetic gain/offset/noise perturbations of real weld images" in c.text
+    assert (
+        "site calibration (ADR 0011) is the intended mitigation and was not applied here" in c.text
+    )
+    assert c.scope_limit == SCOPE_LIMIT
+    _assert_numbers_match_text(c.text, c.numbers)
+    _assert_no_forbidden_words(c.text, c.scope_limit)
+
+
+@pytest.mark.parametrize(
+    ("shifts_config", "expected_count"),
+    [
+        ([{"k": 10, "n": 389}, {"k": 389, "n": 389}], 1),
+        ([{"k": 389, "n": 389}, {"k": 200, "n": 200}], 2),
+        ([{"k": 0, "n": 0}, {"k": 10, "n": 389}], 0),
+    ],
+)
+def test_all_clean_flagged_shift_count_computation(
+    tmp_path: Path, shifts_config: list[dict[str, int]], expected_count: int
+) -> None:
+    """Verify clean_eval flagged shift count evaluates k == n with non-zero n."""
+    shifts = [
+        {"shift_name": f"s{i}", "operating_points": {"0.01": {"false_calls": cfg}}}
+        for i, cfg in enumerate(shifts_config)
+    ]
+    payload = {
+        "families": {
+            "robust": {
+                "folds": [
+                    {
+                        "held_out": "crack_4.0",
+                        "summary": {
+                            "worst_case_detection_rate_0.01": 0.5,
+                            "worst_case_false_call_rate_0.01": 0.8,
+                        },
+                        "shifts": shifts,
+                    }
+                ]
+            }
+        }
+    }
+    (tmp_path / "shift_robustness_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+    claims = collect_ml_claims(tmp_path)
+    assert len(claims) == 1
+    assert f"{expected_count} shifts flagged every clean_eval scan" in claims[0].text
+    assert claims[0].numbers["robust_crack_4.0_all_clean_shifts"] == float(expected_count)
+
+
+def test_preregistration_invariant_verdict_appended(tmp_path: Path) -> None:
+    """Verify verdict for candidates.invariant is appended verbatim to claim text."""
+    (tmp_path / "invariant_loco_metrics.json").write_text(
+        json.dumps(_make_fake_invariant_loco_data()), encoding="utf-8"
+    )
+    verdicts = {
+        "candidates": {
+            "invariant": {
+                "status": "evaluated",
+                "folds": {
+                    "crack_1.6": {"verdict": "no improvement"},
+                },
+            }
+        }
+    }
+    (tmp_path / "preregistration_verdicts.json").write_text(json.dumps(verdicts), encoding="utf-8")
+    claims = collect_ml_claims(tmp_path)
+    c_inv = claims[0]
+    assert "Verdict: crack_1.6: no improvement." in c_inv.text
+    _assert_no_forbidden_words(c_inv.text, c_inv.scope_limit)
+
+
+def test_preregistration_shift_robustness_verdict_appended(tmp_path: Path) -> None:
+    """Verify shift_robustness candidates per-fold verdicts appended verbatim."""
+    (tmp_path / "shift_robustness_metrics.json").write_text(
+        json.dumps(_make_fake_shift_robustness_data()), encoding="utf-8"
+    )
+    verdicts = _make_fake_shift_verdict_data()
+    (tmp_path / "preregistration_verdicts.json").write_text(json.dumps(verdicts), encoding="utf-8")
+    claims = collect_ml_claims(tmp_path)
+    c_shift = claims[0]
+    assert "Verdict: robust: crack_1.6: more shift-robust." in c_shift.text
+    _assert_no_forbidden_words(c_shift.text, c_shift.scope_limit)
+
+
 @pytest.mark.parametrize(
     ("claim_id", "verdict_word"),
     [
@@ -246,6 +418,12 @@ def test_build_claims_integrates_ml_claims(tmp_path: Path) -> None:
     (tmp_path / "lite_hybrid_metrics.json").write_text(
         json.dumps(_make_fake_lite_hybrid_data()), encoding="utf-8"
     )
+    (tmp_path / "invariant_loco_metrics.json").write_text(
+        json.dumps(_make_fake_invariant_loco_data()), encoding="utf-8"
+    )
+    (tmp_path / "shift_robustness_metrics.json").write_text(
+        json.dumps(_make_fake_shift_robustness_data()), encoding="utf-8"
+    )
 
     claims = build_claims(tmp_path)
     ids = {c.id for c in claims}
@@ -253,6 +431,8 @@ def test_build_claims_integrates_ml_claims(tmp_path: Path) -> None:
     assert "separability_crackval" in ids
     assert "loco_robust" in ids
     assert "lite_hybrid" in ids
+    assert "invariant_loco" in ids
+    assert "shift_robustness" in ids
 
 
 @pytest.mark.parametrize(
@@ -275,6 +455,18 @@ def test_build_claims_integrates_ml_claims(tmp_path: Path) -> None:
             "lite_hybrid_metrics.json",
             _make_fake_lite_hybrid_data,
             "lite_hybrid",
+        ),
+        (
+            "build_invariant_loco_claim",
+            "invariant_loco_metrics.json",
+            _make_fake_invariant_loco_data,
+            "invariant_loco",
+        ),
+        (
+            "build_shift_robustness_claim",
+            "shift_robustness_metrics.json",
+            _make_fake_shift_robustness_data,
+            "shift_robustness",
         ),
     ],
 )

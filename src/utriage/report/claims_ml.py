@@ -33,33 +33,106 @@ def _load_json(path: Path) -> dict[str, Any] | None:
         return None
 
 
+def _lookup_dotted_path(data: dict[str, Any], path: str) -> Any:
+    """Lookup dotted path in dictionary."""
+    curr: Any = data
+    for part in path.split("."):
+        if not isinstance(curr, dict) or part not in curr:
+            return None
+        curr = curr[part]
+    return curr
+
+
+def _lookup_container_key(data: dict[str, Any], key: str) -> Any:
+    """Lookup key within nested verdict containers."""
+    for container in ("verdicts", "candidates"):
+        nested = data.get(container, {})
+        if isinstance(nested, dict):
+            val = nested.get(key)
+            if val is not None:
+                return val
+    return None
+
+
 def _lookup_verdict_key(data: dict[str, Any], key: str) -> Any:
-    """Lookup key directly or within nested verdicts dictionary."""
+    """Lookup key directly, via dotted path, or within nested containers."""
     if key in data:
         return data[key]
-    nested = data.get("verdicts")
-    return nested.get(key) if isinstance(nested, dict) else None
+    if "." in key:
+        return _lookup_dotted_path(data, key)
+    return _lookup_container_key(data, key)
 
 
 def _find_verdict_entry(data: dict[str, Any], key: str) -> Any:
-    """Lookup raw verdict entry by key, prefix, or global verdict field."""
+    """Lookup raw verdict entry by key, candidate path, prefix, or global verdict field."""
     val = _lookup_verdict_key(data, key)
     if val is not None:
         return val
+    cand_val = _lookup_verdict_key(data, f"candidates.{key}")
+    if cand_val is not None:
+        return cand_val
     prefix = key.split("_")[0]
-    return data.get(prefix, data.get("verdict"))
+    val_prefix = _lookup_verdict_key(data, prefix)
+    if val_prefix is not None:
+        return val_prefix
+    cand_prefix = _lookup_verdict_key(data, f"candidates.{prefix}")
+    if cand_prefix is not None:
+        return cand_prefix
+    return data.get("verdict")
+
+
+def _format_folds_verdict(folds: dict[str, Any]) -> str | None:
+    """Format dictionary of fold verdicts into a comma-separated string."""
+    fold_parts: list[str] = []
+    for fold_name, fold_item in folds.items():
+        v_str = fold_item.get("verdict") if isinstance(fold_item, dict) else fold_item
+        if isinstance(v_str, (str, int, float)):
+            fold_parts.append(f"{fold_name}: {v_str}")
+    return ", ".join(fold_parts) if fold_parts else None
+
+
+def _format_single_candidate(cand_name: str, cand_info: Any) -> str | None:
+    """Format verdict entry for a single candidate."""
+    if isinstance(cand_info, dict):
+        folds = cand_info.get("folds")
+        if isinstance(folds, dict):
+            f_str = _format_folds_verdict(folds)
+            return f"{cand_name}: {f_str}" if f_str else None
+    if isinstance(cand_info, (str, int, float)):
+        return f"{cand_name}: {cand_info}"
+    return None
+
+
+def _format_candidates_verdict(candidates: dict[str, Any]) -> str | None:
+    """Format dictionary of candidate verdicts into a semicolon-separated string."""
+    parts: list[str] = []
+    for cand_name, cand_info in candidates.items():
+        c_str = _format_single_candidate(cand_name, cand_info)
+        if c_str is not None:
+            parts.append(c_str)
+    return "; ".join(parts) if parts else None
+
+
+def _format_dict_items(val: dict[str, Any]) -> str | None:
+    """Format plain key-value mapping items."""
+    items = [f"{k}: {v}" for k, v in val.items() if isinstance(v, (str, int, float))]
+    return ", ".join(items) if items else None
 
 
 def _format_verdict_value(val: Any) -> str | None:
     """Format verdict value as clean string."""
     if isinstance(val, str):
         return val.strip()
-    if isinstance(val, dict):
-        if "verdict" in val:
-            return str(val["verdict"]).strip()
-        items = [f"{k}: {v}" for k, v in val.items() if isinstance(v, (str, int, float))]
-        return ", ".join(items)
-    return None
+    if not isinstance(val, dict):
+        return None
+    v_raw = val.get("verdict")
+    if isinstance(v_raw, (str, int, float)):
+        return str(v_raw).strip()
+    if isinstance(val.get("candidates"), dict):
+        return _format_candidates_verdict(val["candidates"])
+    if isinstance(val.get("folds"), dict):
+        return _format_folds_verdict(val["folds"])
+    return _format_dict_items(val)
 
 
 def _extract_verdict(verdicts_data: dict[str, Any] | None, claim_key: str) -> str | None:
@@ -331,6 +404,215 @@ def _build_lite_hybrid_claim(
     )
 
 
+def _format_invariant_fold(fold: dict[str, Any]) -> tuple[str, dict[str, float]]:
+    """Format single fold metrics for invariant LOCO evaluation."""
+    held_out = str(fold.get("held_out", ""))
+    fused = fold.get("fused", {})
+    auroc = float(fused.get("auroc", fold.get("ranking", {}).get("fused", {}).get("auroc", 0.0)))
+    fused_ops = fused.get("operating_points", {})
+    op_05 = fused_ops.get("0.05", fold.get("operating_points", {}).get("0.05", {}).get("fused", {}))
+    det = op_05.get("detection", {})
+    fc = op_05.get("false_calls", {})
+    k_det = int(det.get("k", det.get("n_hit", 0)))
+    n_det = int(det.get("n", det.get("n_flawed", 0)))
+    k_fc = int(fc.get("k", fc.get("n_false", 0)))
+    n_fc = int(fc.get("n", fc.get("n_clean", 0)))
+    part = (
+        f"{held_out}: fused AUROC {auroc:.3f}, "
+        f"at FCR 0.05 detection {k_det}/{n_det}, false calls {k_fc}/{n_fc}"
+    )
+    nums = {
+        f"{held_out}_fused_auroc": float(f"{auroc:.3f}"),
+        f"{held_out}_det_k": float(k_det),
+        f"{held_out}_det_n": float(n_det),
+        f"{held_out}_fc_k": float(k_fc),
+        f"{held_out}_fc_n": float(n_fc),
+    }
+    return part, nums
+
+
+def _collect_invariant_folds(folds_data: Any) -> tuple[list[str], dict[str, float]]:
+    """Iterate and format invariant LOCO folds from list or dict."""
+    folds_list = (
+        folds_data
+        if isinstance(folds_data, list)
+        else list(folds_data.values())
+        if isinstance(folds_data, dict)
+        else []
+    )
+    parts: list[str] = []
+    numbers: dict[str, float] = {}
+    for f in folds_list:
+        if isinstance(f, dict):
+            part, nums = _format_invariant_fold(f)
+            parts.append(part)
+            numbers.update(nums)
+    return parts, numbers
+
+
+def _build_invariant_loco_claim(
+    r_dir: Path,
+    verdicts: dict[str, Any] | None = None,
+) -> Claim | None:
+    """Build claim for invariant representation LOCO evaluation."""
+    from utriage.report.claims import Claim
+
+    data = _load_json(r_dir / "invariant_loco_metrics.json")
+    if data is None:
+        return None
+    parts, numbers = _collect_invariant_folds(data.get("folds"))
+    if not parts:
+        return None
+    numbers["target_fcr"] = 0.05
+    text = f"Invariant LOCO: {'; '.join(parts)}."
+    verdict = _extract_verdict(verdicts, "candidates.invariant") or _extract_verdict(
+        verdicts, "invariant_loco"
+    )
+    text = _append_verdict(text, verdict)
+    return Claim(
+        id="invariant_loco",
+        text=text,
+        evidence_file="results/invariant_loco_metrics.json",
+        evidence_path="folds",
+        scope_limit=SCOPE_LIMIT,
+        numbers=numbers,
+    )
+
+
+def _is_all_clean_flagged(shift_item: dict[str, Any]) -> bool:
+    """Check if all clean_eval scans were flagged at FCR 0.01 in this shift."""
+    op_01 = shift_item.get("operating_points", {}).get("0.01", {})
+    fc = op_01.get("false_calls", {})
+    k = int(fc.get("k", 0))
+    n = int(fc.get("n", 0))
+    return k == n and n > 0
+
+
+def _count_clean_flagged_shifts(shifts: list[dict[str, Any]]) -> int:
+    """Count shifts where every clean_eval scan was flagged at FCR 0.01."""
+    return sum(1 for s in shifts if isinstance(s, dict) and _is_all_clean_flagged(s))
+
+
+def _extract_worst_rates(fold: dict[str, Any]) -> tuple[float, float]:
+    """Extract worst-case detection and false-call rates at FCR 0.01."""
+    summary = fold.get("summary")
+    if isinstance(summary, dict):
+        det = summary.get(
+            "worst_case_detection_rate_0.01", summary.get("worst_case_detection_rate")
+        )
+        fcr = summary.get(
+            "worst_case_false_call_rate_0.01", summary.get("worst_case_false_call_rate")
+        )
+        if det is not None and fcr is not None:
+            return float(det), float(fcr)
+    shifts = [s for s in fold.get("shifts", []) if isinstance(s, dict)]
+    det_vals = [
+        float(s.get("operating_points", {}).get("0.01", {}).get("detection", {}).get("rate", 0.0))
+        for s in shifts
+    ]
+    fc_vals = [
+        float(s.get("operating_points", {}).get("0.01", {}).get("false_calls", {}).get("rate", 0.0))
+        for s in shifts
+    ]
+    worst_det = min(det_vals) if det_vals else 0.0
+    worst_fc = max(fc_vals) if fc_vals else 0.0
+    return worst_det, worst_fc
+
+
+def _format_shift_fold(
+    family: str,
+    fold: dict[str, Any],
+) -> tuple[str, dict[str, float]]:
+    """Format single fold metrics for shift robustness evaluation."""
+    held_out = str(fold.get("held_out", ""))
+    worst_det, worst_fc = _extract_worst_rates(fold)
+    shifts = [s for s in fold.get("shifts", []) if isinstance(s, dict)]
+    all_clean = _count_clean_flagged_shifts(shifts)
+    part = (
+        f"{held_out}: worst-case detection {worst_det:.3f}, "
+        f"worst-case false calls {worst_fc:.3f}, "
+        f"{all_clean} shifts flagged every clean_eval scan"
+    )
+    nums = {
+        f"{family}_{held_out}_worst_det": float(f"{worst_det:.3f}"),
+        f"{family}_{held_out}_worst_fcr": float(f"{worst_fc:.3f}"),
+        f"{family}_{held_out}_all_clean_shifts": float(all_clean),
+    }
+    return part, nums
+
+
+def _format_shift_family(
+    family: str,
+    fam_data: dict[str, Any],
+) -> tuple[str | None, dict[str, float]]:
+    """Format all folds for a single model family under shift robustness."""
+    folds = fam_data.get("folds", [])
+    if not isinstance(folds, list) or not folds:
+        return None, {}
+    fold_parts: list[str] = []
+    nums: dict[str, float] = {}
+    for fold in folds:
+        if isinstance(fold, dict):
+            part, fold_nums = _format_shift_fold(family, fold)
+            fold_parts.append(part)
+            nums.update(fold_nums)
+    if not fold_parts:
+        return None, {}
+    fam_text = f"{family} ({'; '.join(fold_parts)})"
+    return fam_text, nums
+
+
+SHIFT_ROBUSTNESS_NOTE: str = (
+    "thresholds fixed on unshifted clean scans, "
+    "shifts are synthetic gain/offset/noise perturbations of real weld images, "
+    "site calibration (ADR 0011) is the intended mitigation and was not applied here"
+)
+
+
+def _collect_shift_families(
+    families: dict[str, Any],
+) -> tuple[list[str], dict[str, float]]:
+    """Format and collect all valid family descriptions and numbers."""
+    fam_parts: list[str] = []
+    numbers: dict[str, float] = {}
+    for fam_name, fam_data in families.items():
+        if isinstance(fam_data, dict):
+            f_text, f_nums = _format_shift_family(str(fam_name), fam_data)
+            if f_text is not None:
+                fam_parts.append(f_text)
+                numbers.update(f_nums)
+    return fam_parts, numbers
+
+
+def _build_shift_robustness_claim(
+    r_dir: Path,
+    verdicts: dict[str, Any] | None = None,
+) -> Claim | None:
+    """Build claim for shift robustness evaluation across model families."""
+    from utriage.report.claims import Claim
+
+    data = _load_json(r_dir / "shift_robustness_metrics.json")
+    if data is None:
+        return None
+    families = data.get("families")
+    if not isinstance(families, dict) or not families:
+        return None
+    fam_parts, numbers = _collect_shift_families(families)
+    if not fam_parts:
+        return None
+    numbers["target_fcr"] = 0.01
+    text = f"Shift robustness at FCR 0.01: {'; '.join(fam_parts)}; {SHIFT_ROBUSTNESS_NOTE}."
+    text = _append_verdict(text, _extract_verdict(verdicts, "shift_robustness"))
+    return Claim(
+        id="shift_robustness",
+        text=text,
+        evidence_file="results/shift_robustness_metrics.json",
+        evidence_path="families",
+        scope_limit=SCOPE_LIMIT,
+        numbers=numbers,
+    )
+
+
 def collect_ml_claims(r_dir: Path | str) -> list[Claim]:
     """Collect quantitative claims from new ML experiment results."""
     root = Path(r_dir)
@@ -347,9 +629,19 @@ def collect_ml_claims(r_dir: Path | str) -> list[Claim]:
     if c_lite is not None:
         claims.append(c_lite)
 
+    c_invariant = _build_invariant_loco_claim(root, verdicts)
+    if c_invariant is not None:
+        claims.append(c_invariant)
+
+    c_shift = _build_shift_robustness_claim(root, verdicts)
+    if c_shift is not None:
+        claims.append(c_shift)
+
     return claims
 
 
 build_separability_claims = _build_separability_claims
 build_loco_robust_claim = _build_loco_robust_claim
 build_lite_hybrid_claim = _build_lite_hybrid_claim
+build_invariant_loco_claim = _build_invariant_loco_claim
+build_shift_robustness_claim = _build_shift_robustness_claim
