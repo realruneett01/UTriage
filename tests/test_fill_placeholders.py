@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -203,3 +204,51 @@ def test_main_does_not_modify_real_doc(tmp_path: Path) -> None:
     assert exit_code == 0
     assert real_doc.stat().st_mtime_ns == before_mtime
     assert real_doc.read_bytes() == before_bytes
+
+
+def _make_fake_fold(crack_id: str) -> dict[str, Any]:
+    """Build a minimal fold payload for separability checks."""
+    return {
+        "held_out": crack_id,
+        "auroc": 0.999,
+        "average_precision": 0.998,
+        "operating_points": {
+            "0.01": {
+                "detection": {"k": 4000, "n": 4014},
+                "false_calls": {"k": 5, "n": 389},
+            },
+            "0.05": {
+                "detection": {"k": 4014, "n": 4014},
+                "false_calls": {"k": 20, "n": 389},
+            },
+        },
+    }
+
+
+def _make_fake_separability_payload() -> dict[str, Any]:
+    """Build a fake separability metrics dictionary with three folds."""
+    folds = [_make_fake_fold(f"crack_{cid}") for cid in ("1.6", "4.0", "8.6")]
+    return {"protocols": {"batchval": {"folds": folds}}}
+
+
+def test_template_separability_placeholders_resolve(tmp_path: Path) -> None:
+    """Check that all separability placeholders in the template resolve."""
+    repo_root = Path(__file__).resolve().parents[1]
+    tmpl_path = repo_root / "docs" / "technical-note.tmpl.md"
+    content = tmpl_path.read_text(encoding="utf-8")
+
+    pattern = re.compile(r"\{\{\s*separability_metrics\.json\s*:\s*(.+?)\s*\}\}")
+    keys = pattern.findall(content)
+    assert len(keys) >= 9
+
+    payload = _make_fake_separability_payload()
+    _write_json(tmp_path / "separability_metrics.json", payload)
+
+    sub_tmpl = "\n".join(f"{{{{separability_metrics.json: {k}}}}}" for k in keys)
+    _, filled, missing = render_with_stats(sub_tmpl, tmp_path)
+    assert missing == 0
+    assert filled == len(keys)
+
+    for key_path in keys:
+        ok, _ = resolve_key_path(payload, key_path)
+        assert ok is True

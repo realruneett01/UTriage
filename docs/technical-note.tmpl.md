@@ -84,6 +84,29 @@ In the LOCO evaluation above, early stopping was batch-held-out (validation batc
   - Detections: `{{loco_crackval_metrics.json: folds.2.detections.n_hit}}` of `{{loco_crackval_metrics.json: folds.2.detections.n_flawed}}` (detection rate: `{{loco_crackval_metrics.json: folds.2.detections.rate}}`)
   - False-call rate on unflawed scans: `{{loco_crackval_metrics.json: folds.2.false_calls.rate}}` (`{{loco_crackval_metrics.json: folds.2.false_calls.n_false}}` of `{{loco_crackval_metrics.json: folds.2.false_calls.n_unflawed}}`)
 
+### Separability and threshold calibration
+*Dataset: Real data (ML-NDT)*
+
+AUROC is the probability that a random flawed scan scores above a random clean scan. Folds under the batchval protocol (`results/separability_metrics.json`):
+
+- **Held-out `{{separability_metrics.json: protocols.batchval.folds.0.held_out}}`:**
+  - AUROC: `{{separability_metrics.json: protocols.batchval.folds.0.auroc}}`
+  - Average Precision: `{{separability_metrics.json: protocols.batchval.folds.0.average_precision}}`
+  - Operating point 0.01 target false-call rate: detection `{{separability_metrics.json: protocols.batchval.folds.0.operating_points.0.01.detection.k}}` of `{{separability_metrics.json: protocols.batchval.folds.0.operating_points.0.01.detection.n}}`, false calls `{{separability_metrics.json: protocols.batchval.folds.0.operating_points.0.01.false_calls.k}}` of `{{separability_metrics.json: protocols.batchval.folds.0.operating_points.0.01.false_calls.n}}`
+  - Operating point 0.05 target false-call rate: detection `{{separability_metrics.json: protocols.batchval.folds.0.operating_points.0.05.detection.k}}` of `{{separability_metrics.json: protocols.batchval.folds.0.operating_points.0.05.detection.n}}`, false calls `{{separability_metrics.json: protocols.batchval.folds.0.operating_points.0.05.false_calls.k}}` of `{{separability_metrics.json: protocols.batchval.folds.0.operating_points.0.05.false_calls.n}}`
+- **Held-out `{{separability_metrics.json: protocols.batchval.folds.1.held_out}}`:**
+  - AUROC: `{{separability_metrics.json: protocols.batchval.folds.1.auroc}}`
+  - Average Precision: `{{separability_metrics.json: protocols.batchval.folds.1.average_precision}}`
+  - Operating point 0.01 target false-call rate: detection `{{separability_metrics.json: protocols.batchval.folds.1.operating_points.0.01.detection.k}}` of `{{separability_metrics.json: protocols.batchval.folds.1.operating_points.0.01.detection.n}}`, false calls `{{separability_metrics.json: protocols.batchval.folds.1.operating_points.0.01.false_calls.k}}` of `{{separability_metrics.json: protocols.batchval.folds.1.operating_points.0.01.false_calls.n}}`
+  - Operating point 0.05 target false-call rate: detection `{{separability_metrics.json: protocols.batchval.folds.1.operating_points.0.05.detection.k}}` of `{{separability_metrics.json: protocols.batchval.folds.1.operating_points.0.05.detection.n}}`, false calls `{{separability_metrics.json: protocols.batchval.folds.1.operating_points.0.05.false_calls.k}}` of `{{separability_metrics.json: protocols.batchval.folds.1.operating_points.0.05.false_calls.n}}`
+- **Held-out `{{separability_metrics.json: protocols.batchval.folds.2.held_out}}`:**
+  - AUROC: `{{separability_metrics.json: protocols.batchval.folds.2.auroc}}`
+  - Average Precision: `{{separability_metrics.json: protocols.batchval.folds.2.average_precision}}`
+  - Operating point 0.01 target false-call rate: detection `{{separability_metrics.json: protocols.batchval.folds.2.operating_points.0.01.detection.k}}` of `{{separability_metrics.json: protocols.batchval.folds.2.operating_points.0.01.detection.n}}`, false calls `{{separability_metrics.json: protocols.batchval.folds.2.operating_points.0.01.false_calls.k}}` of `{{separability_metrics.json: protocols.batchval.folds.2.operating_points.0.01.false_calls.n}}`
+  - Operating point 0.05 target false-call rate: detection `{{separability_metrics.json: protocols.batchval.folds.2.operating_points.0.05.detection.k}}` of `{{separability_metrics.json: protocols.batchval.folds.2.operating_points.0.05.detection.n}}`, false calls `{{separability_metrics.json: protocols.batchval.folds.2.operating_points.0.05.false_calls.k}}` of `{{separability_metrics.json: protocols.batchval.folds.2.operating_points.0.05.false_calls.n}}`
+
+Thresholds are set on half of the clean test scans and evaluated on the other half; clean test scans come from held-out batches of the same weld; the score margin above the clean threshold is small, so this does not show robustness to site changes (see ADR 0015).
+
 ### Unsupervised Anomaly Detection
 *Dataset: Real data (ML-NDT)*
 
