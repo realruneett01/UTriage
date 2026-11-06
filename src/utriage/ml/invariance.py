@@ -78,45 +78,6 @@ class InvariantClassifier(nn.Module):
         return self.head(feats).squeeze(-1)
 
 
-def _crop_or_pad(
-    res: torch.Tensor,
-    is_time: bool,
-    h_orig: int,
-    w_orig: int,
-) -> torch.Tensor:
-    """Center-crop or zero-pad resampled tensor back to target spatial dimensions."""
-    if is_time:
-        h_new = res.shape[-2]
-        if h_new > h_orig:
-            start = (h_new - h_orig) // 2
-            return res[..., start : start + h_orig, :]
-        pad_top = (h_orig - h_new) // 2
-        return F.pad(res, (0, 0, pad_top, h_orig - h_new - pad_top))
-    w_new = res.shape[-1]
-    if w_new > w_orig:
-        start = (w_new - w_orig) // 2
-        return res[..., start : start + w_orig]
-    pad_left = (w_orig - w_new) // 2
-    return F.pad(res, (pad_left, w_orig - w_new - pad_left, 0, 0))
-
-
-def _resample_sample(
-    sample: torch.Tensor,
-    factor: float,
-    is_time: bool,
-) -> torch.Tensor:
-    """Resample single 4D tensor along selected spatial axis."""
-    h_orig, w_orig = sample.shape[-2], sample.shape[-1]
-    if abs(factor - 1.0) < 1e-6:
-        return sample
-    h_new = max(1, int(round(h_orig * factor))) if is_time else h_orig
-    w_new = w_orig if is_time else max(1, int(round(w_orig * factor)))
-    if all([h_new == h_orig, w_new == w_orig]):
-        return sample
-    res = F.interpolate(sample, size=(h_new, w_new), mode="bilinear", align_corners=False)
-    return _crop_or_pad(res, is_time, h_orig, w_orig)
-
-
 def _is_time_axis(ndim: int, axis: int) -> bool:
     """Return whether target axis matches the fast-time / depth dimension."""
     norm_axis = axis if axis >= 0 else ndim + axis
@@ -128,12 +89,12 @@ def _is_time_axis(ndim: int, axis: int) -> bool:
 
 
 def _prepare_factors(factor: torch.Tensor, batch_size: int) -> torch.Tensor:
-    """Flatten factor tensor and validate batch size alignment."""
-    f_arr = factor.view(-1)
-    if any([len(f_arr) == 1, batch_size == 1]):
+    """Validate factor tensor length and expand to batch size."""
+    f_arr = factor.reshape(-1)
+    if f_arr.numel() == 1:
         return f_arr.expand(batch_size)
-    if len(f_arr) != batch_size:
-        raise ValueError(f"factor length {len(f_arr)} does not match batch {batch_size}.")
+    if f_arr.numel() != batch_size:
+        raise ValueError(f"factor length {f_arr.numel()} does not match batch {batch_size}.")
     return f_arr
 
 
@@ -144,20 +105,26 @@ def stretch_axis(x: torch.Tensor, factor: torch.Tensor, axis: int) -> torch.Tens
     or depth variation, while stretching along SCAN_AXIS approximates crack lateral
     extent variations. Note that this geometric scaling is an idealized acoustic model.
     """
-    if x.ndim < 3:
-        raise ValueError(f"Expected tensor with ndim >= 3, got shape {tuple(x.shape)}.")
+    if x.ndim not in (3, 4):
+        raise ValueError(f"Expected 3D or 4D tensor, got shape {tuple(x.shape)}.")
     if x.shape[0] == 0:
         return x.clone()
     is_time = _is_time_axis(x.ndim, axis)
-    f_arr = _prepare_factors(factor, x.shape[0])
-    is_3d = x.ndim == 3
-    x_4d = x.unsqueeze(1) if is_3d else x
-    res_list = [
-        _resample_sample(x_4d[i : i + 1], float(f_arr[i].item()), is_time)
-        for i in range(x.shape[0])
-    ]
-    out = torch.cat(res_list, dim=0)
-    return out.squeeze(1) if is_3d else out
+    b = x.shape[0]
+    inv_f = (1.0 / _prepare_factors(factor, b)).to(device=x.device, dtype=torch.float64)
+    theta = torch.zeros((b, 2, 3), device=x.device, dtype=torch.float64)
+    if is_time:
+        theta[:, 0, 0] = 1.0
+        theta[:, 1, 1] = inv_f
+    else:
+        theta[:, 0, 0] = inv_f
+        theta[:, 1, 1] = 1.0
+    x_4d = x.unsqueeze(1).float() if x.ndim == 3 else x.float()
+    grid = F.affine_grid(theta, x_4d.shape, align_corners=False).float()
+    out = F.grid_sample(x_4d, grid, mode="bilinear", padding_mode="zeros", align_corners=False)
+    if x.ndim == 3:
+        out = out.squeeze(1)
+    return out.to(x.dtype)
 
 
 def physics_view(x: torch.Tensor, gen: torch.Generator) -> torch.Tensor:
