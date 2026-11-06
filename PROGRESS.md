@@ -111,13 +111,18 @@
 - cli.py health stays 9.65 (Typer options).
 
 ## Site adaptation and gap closing (branch gaps-p8, 2026-11-04/05)
-- False-call analysis CLI import bug fixed (physics helpers moved to `src/utriage/ml/physics_features.py`); `results/false_call_analysis.md`: 14 of 778 clean ML-NDT test images flagged by any detector (7 by one detector, 7 by two), all classified high_snr_structure; pre-registered thresholds unchanged.
-- New `src/utriage/ml/site_adapt.py`: per-site normalisation, AdaBN BatchNorm recalibration on inspector-confirmed clean scans, quantile threshold for a target false-call rate with one-sided 95 percent Clopper-Pearson bound, min_clean_scans (299 for 1 percent at 95 percent), site profile JSON. CLI command `utriage site-calibrate`; app page Site calibration; ADR 0011 (Proposed); safety-case section 5; study note `docs/study/09-site-adaptation.md`.
-- `results/site_adaptation.json` (Real ML-NDT images with synthetic gain/offset/noise perturbations, target FCR 0.01, 824 calibration clean scans disjoint from test and not used in model training, test set 43 clean and 57 flawed). False calls baseline vs adapted: identity 0/43 vs 0/43; gain 0.5 0/43 vs 0/43; gain 2.0 43/43 vs 0/43; offset +0.5 4/43 vs 0/43; noise 0.2 1/43 vs 0/43; combined 0/43 vs 0/43. Detection baseline vs adapted: identity 42/57 vs 42/57; gain 0.5 19/57 vs 42/57; gain 2.0 57/57 vs 42/57; offset 44/57 vs 42/57; noise 45/57 vs 41/57; combined 19/57 vs 39/57. Limits: small test set (43 clean), synthetic perturbations only, single seed, no plant data.
-- New `src/utriage/ml/sim_to_2d.py` (1D simulator to 2D B-scan images, Synthetic data) and `src/utriage/ml/pretrain.py` (masked-patch self-supervised pretraining). `results/joint_train_metrics.json`, single seed, 20 epochs, sim_fraction 0.5, arms A real only, B real+sim, C pretrain then fine-tune, D both; encoder transfer for 72 matching-shape keys (strict=False). Held-out detection: crack_1.6 A 165/4014, B 192/4014, C 107/4014, D 0/4014; crack_4.0 A 0/4078, B 0/4078, C 2306/4078, D 2229/4078; crack_8.6 all arms 3925/3925. False calls 0/778 for every arm and fold. Conclusion: no arm improves held-out detection consistently; pretraining helped crack_4.0 but not crack_1.6; held-out detection remains unstable; one seed is not enough to choose an arm.
+- False-call analysis CLI import bug fixed (physics helpers moved to `src/utriage/ml/physics_features.py`); `results/false_call_analysis.md`: 43 of 2334 fold-scan clean evaluations (each distinct clean scan scored by every fold model) flagged by any detector [results/false_call_analysis.json n_flagged, n_clean] (22 by one detector, 21 by two [results/false_call_analysis.json agreement_table.counts_by_agreement]), all classified high_snr_structure [results/false_call_analysis.json cause_counts.high_snr_structure]; pre-registered thresholds unchanged.
+- New `src/utriage/ml/site_adapt.py`: per-site normalisation, AdaBN BatchNorm recalibration on inspector-confirmed clean scans, quantile threshold for a target false-call rate with one-sided 95 percent Clopper-Pearson bound, min_clean_scans (299 for 1 percent at 95 percent [results/site_adaptation.json min_clean_required]), site profile JSON. CLI command `utriage site-calibrate`; app page Site calibration; ADR 0011 (Proposed); safety-case section 5; study note `docs/study/09-site-adaptation.md`.
+- `results/site_adaptation.json` (Real ML-NDT images with synthetic gain/offset/noise perturbations, target FCR 0.01 [results/site_adaptation.json target_fcr], 434 calibration clean scans disjoint from test and not used in model training [results/site_adaptation.json n_images.cal_clean], test set 433 clean and 57 flawed [results/site_adaptation.json n_images.test_clean, n_images.test_flawed]). False calls baseline vs adapted [results/site_adaptation.json shifts]: identity 11/433 vs 11/433; gain 0.5 0/433 vs 11/433; gain 2.0 433/433 vs 11/433; offset +0.5 226/433 vs 11/433; noise 0.2 30/433 vs 8/433; combined 0/433 vs 7/433. Detection baseline vs adapted [results/site_adaptation.json shifts]: identity 43/57 vs 43/57; gain 0.5 19/57 vs 43/57; gain 2.0 57/57 vs 43/57; offset +0.5 48/57 vs 43/57; noise 0.2 49/57 vs 43/57; combined 21/57 vs 39/57. Limits: test set (433 clean [results/site_adaptation.json n_images.test_clean]), synthetic perturbations only, single seed, no plant data.
+- New `src/utriage/ml/sim_to_2d.py` (1D simulator to 2D B-scan images, Synthetic data) and `src/utriage/ml/pretrain.py` (masked-patch self-supervised pretraining). `results/joint_train_metrics.json`, 3 seeds [results/joint_train_metrics.json seeds], 20 epochs [results/joint_train_metrics.json epochs], sim_fraction 0.2 [results/joint_train_metrics.json sim_fraction], arms A real only, B real+sim, C pretrain then fine-tune, D both; encoder transfer for 72 matching-shape keys (strict=False) [results/joint_train_metrics.json transferred_keys]. Held-out detection per crack across seeds [0, 1, 2] [results/joint_train_metrics.json folds]: crack_1.6 Arm A [165, 23, 92]/4014, Arm B [878, 2, 649]/4014, Arm C [2, 1, 24]/4014, Arm D [2421, 140, 82]/4014; crack_4.0 Arm A [0, 338, 57]/4078, Arm B [0, 0, 0]/4078, Arm C [1264, 1787, 2716]/4078, Arm D [2158, 2294, 2740]/4078; crack_8.6 all arms [3925, 3925, 3925]/3925. False calls 0/778 for every arm, fold, and seed [results/joint_train_metrics.json folds]. Conclusion: no arm improves held-out detection consistently; held-out detection remains unstable; 3 seeds show high run-to-run variance.
 - Hardware: `run_hardware.py --threads N` gives a CPU thread-limited proxy, NOT a measurement on the target i5-1135G7.
 - `docs/verification-checklist.md` generated by `scripts/make_verification_checklist.py` lists every UNVERIFIED config value for Ruri.
-- Tests: 1177 passed.
+
+## In progress
+- separability evaluation done: results/separability_metrics.json (claims separability_batchval, separability_crackval in results/claims.json)
+- robust GPU training (experiments/run_loco_robust.py, ADR 0012)
+- LiteHybrid (experiments/run_lite_hybrid.py, ADR 0013)
+- invariant representation (being implemented, ADR 0014)
 
 ## Remaining (owner only)
 - ADR 0007 (Nuitka offline build) is Proposed: approve or reject before a release build.
@@ -129,8 +134,8 @@
 - Measure latency on the real i5-1135G7.
 - Request Strathclyde FMC access from the data owner.
 - Collect at least 299 inspector-confirmed clean scans per site before using a site profile.
-Environment notes: venv `C:/Users/realr/.venvs/utriage` (Python 3.14, torch 2.14.1+cu130);
-data junctions to `C:/Users/realr/utriage-data`.
+Environment notes: a project virtualenv outside OneDrive (Python 3.14, torch 2.14.1+cu130);
+data junctions to `UTRIAGE_DATA_DIR`.
 
 ## Gate items only Ruri can close
 - Phase 0: answer `docs/study/00-ut-primer.md` yourself.
@@ -142,11 +147,12 @@ data junctions to `C:/Users/realr/utriage-data`.
 - U2: Which acceptance standard and class applies per product (AMS-STD-2154 / ASTM E2375 style)?
 - U3: What data does their immersion UT system export (A-scan or C-scan files, format)? Can we get a sample?
 - U4: How often is a bar re-scanned because of noise, a lost back-wall echo or a borderline call?
+- only 3 physical cracks in ML-NDT, so no method can show generalisation to unseen flaw types; more distinct physical cracks are needed.
 
 ## Assumptions
 - MIDHANI runs automated immersion UT of bars 8–300 mm diameter including titanium, 0.8 mm FBH sensitivity (from their 2021 tender corrigendum).
 - Development machine differs from the original target: RTX 5070 Ti Laptop GPU (12 GB, CUDA), 32 GB RAM, Python 3.14
   (owner's instruction). Training uses the GPU; see ADR 0004 when Phase 3 lands. Inference stays CPU-capable.
-- ML-NDT data lives outside OneDrive (`C:\Users\realr\utriage-data`), linked by junctions at
+- ML-NDT data lives outside OneDrive (`UTRIAGE_DATA_DIR`), linked by junctions at
   `data/external` and `data/synthetic`, so the 2.7 GB is never synced.
 - All material constants, simulator noise levels and acceptance limits are UNVERIFIED placeholders.
