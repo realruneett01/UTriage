@@ -216,3 +216,17 @@ def test_simulate_ti_bar_properties() -> None:
     rms_base = float(np.sqrt(np.mean(scan_base.ascans[gate] ** 2)))
     assert rms_ti != rms_base
     assert abs(rms_ti - rms_base) > 1e-4
+
+
+def test_simulate_ti_bar_keeps_original_spec() -> None:
+    """The returned scan carries the caller's spec, not the internal grain-free one."""
+    spec = BarSpec(
+        material=load_material("ti64"),
+        probe=load_probe(),
+        water=load_material("water"),
+        length_mm=16.0,
+        n_angle=24,
+    )
+    scan = simulate_ti_bar(spec, load_ti_noise())
+    assert scan.spec == spec
+    assert scan.spec.material.grain_noise > 0.0

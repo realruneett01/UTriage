@@ -116,4 +116,4 @@ def simulate_ti_bar(spec: BarSpec, cfg: TiNoiseConfig) -> BarScan:
     ascans = np.clip(base.ascans + g * gain, -1.0, 1.0).astype(np.float32)
     if base.missing.shape == ascans.shape[:2]:
         ascans[base.missing] = 0.0
-    return dataclasses.replace(base, ascans=ascans)
+    return dataclasses.replace(base, ascans=ascans, spec=spec)  # keep the real grain level
