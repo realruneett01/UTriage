@@ -6,6 +6,7 @@ import dataclasses
 import json
 import math
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
@@ -58,46 +59,97 @@ def test_load_ti_calibration_yaml(default_cal: TiCalConfig) -> None:
     assert cfg == dataclasses.replace(default_cal, signal_window_px=1)
 
 
-@pytest.mark.parametrize(
-    (
-        "a",
-        "b",
-        "c",
-        "expected_snr",
-        "expected_alarm",
-        "expected_cap_bound",
-        "expected_inspectable",
-        "expected_reason",
+@dataclass(frozen=True)
+class AlarmCase:
+    """Test scenario inputs and expectations for zone_alarm."""
+
+    a: float
+    b: float
+    c: float
+    snr: float | None
+    alarm: float
+    cap_bound: bool
+    inspectable: bool
+    reason: str
+
+
+ALARM_CASES: tuple[AlarmCase, ...] = (
+    AlarmCase(
+        a=1.0,
+        b=0.1,
+        c=0.3,
+        snr=4.5,
+        alarm=0.33,
+        cap_bound=False,
+        inspectable=True,
+        reason="",
     ),
-    [
-        (1.0, 0.1, 0.3, 4.5, 0.33, False, True, ""),
-        (0.4, 0.1, 0.35, 1.2, 0.28, True, False, "alarm cap is not above peak noise"),
-        (0.45, 0.1, 0.3, 1.75, 0.315, True, False, "SNR below placeholder minimum"),
-        (1.0, 0.3, 0.2, None, 0.22, False, False, "degenerate noise region"),
-        (1.0, 0.3, 0.3, None, 0.33, False, False, "degenerate noise region"),
-    ],
+    AlarmCase(
+        a=0.4,
+        b=0.1,
+        c=0.35,
+        snr=1.2,
+        alarm=0.28,
+        cap_bound=True,
+        inspectable=False,
+        reason="alarm cap is not above peak noise",
+    ),
+    AlarmCase(
+        a=0.45,
+        b=0.1,
+        c=0.3,
+        snr=1.75,
+        alarm=0.315,
+        cap_bound=True,
+        inspectable=False,
+        reason="SNR below placeholder minimum",
+    ),
+    AlarmCase(
+        a=1.0,
+        b=0.3,
+        c=0.2,
+        snr=None,
+        alarm=0.22,
+        cap_bound=False,
+        inspectable=False,
+        reason="degenerate noise region",
+    ),
+    AlarmCase(
+        a=1.0,
+        b=0.3,
+        c=0.3,
+        snr=None,
+        alarm=0.33,
+        cap_bound=False,
+        inspectable=False,
+        reason="degenerate noise region",
+    ),
 )
+
+ALARM_CASE_IDS: tuple[str, ...] = (
+    "nominal_inspectable",
+    "cap_not_above_noise",
+    "low_snr_capped",
+    "c_less_than_b_degenerate",
+    "c_equal_b_degenerate",
+)
+
+
+@pytest.mark.parametrize("case", ALARM_CASES, ids=ALARM_CASE_IDS)
 def test_zone_alarm_branches(
-    a: float,
-    b: float,
-    c: float,
-    expected_snr: float | None,
-    expected_alarm: float,
-    expected_cap_bound: bool,
-    expected_inspectable: bool,
-    expected_reason: str,
+    case: AlarmCase,
     default_cal: TiCalConfig,
 ) -> None:
     """Test zone_alarm logic across all operating branches."""
-    snr, alarm, cap_bound, inspectable, reason = zone_alarm(a, b, c, default_cal)
-    if expected_snr is None:
+    snr, alarm, cap_bound, inspectable, reason = zone_alarm(case.a, case.b, case.c, default_cal)
+    if case.snr is None:
         assert math.isnan(snr)
     else:
-        assert np.isclose(snr, expected_snr)
-    assert np.isclose(alarm, expected_alarm)
-    assert cap_bound == expected_cap_bound
-    assert inspectable == expected_inspectable
-    assert reason == expected_reason
+        assert np.isclose(snr, case.snr)
+    assert np.isclose(alarm, case.alarm)
+    assert cap_bound == case.cap_bound
+    assert inspectable == case.inspectable
+    assert reason == case.reason
 
 
 def test_signal_a_angle_wrap(default_cal: TiCalConfig) -> None:
@@ -128,12 +180,27 @@ def test_noise_stats_exclusion(default_cal: TiCalConfig) -> None:
         noise_stats(tiny_cscan, [(2, 2)], default_cal)
 
 
+def _make_ti_part(
+    length_mm: float,
+    n_angle: int,
+    diameter_mm: float = 50.0,
+    axial_step_mm: float = 1.0,
+) -> BarSpec:
+    """Build titanium bar spec for calibration tests."""
+    return BarSpec(
+        material=load_material("ti64"),
+        probe=load_probe("p5"),
+        water=load_material("water"),
+        length_mm=length_mm,
+        diameter_mm=diameter_mm,
+        axial_step_mm=axial_step_mm,
+        n_angle=n_angle,
+    )
+
+
 def test_reference_block_spec_and_indices(default_cal: TiCalConfig) -> None:
     """Test reference block generation and reflector index mapping."""
-    mat = load_material("ti64")
-    probe = load_probe("p5")
-    water = load_material("water")
-    part = BarSpec(material=mat, probe=probe, water=water, length_mm=64.0, n_angle=120)
+    part = _make_ti_part(length_mm=64.0, n_angle=120)
     noise = load_ti_noise()
 
     ref_spec = reference_block_spec(part, noise, default_cal)
@@ -152,18 +219,7 @@ def test_reference_block_spec_and_indices(default_cal: TiCalConfig) -> None:
 
 def test_calibrate_zones_small_bar() -> None:
     """Test calibrate_zones determinism and basic properties on a small synthetic bar."""
-    mat = load_material("ti64")
-    probe = load_probe("p5")
-    water = load_material("water")
-    part = BarSpec(
-        material=mat,
-        probe=probe,
-        water=water,
-        length_mm=24.0,
-        diameter_mm=50.0,
-        axial_step_mm=1.0,
-        n_angle=36,
-    )
+    part = _make_ti_part(length_mm=24.0, n_angle=36)
     noise = load_ti_noise()
     cal = load_ti_calibration()
 

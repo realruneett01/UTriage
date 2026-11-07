@@ -580,7 +580,7 @@ def run_ti_zones(
     return payload
 
 
-def _build_arg_parser() -> argparse.ArgumentParser:
+def _build_parser() -> argparse.ArgumentParser:
     """Build argument parser for titanium zone study."""
     parser = argparse.ArgumentParser(
         description="Synthetic study of zone calibration under titanium-like noise."
@@ -605,19 +605,44 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+_build_arg_parser = _build_parser
+
+
+def _resolve_counts(
+    args: argparse.Namespace,
+    raw_args: Sequence[str] = (),
+) -> tuple[int, int]:
+    """Resolve clean and flaw bar counts depending on quick flag."""
+    _ = raw_args
+    if args.quick:
+        return 2, 2
+    return args.n_clean, args.n_flaw
+
+
+def _resolve_sigmas(
+    args: argparse.Namespace,
+    raw_args: Sequence[str],
+) -> tuple[float, ...]:
+    """Resolve sweep sigmas tuple considering quick flag and CLI input."""
+    sigmas_given = any(a == "--sigmas" or a.startswith("--sigmas=") for a in raw_args)
+    if sigmas_given or not args.quick:
+        return tuple(args.sigmas)
+    return ()
+
+
 def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
     """Parse CLI options for titanium zone evaluation study."""
     raw_args = list(argv) if argv is not None else sys.argv[1:]
-    parser = _build_arg_parser()
+    parser = _build_parser()
     args = parser.parse_args(raw_args)
     out_given = any(a == "--out" or a.startswith("--out=") for a in raw_args)
     if args.quick and not out_given:
         raise ValueError("--quick requires explicit --out path to prevent overwriting results/")
-    sigmas_given = any(a == "--sigmas" or a.startswith("--sigmas=") for a in raw_args)
-    sigmas = tuple(args.sigmas) if (sigmas_given or not args.quick) else ()
+    n_clean, n_flaw = _resolve_counts(args, raw_args)
+    sigmas = _resolve_sigmas(args, raw_args)
     return RunConfig(
-        n_clean=2 if args.quick else args.n_clean,
-        n_flaw=2 if args.quick else args.n_flaw,
+        n_clean=n_clean,
+        n_flaw=n_flaw,
         seed=args.seed,
         out_path=args.out,
         quick=args.quick,
