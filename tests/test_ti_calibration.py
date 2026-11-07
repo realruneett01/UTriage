@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import math
 import sys
@@ -52,9 +53,9 @@ def default_cal() -> TiCalConfig:
 
 
 def test_load_ti_calibration_yaml(default_cal: TiCalConfig) -> None:
-    """Load calibration parameters from configs/ti_mode.yaml."""
+    """Load calibration parameters from configs/ti_mode.yaml (1-pixel signal window there)."""
     cfg = load_ti_calibration()
-    assert cfg == default_cal
+    assert cfg == dataclasses.replace(default_cal, signal_window_px=1)
 
 
 @pytest.mark.parametrize(

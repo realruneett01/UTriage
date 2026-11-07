@@ -184,9 +184,9 @@ def test_load_ti_noise_real_yaml() -> None:
     cfg = load_ti_noise()
     assert cfg.corr_axial_mm == 6.0
     assert cfg.corr_angle_deg == 15.0
-    assert cfg.field_sigma == 0.4
+    assert cfg.field_sigma == 0.1
     assert cfg.zone_edges_mm == (2.0, 12.0, 22.0, 36.0)
-    assert cfg.zone_levels == (1.0, 1.6, 1.3)
+    assert cfg.zone_levels == (1.0, 1.2, 1.1)
 
 
 def test_simulate_ti_bar_properties() -> None:

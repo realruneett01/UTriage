@@ -36,7 +36,7 @@ $$\mathbb{E}[g] = 0, \quad \text{Var}(g) = 1$$
 The local noise strength multiplier $m(x, \theta, z)$ is defined as:
 $$m(x, \theta, z) = \exp\left(s \cdot g(x, \theta, z) - \frac{s^2}{2}\right)$$
 
-where $s$ is the log-amplitude standard deviation parameter (`field_sigma: 0.4`, placeholder, UNVERIFIED - Ruri to check).
+where $s$ is the log-amplitude standard deviation parameter (`field_sigma: 0.1`, placeholder, UNVERIFIED - Ruri to check).
 
 ### Proof that the Multiplier Field has Mean 1
 
@@ -67,7 +67,7 @@ $$\Delta \theta = \min\bigl(|\theta_1 - \theta_2|,\; 360^\circ - |\theta_1 - \th
 
 ### Depth Zones and Literature Background
 
-Depth-dependent noise scaling factors (`zone_levels: [1.0, 1.6, 1.3]`, placeholder, UNVERIFIED - Ruri to check) are assigned across radial depth boundaries (`zone_edges_mm: [2.0, 12.0, 22.0, 36.0]`, placeholder, UNVERIFIED - Ruri to check).
+Depth-dependent noise scaling factors (`zone_levels: [1.0, 1.2, 1.1]`, placeholder, UNVERIFIED - Ruri to check) are assigned across radial depth boundaries (`zone_edges_mm: [2.0, 12.0, 22.0, 36.0]`, placeholder, UNVERIFIED - Ruri to check).
 
 This phenomenological model draws on research by Margetan, Thompson and co-workers at Iowa State on titanium grain noise and the noise figure-of-merit (cite as 'Iowa State QNDE grain-noise papers, exact references UNVERIFIED - Ruri to check'). All simulated outputs are labelled **Synthetic data**.
 
@@ -93,7 +93,7 @@ $$\text{SNR}_{\text{zone}} = \frac{A - B}{C - B}$$
 
 ### Definitions of Terms
 
-- **$A$ (Reference Signal Response)**: The mean amplitude of the $3 \times 3$ C-scan pixels centred on the peak response of the reference hole (`signal_window_px: 3`, placeholder, UNVERIFIED - Ruri to check). Averaging over a 3x3 pixel window prevents single-pixel noise spikes or phase jitter from distorting the reference level.
+- **$A$ (Reference Signal Response)**: The mean amplitude of the $3 \times 3$ C-scan pixels centred on the peak response of the reference hole (`signal_window_px: 1`, so N = 1, placeholder, UNVERIFIED - Ruri to check). Averaging over a larger window (as in US 6,401,537) suits a finer pixel grid than this simulator's.
 - **$B$ (Mean Noise Floor)**: The mean envelope amplitude within the zone gate, measured across the reference block noise region while excluding pixels within `noise_exclude_px: 6` (placeholder, UNVERIFIED - Ruri to check) of the reference hole.
 - **$C$ (Peak Noise Envelope)**: The maximum envelope amplitude observed within that same zone noise region.
 
@@ -177,11 +177,11 @@ All configuration parameters from `configs/ti_mode.yaml` are summarized below:
 |---|---|---|
 | `corr_axial_mm` | 6.0 | placeholder, UNVERIFIED - Ruri to check |
 | `corr_angle_deg` | 15.0 | placeholder, UNVERIFIED - Ruri to check |
-| `field_sigma` | 0.4 | placeholder, UNVERIFIED - Ruri to check |
+| `field_sigma` | 0.1 | placeholder, UNVERIFIED - Ruri to check |
 | `zone_edges_mm` | [2.0, 12.0, 22.0, 36.0] | placeholder, UNVERIFIED - Ruri to check |
-| `zone_levels` | [1.0, 1.6, 1.3] | placeholder, UNVERIFIED - Ruri to check |
+| `zone_levels` | [1.0, 1.2, 1.1] | placeholder, UNVERIFIED - Ruri to check |
 | `ref_fbh_mm` | 0.8 | placeholder, UNVERIFIED - Ruri to check |
-| `signal_window_px` | 3 | placeholder, UNVERIFIED - Ruri to check |
+| `signal_window_px` | 1 | placeholder, UNVERIFIED - Ruri to check |
 | `noise_exclude_px` | 6 | placeholder, UNVERIFIED - Ruri to check |
 | `noise_margin` | 0.10 | placeholder, UNVERIFIED - Ruri to check |
 | `cap_fraction` | 0.70 | placeholder, UNVERIFIED - Ruri to check (secondary-source snippet attributed to ASTM E2375, not read in original) |
@@ -192,3 +192,5 @@ All configuration parameters from `configs/ti_mode.yaml` are summarized below:
 1. How does the macrozone correlation length in physical titanium billets compare with the ultrasonic beam focal spot size at 5 MHz and 10 MHz?
 2. In what specific alloy grades does the ASTM E2375 cap fraction bind in practice, and what transducer frequency or focal adjustments are made?
 3. Why must a zone flagged 'not inspectable at this sensitivity' never be cleared or suppressed by an advisory machine learning model?
+
+> **Change note (after the first calibration run, before any experiment result):** the defaults were first `field_sigma: 0.4`, `zone_levels: [1.0, 1.6, 1.3]` and `signal_window_px: 3`. On the simulated reference block the 3x3 mean cut the reference response to about a third (the simulator grid, 1 mm x 3 deg, is coarser than the beam), and with field_sigma >= 0.15 the hottest noise patch set the zone peak noise so high that no zone was inspectable. The defaults were changed to `field_sigma: 0.1`, `zone_levels: [1.0, 1.2, 1.1]`, `signal_window_px: 1`. These are simulator model choices, not measured values; `experiments/run_ti_zones.py` sweeps field_sigma so the loss of inspectability is reported, not hidden.
