@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -48,7 +49,7 @@ from utriage.ti_workflow import (
     inspection_to_dict,
     load_ti_configs,
 )
-from utriage.workflow import ADVISORY_BANNER, run_batch
+from utriage.workflow import ADVISORY_BANNER, _assert_inside_dir, run_batch
 
 app = typer.Typer(
     help="UTriage: advisory, offline UT indication triage. Decisions belong to the inspector.",
@@ -454,6 +455,23 @@ def _validate_ti_options(opts: TiInspectOptions) -> None:
         raise typer.Exit(code=2)
 
 
+_BAR_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _is_safe_bar_id(bar_id: str) -> bool:
+    """Return True when bar identifier contains only allowed characters."""
+    if not bar_id or ".." in bar_id:
+        return False
+    return bool(_BAR_ID_PATTERN.fullmatch(bar_id))
+
+
+def _check_bar_id(bar_id: str) -> None:
+    """Print error and exit when bar identifier contains forbidden characters."""
+    if not _is_safe_bar_id(bar_id):
+        typer.secho("Error: invalid --bar-id", fg=typer.colors.RED)
+        raise typer.Exit(code=2)
+
+
 def _demo_spec(seed: int) -> BarSpec:
     """Build titanium bar specification for demo simulation."""
     return BarSpec(
@@ -499,8 +517,8 @@ def _resolve_scan_target(
 def _write_ti_outputs(insp: TiInspection, out_dir: Path) -> Path:
     """Write inspection JSON and HTML report to output directory."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    json_path = out_dir / f"{insp.bar_id}_ti.json"
-    html_path = out_dir / f"{insp.bar_id}_ti_report.html"
+    json_path = _assert_inside_dir(out_dir, (out_dir / f"{insp.bar_id}_ti.json").resolve())
+    html_path = _assert_inside_dir(out_dir, (out_dir / f"{insp.bar_id}_ti_report.html").resolve())
     with json_path.open("w", encoding="utf-8") as fh:
         json.dump(inspection_to_dict(insp), fh, indent=2)
     rep_inp = TiReportInput(
@@ -528,10 +546,13 @@ def _print_ti_results(insp: TiInspection, report_path: Path) -> None:
 def _run_ti_inspect(opts: TiInspectOptions) -> None:
     """Execute titanium mode inspection pipeline."""
     _validate_ti_options(opts)
+    if opts.bar_id is not None:
+        _check_bar_id(opts.bar_id)
     typer.echo(ADVISORY_BANNER)
     cfgs = load_ti_configs()
     scan, default_id, synthetic = _resolve_scan_target(opts, cfgs.noise)
     bar_id = opts.bar_id if opts.bar_id is not None else default_id
+    _check_bar_id(bar_id)
     insp = inspect_ti(scan, bar_id, cfgs, synthetic=synthetic)
     report_path = _write_ti_outputs(insp, opts.out)
     _print_ti_results(insp, report_path)

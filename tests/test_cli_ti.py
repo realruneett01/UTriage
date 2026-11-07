@@ -129,3 +129,28 @@ def test_ti_inspect_no_forbidden_words(
     res = _run_cmd(args)
     assert res.exit_code == 0
     _check_output_clean(res.output)
+
+
+@pytest.mark.parametrize(
+    "bad_id",
+    ["../evil", "a/b", "a\\b", "", "C:x"],
+)
+def test_ti_inspect_rejects_unsafe_bar_id(tmp_path: Path, bad_id: str) -> None:
+    """Reject traversal and malformed bar identifiers with exit code 2."""
+    out_dir = tmp_path / "ti_out"
+    res = _run_cmd(["ti-inspect", "--demo-seed", "0", "--bar-id", bad_id, "--out", str(out_dir)])
+    assert res.exit_code == 2
+    assert "Error: invalid --bar-id" in res.output
+    outside = [p for p in tmp_path.rglob("*") if p.is_file() and not p.is_relative_to(out_dir)]
+    assert not outside
+
+
+def test_ti_inspect_safe_bar_id_success(tmp_path: Path) -> None:
+    """Safe bar identifier writes expected output files."""
+    out_dir = tmp_path / "ti_safe"
+    res = _run_cmd(
+        ["ti-inspect", "--demo-seed", "0", "--bar-id", "bar-01.A_2", "--out", str(out_dir)]
+    )
+    assert res.exit_code == 0
+    assert (out_dir / "bar-01.A_2_ti.json").is_file()
+    assert (out_dir / "bar-01.A_2_ti_report.html").is_file()
