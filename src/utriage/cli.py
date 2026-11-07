@@ -14,7 +14,7 @@ import typer
 
 from utriage import __version__
 from utriage.detector_config import DEFAULT_PATH, load_detector_config
-from utriage.integrity import MANIFEST, IntegrityError, require_locked
+from utriage.integrity import MANIFEST, IntegrityError, check_model_hash, require_locked
 from utriage.ml.anomaly import ConvAE2D, anomaly_score
 from utriage.ml.site_adapt import (
     SiteCalibration,
@@ -302,6 +302,11 @@ def _load_site_model(model_path: Path, dev: torch.device) -> ConvAE2D:
     if not model_path.is_file():
         typer.secho(f"Error: Model not found at {model_path}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+    try:
+        check_model_hash(model_path)
+    except IntegrityError as exc:
+        typer.secho(f"ERROR: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
     ckpt = torch.load(model_path, map_location=dev, weights_only=True)
     if isinstance(ckpt, nn.Module):
         model = ckpt

@@ -11,6 +11,7 @@ import scipy.ndimage as ndi
 import torch
 import torch.nn as nn
 
+from utriage.integrity import check_model_hash
 from utriage.ml.bar_data import WINDOW, cut_windows
 from utriage.ml.bar_models import WindowNet, flaw_logit
 from utriage.ml.infer import save_model
@@ -84,8 +85,10 @@ def load_window_model(path: Path | str, device: str = "auto") -> tuple[WindowNet
     """Load WindowNet model and metadata from checkpoint."""
     ckpt_path = Path(path)
     dev = pick_device(device)
+    digest = check_model_hash(ckpt_path)
     ckpt = torch.load(ckpt_path, map_location=dev, weights_only=True)
     meta = dict(ckpt.get("meta", {}))
+    meta["sha256"] = digest
     in_channels = int(meta.get("in_channels", 1))
     width = int(meta.get("width", 32))
     dropout = float(meta.get("dropout", 0.1))
