@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -13,6 +15,7 @@ import torch.nn as nn
 import typer
 
 from utriage import __version__
+from utriage.app_logic import _is_synthetic
 from utriage.detector_config import DEFAULT_PATH, load_detector_config
 from utriage.integrity import MANIFEST, IntegrityError, check_model_hash, require_locked
 from utriage.ml.anomaly import ConvAE2D, anomaly_score
@@ -28,9 +31,23 @@ from utriage.ml.site_adapt import (
 from utriage.ml.train import pick_device
 from utriage.physics.dataset import DatasetConfig, generate_dataset, load_scan
 from utriage.physics.figures import plot_cscan
-from utriage.physics.simulator import BarScan
+from utriage.physics.simulator import (
+    BarScan,
+    BarSpec,
+    Reflector,
+    load_material,
+    load_probe,
+)
+from utriage.physics.ti_noise import TiNoiseConfig, simulate_ti_bar
+from utriage.report.ti_report import TiReportInput, write_ti_report
 from utriage.rules.config import DEFAULT_ACCEPTANCE, AcceptanceConfig, load_acceptance
 from utriage.rules.pipeline import Evaluation, evaluate_scan, evaluation_to_dict
+from utriage.ti_workflow import (
+    TiInspection,
+    inspect_ti,
+    inspection_to_dict,
+    load_ti_configs,
+)
 from utriage.workflow import ADVISORY_BANNER, run_batch
 
 app = typer.Typer(
@@ -415,3 +432,131 @@ def site_calibrate(
         fcr=fcr,
     )
     _run_site_calibrate(opts)
+
+
+@dataclass(frozen=True)
+class TiInspectOptions:
+    """Options for titanium mode inspection. Synthetic data."""
+
+    scan: Path | None = None
+    demo_seed: int | None = None
+    out: Path = Path("out/ti")
+    bar_id: str | None = None
+
+
+def _validate_ti_options(opts: TiInspectOptions) -> None:
+    """Validate that either scan path or demo seed is provided, but not both."""
+    if (opts.scan is not None) == (opts.demo_seed is not None):
+        typer.secho(
+            "Error: exactly one of --scan or --demo-seed is required.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=2)
+
+
+def _demo_spec(seed: int) -> BarSpec:
+    """Build titanium bar specification for demo simulation."""
+    return BarSpec(
+        material=load_material("ti64"),
+        probe=load_probe("p5"),
+        water=load_material("water"),
+        seed=seed,
+    )
+
+
+def _build_demo_scan(seed: int, noise_cfg: TiNoiseConfig) -> BarScan:
+    """Simulate titanium bar scan with planted reflector for demo."""
+    base_spec = _demo_spec(seed)
+    edges = noise_cfg.zone_edges_mm
+    depth = (edges[1] + edges[2]) / 2.0
+    reflector = Reflector(
+        axial_mm=base_spec.length_mm / 2.0,
+        angle_deg=90.0,
+        depth_mm=depth,
+        diameter_mm=0.8,
+        kind="fbh",
+    )
+    spec = dataclasses.replace(base_spec, reflectors=(reflector,))
+    return simulate_ti_bar(spec, noise_cfg)
+
+
+def _resolve_scan_target(
+    opts: TiInspectOptions,
+    noise_cfg: TiNoiseConfig,
+) -> tuple[BarScan, str, bool]:
+    """Resolve scan, default bar ID, and synthetic flag from options."""
+    if opts.demo_seed is not None:
+        scan = _build_demo_scan(opts.demo_seed, noise_cfg)
+        return scan, f"demo_{opts.demo_seed}", True
+    scan_path = opts.scan
+    if scan_path is None:
+        raise ValueError("scan path is required when demo_seed is None")
+    scan = load_scan(scan_path)
+    _attach_scan_label(scan, scan_path)
+    return scan, scan_path.stem, _is_synthetic(scan_path, scan)
+
+
+def _write_ti_outputs(insp: TiInspection, out_dir: Path) -> Path:
+    """Write inspection JSON and HTML report to output directory."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    json_path = out_dir / f"{insp.bar_id}_ti.json"
+    html_path = out_dir / f"{insp.bar_id}_ti_report.html"
+    with json_path.open("w", encoding="utf-8") as fh:
+        json.dump(inspection_to_dict(insp), fh, indent=2)
+    rep_inp = TiReportInput(
+        bar_id=insp.bar_id,
+        scan=insp.scan,
+        record=insp.record,
+        alarms=insp.alarms,
+        items=insp.items,
+        synthetic=insp.synthetic,
+        placeholder_limits=insp.evaluation.placeholder_limits,
+        generated_at=datetime.now(UTC).isoformat(timespec="seconds"),
+    )
+    return write_ti_report(rep_inp, html_path)
+
+
+def _print_ti_results(insp: TiInspection, report_path: Path) -> None:
+    """Print summary of titanium inspection results."""
+    data = inspection_to_dict(insp)
+    typer.echo(f"Calibration ID: {insp.record.calib_id}")
+    typer.echo(f"Zone alarms: {data['n_zone_alarms']}")
+    typer.echo(f"Zones not inspectable: {data['n_zones_not_inspectable']}")
+    typer.echo(f"Report: {report_path}")
+
+
+def _run_ti_inspect(opts: TiInspectOptions) -> None:
+    """Execute titanium mode inspection pipeline."""
+    _validate_ti_options(opts)
+    typer.echo(ADVISORY_BANNER)
+    cfgs = load_ti_configs()
+    scan, default_id, synthetic = _resolve_scan_target(opts, cfgs.noise)
+    bar_id = opts.bar_id if opts.bar_id is not None else default_id
+    insp = inspect_ti(scan, bar_id, cfgs, synthetic=synthetic)
+    report_path = _write_ti_outputs(insp, opts.out)
+    _print_ti_results(insp, report_path)
+
+
+@app.command("ti-inspect")
+def ti_inspect(
+    scan: Annotated[
+        Path | None,
+        typer.Option("--scan", help="Path to scan .npz file"),
+    ] = None,
+    demo_seed: Annotated[
+        int | None,
+        typer.Option("--demo-seed", help="Random seed for demo simulation"),
+    ] = None,
+    out: Annotated[
+        Path,
+        typer.Option("--out", help="Output directory"),
+    ] = Path("out/ti"),
+    bar_id: Annotated[
+        str | None,
+        typer.Option("--bar-id", help="Bar identifier"),
+    ] = None,
+) -> None:
+    """Inspect titanium bar scan and write offline report and JSON."""
+    _enforce_locked()
+    opts = TiInspectOptions(scan=scan, demo_seed=demo_seed, out=out, bar_id=bar_id)
+    _run_ti_inspect(opts)
