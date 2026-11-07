@@ -36,63 +36,58 @@ def _format_calibration_zone(
     z_cal: dict[str, Any],
     z_flaw: dict[str, Any],
     g_flaw: dict[str, Any],
-) -> tuple[str, dict[str, float]] | None:
+) -> tuple[str, dict[str, float]]:
     """Format single zone calibration and detection numbers."""
-    zone_idx = z_cal.get("zone")
-    snr = z_cal.get("snr")
-    inspectable = z_cal.get("inspectable")
-    if any(v is None for v in (zone_idx, snr, inspectable)):
-        return None
-    zk, zn = z_flaw.get("k"), z_flaw.get("n")
-    gk, gn = g_flaw.get("k"), g_flaw.get("n")
-    if any(val is None for val in (zk, zn, gk, gn)):
-        return None
+    zone_idx = int(z_cal["zone"])
+    snr = z_cal["snr"]
+    inspectable = z_cal["inspectable"]
+    if inspectable is None:
+        raise TypeError("inspectable cannot be None")
+    zk, zn = int(z_flaw["k"]), int(z_flaw["n"])
+    gk, gn = int(g_flaw["k"]), int(g_flaw["n"])
     insp_str = "yes" if inspectable else "no"
+    snr_str = f"SNR {float(snr):.2f}" if snr is not None else "SNR n/a"
     text = (
-        f"zone {zone_idx}: SNR {float(snr):.2f}, inspectable {insp_str}, "
-        f"zone arm {int(zk)}/{int(zn)}, global arm {int(gk)}/{int(gn)}"
+        f"zone {zone_idx}: {snr_str}, inspectable {insp_str}, "
+        f"zone arm {zk}/{zn}, global arm {gk}/{gn}"
     )
     nums = {
-        f"structured_zone{zone_idx}_snr": float(f"{float(snr):.2f}"),
         f"structured_zone_arm_zone{zone_idx}_k": float(zk),
         f"structured_zone_arm_zone{zone_idx}_n": float(zn),
         f"structured_global_arm_zone{zone_idx}_k": float(gk),
         f"structured_global_arm_zone{zone_idx}_n": float(gn),
     }
+    if snr is not None:
+        nums[f"structured_zone{zone_idx}_snr"] = float(f"{float(snr):.2f}")
     return text, nums
 
 
 def _extract_clean_fa(
     cz_clean: dict[str, Any],
     cg_clean: dict[str, Any],
-) -> tuple[float, float, int] | None:
+) -> tuple[float, float, int]:
     """Extract clean-bar false alarm rates and clean bar count."""
-    cz_fa = cz_clean.get("false_alarms_per_bar")
-    cg_fa = cg_clean.get("false_alarms_per_bar")
-    if cz_fa is None or cg_fa is None:
-        return None
-    b_alarm = cz_clean.get("bars_with_alarm", {})
-    n_clean = b_alarm.get("n")
-    if n_clean is None:
-        return None
-    return float(cz_fa), float(cg_fa), int(n_clean)
+    cz_fa = float(cz_clean["false_alarms_per_bar"])
+    cg_fa = float(cg_clean["false_alarms_per_bar"])
+    b_alarm = cz_clean["bars_with_alarm"]
+    n_clean = int(b_alarm["n"])
+    return cz_fa, cg_fa, n_clean
 
 
 def _collect_calibration_zones(
     z_cals: list[dict[str, Any]],
     fz_zones: list[dict[str, Any]],
     fg_zones: list[dict[str, Any]],
-) -> tuple[list[str], dict[str, float]] | None:
+) -> tuple[list[str], dict[str, float]]:
     """Format all zones and aggregate their numeric values."""
     if len(z_cals) != len(fz_zones) or len(z_cals) != len(fg_zones):
-        return None
+        raise ValueError("mismatched zone counts")
+    if not z_cals:
+        raise ValueError("empty calibration zones")
     zone_texts: list[str] = []
     nums: dict[str, float] = {}
     for zc, zf, gf in zip(z_cals, fz_zones, fg_zones, strict=True):
-        res = _format_calibration_zone(zc, zf, gf)
-        if res is None:
-            return None
-        zt, zn = res
+        zt, zn = _format_calibration_zone(zc, zf, gf)
         zone_texts.append(zt)
         nums.update(zn)
     return zone_texts, nums
@@ -148,47 +143,42 @@ def _assemble_calibration_claim(
 
 def _build_ti_calibration_claim(data: dict[str, Any]) -> Claim | None:
     """Build claim for structured model titanium zone calibration."""
-    structured = data.get("noise_models", {}).get("structured")
-    if not isinstance(structured, dict):
+    try:
+        structured = data["noise_models"]["structured"]
+        cal = structured["calibration"]
+        arms = structured["arms"]
+        z_cals = cal["zones"]
+        arm_z, arm_g = arms["zone"], arms["global"]
+        fa_info = _extract_clean_fa(arm_z["clean"], arm_g["clean"])
+        fz_zones = arm_z["flawed"]["per_zone"]
+        fg_zones = arm_g["flawed"]["per_zone"]
+        if not z_cals or not fz_zones:
+            raise ValueError("empty calibration zones or flawed data")
+        n_flaw = int(fz_zones[0]["n"])
+        zone_res = _collect_calibration_zones(z_cals, fz_zones, fg_zones)
+        ref_fbh = float(cal["ref_fbh_mm"])
+        return _assemble_calibration_claim(fa_info, n_flaw, ref_fbh, zone_res)
+    except (KeyError, TypeError, ValueError) as err:  # narrow reason: missing or malformed fields
+        print(f"Skipping ti_zone_calibration: {err}", file=sys.stderr)
         return None
-    cal = structured.get("calibration", {})
-    arms = structured.get("arms", {})
-    z_cals = cal.get("zones", [])
-    arm_z, arm_g = arms.get("zone", {}), arms.get("global", {})
-    fa_info = _extract_clean_fa(arm_z.get("clean", {}), arm_g.get("clean", {}))
-    fz_zones = arm_z.get("flawed", {}).get("per_zone", [])
-    fg_zones = arm_g.get("flawed", {}).get("per_zone", [])
-    if fa_info is None or not z_cals or not fz_zones:
-        return None
-    n_flaw = fz_zones[0].get("n")
-    if n_flaw is None:
-        return None
-    zone_res = _collect_calibration_zones(z_cals, fz_zones, fg_zones)
-    if zone_res is None:
-        return None
-    ref_fbh = float(cal.get("ref_fbh_mm", 0.8))
-    return _assemble_calibration_claim(fa_info, int(n_flaw), ref_fbh, zone_res)
 
 
 def _format_sweep_model(
     m_sweep: dict[str, Any],
     m_data: dict[str, Any],
-) -> tuple[str, dict[str, float], float, int] | None:
+) -> tuple[str, dict[str, float], float, int]:
     """Format single noise model sweep entry."""
-    name = m_sweep.get("name")
-    sigma = m_sweep.get("field_sigma")
-    if name is None or sigma is None:
-        return None
-    arm_z = m_data.get("arms", {}).get("zone", {})
-    uninspect = arm_z.get("zones_not_inspectable")
-    fz_zones = arm_z.get("flawed", {}).get("per_zone", [])
-    if uninspect is None or not fz_zones:
-        return None
-    tot_k = sum(z.get("k", 0) for z in fz_zones)
-    tot_n = sum(z.get("n", 0) for z in fz_zones)
-    f_sigma = float(sigma)
+    name = str(m_sweep["name"])
+    f_sigma = float(m_sweep["field_sigma"])
+    arm_z = m_data["arms"]["zone"]
+    uninspect = int(arm_z["zones_not_inspectable"])
+    fz_zones = arm_z["flawed"]["per_zone"]
+    if not fz_zones:
+        raise ValueError("empty per_zone in sweep model")
+    tot_k = sum(int(z["k"]) for z in fz_zones)
+    tot_n = sum(int(z["n"]) for z in fz_zones)
     text = (
-        f"{name} (field_sigma {f_sigma:.2f}): {int(uninspect)} zones not inspectable, "
+        f"{name} (field_sigma {f_sigma:.2f}): {uninspect} zones not inspectable, "
         f"zone arm detection {tot_k}/{tot_n}"
     )
     nums = {
@@ -197,7 +187,7 @@ def _format_sweep_model(
         f"{name}_zone_arm_total_k": float(tot_k),
         f"{name}_zone_arm_total_n": float(tot_n),
     }
-    return text, nums, f_sigma, int(uninspect)
+    return text, nums, f_sigma, uninspect
 
 
 def _is_monotone_uninspectable(pairs: list[tuple[float, int]]) -> bool:
@@ -237,28 +227,25 @@ def _assemble_sweep_claim(
 
 def _build_ti_sweep_claim(data: dict[str, Any]) -> Claim | None:
     """Build claim for titanium noise sweep across varying field_sigma."""
-    sweep = data.get("sweep")
-    noise_models = data.get("noise_models")
-    if not isinstance(sweep, list) or not isinstance(noise_models, dict) or not sweep:
+    try:
+        sweep = data["sweep"]
+        noise_models = data["noise_models"]
+        if not sweep:
+            raise ValueError("empty sweep")
+        parts: list[str] = []
+        numbers: dict[str, float] = {}
+        pairs: list[tuple[float, int]] = []
+        for item in sweep:
+            name = str(item["name"])
+            m_data = noise_models[name]
+            p_text, p_nums, sigma, uninsp = _format_sweep_model(item, m_data)
+            parts.append(p_text)
+            numbers.update(p_nums)
+            pairs.append((sigma, uninsp))
+        return _assemble_sweep_claim(parts, numbers, pairs)
+    except (KeyError, TypeError, ValueError) as err:  # narrow reason: missing or malformed fields
+        print(f"Skipping ti_noise_sweep: {err}", file=sys.stderr)
         return None
-    parts: list[str] = []
-    numbers: dict[str, float] = {}
-    pairs: list[tuple[float, int]] = []
-    for item in sweep:
-        if not isinstance(item, dict):
-            return None
-        name = item.get("name")
-        m_data = noise_models.get(str(name))
-        if not isinstance(m_data, dict):
-            return None
-        res = _format_sweep_model(item, m_data)
-        if res is None:
-            return None
-        p_text, p_nums, sigma, uninsp = res
-        parts.append(p_text)
-        numbers.update(p_nums)
-        pairs.append((sigma, uninsp))
-    return _assemble_sweep_claim(parts, numbers, pairs)
 
 
 def collect_ti_claims(results_dir: Path | str) -> list[Claim]:

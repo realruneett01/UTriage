@@ -28,7 +28,11 @@ from utriage.report.claims_ti import (  # noqa: E402
 )
 
 
-def _make_fake_zone_cal(zone: int, snr: float, inspectable: bool) -> dict[str, Any]:
+def _make_fake_zone_cal(
+    zone: int,
+    snr: float | None,
+    inspectable: bool,
+) -> dict[str, Any]:
     """Build fake zone calibration dictionary."""
     return {
         "zone": zone,
@@ -213,3 +217,45 @@ def test_build_claims_includes_ti_claims(tmp_path: Path) -> None:
     claims = build_claims(tmp_path)
     ti_ids = {c.id for c in claims if c.id.startswith("ti_")}
     assert ti_ids == {"ti_zone_calibration", "ti_noise_sweep"}
+
+
+def test_missing_ref_fbh_skips_calibration_claim(tmp_path: Path) -> None:
+    """Check calibration claim skipped when ref_fbh_mm is missing."""
+    payload = _make_fake_ti_payload([("flat", 0.0, 0), ("structured", 0.1, 0)])
+    del payload["noise_models"]["structured"]["calibration"]["ref_fbh_mm"]
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    cal_claims = [c for c in claims if c.id == "ti_zone_calibration"]
+    assert len(cal_claims) == 0
+    for claim in claims:
+        assert "0.8" not in claim.text
+        assert 0.8 not in claim.numbers.values()
+
+
+def test_missing_zone_k_skips_sweep_claim(tmp_path: Path) -> None:
+    """Check sweep claim skipped when a per_zone entry misses k."""
+    payload = _make_fake_ti_payload([("flat", 0.0, 0), ("structured", 0.1, 0)])
+    del payload["noise_models"]["flat"]["arms"]["zone"]["flawed"]["per_zone"][0]["k"]
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    sweep_claims = [c for c in claims if c.id == "ti_noise_sweep"]
+    assert len(sweep_claims) == 0
+    cal_claims = [c for c in claims if c.id == "ti_zone_calibration"]
+    assert len(cal_claims) == 1
+
+
+def test_snr_none_shows_na_and_omits_key(tmp_path: Path) -> None:
+    """Check snr None shows SNR n/a in text and leaves key out of numbers."""
+    payload = _make_fake_ti_payload([("flat", 0.0, 0), ("structured", 0.1, 0)])
+    payload["noise_models"]["structured"]["calibration"]["zones"][0]["snr"] = None
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    c_cal = next(c for c in claims if c.id == "ti_zone_calibration")
+    assert "SNR n/a" in c_cal.text
+    assert "structured_zone0_snr" not in c_cal.numbers
+    assert "structured_zone1_snr" in c_cal.numbers
+    _assert_numbers_match_text(c_cal.text, c_cal.numbers)
+    _assert_no_forbidden_phrases(c_cal.text, c_cal.scope_limit)
