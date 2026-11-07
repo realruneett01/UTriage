@@ -18,6 +18,7 @@ from utriage.physics.ti_calibration import calibrate_zones
 from utriage.physics.ti_noise import simulate_ti_bar
 from utriage.ti_workflow import (
     TiConfigs,
+    TiInspection,
     gates_from_record,
     inspect_ti,
     inspection_to_dict,
@@ -156,3 +157,60 @@ def test_inspection_to_dict_real(ti_setup: tuple[BarScan, TiConfigs]) -> None:
     assert d["synthetic"] is False
     assert "label" not in d
     assert json.dumps(d)
+
+
+@pytest.fixture(scope="module")
+def clean_ti_setup() -> tuple[BarScan, TiConfigs, BarSpec]:
+    """Module-level clean titanium scan fixture without reflectors. Synthetic data."""
+    mat = load_material("ti64")
+    prb = load_probe("p5")
+    wtr = load_material("water")
+    spec = BarSpec(
+        material=mat,
+        probe=prb,
+        water=wtr,
+        length_mm=24.0,
+        n_angle=36,
+        reflectors=(),
+        seed=42,
+    )
+    cfgs = load_ti_configs()
+    scan = simulate_ti_bar(spec, cfgs.noise)
+    return scan, cfgs, spec
+
+
+@pytest.fixture(scope="module")
+def clean_ti_inspection(
+    clean_ti_setup: tuple[BarScan, TiConfigs, BarSpec],
+) -> tuple[TiInspection, TiConfigs, BarSpec]:
+    """Module-level clean titanium inspection fixture. Synthetic data."""
+    scan, cfgs, spec = clean_ti_setup
+    insp = inspect_ti(scan, "bar_clean", cfgs)
+    return insp, cfgs, spec
+
+
+def test_inspect_ti_calib_id_matches_original_spec(
+    clean_ti_inspection: tuple[TiInspection, TiConfigs, BarSpec],
+) -> None:
+    """Inspection calibration id matches calibration from original spec."""
+    insp, cfgs, spec = clean_ti_inspection
+    expected = calibrate_zones(spec, cfgs.noise, cfgs.cal)
+    assert insp.record.calib_id == expected.calib_id
+
+
+def test_calibration_zones_noise_levels(
+    clean_ti_inspection: tuple[TiInspection, TiConfigs, BarSpec],
+) -> None:
+    """Every zone in record has peak noise strictly above mean noise."""
+    insp, _, _ = clean_ti_inspection
+    assert len(insp.record.zones) > 0
+    assert all(z.noise_peak_c > z.noise_mean_b > 0.0 for z in insp.record.zones)
+
+
+def test_clean_bar_alarm_count_low(
+    clean_ti_inspection: tuple[TiInspection, TiConfigs, BarSpec],
+) -> None:
+    """Clean bar without reflectors produces very few zone alarms."""
+    insp, _, _ = clean_ti_inspection
+    alarm_count = sum(1 for a in insp.alarms if a.kind == "alarm")
+    assert alarm_count <= 3
