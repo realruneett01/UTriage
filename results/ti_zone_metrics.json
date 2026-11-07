@@ -1,0 +1,1496 @@
+{
+  "label": "Synthetic data (titanium-mode simulator; configs/ti_mode.yaml placeholders, UNVERIFIED)",
+  "config_sha256": "784d287eca4d2453d8913901e3a87f72a2eebd62f4cd935a6fc453273b081e40",
+  "definitions": {
+    "global_arm": "One ZoneGate spanning edges[0]..edges[-1] with alarm from zone_alarm(A=min zone A, B=mean zone B, C=max zone C, cal).",
+    "zone_arm": "One ZoneGate per depth zone from calibrate_zones(part, noise, cal), with alarm_level from each ZoneCalibration record.",
+    "structured_noise": "Structured grain noise loaded from configs/ti_mode.yaml with spatially correlated lognormal multiplier and depth-dependent zone levels.",
+    "flat_noise": "Same zone edges as structured noise but with field_sigma=0.0 and all zone_levels set to 1.0.",
+    "detection": "Flawed bar is detected if at least one alarm of kind 'alarm' is within 2 px axial and 2 px angle with circular wrap of the hole pixel, and for zone arm whose zone contains the hole depth (for global arm any alarm).",
+    "clean_evaluation": "Clean bars have no planted flaws; false alarms per bar is the mean count of kind 'alarm' clusters, and bars with >=1 alarm reports k/n with exact two-sided Clopper-Pearson 95% bounds."
+  },
+  "counts": {
+    "n_clean": 20,
+    "n_flaw": 20,
+    "n_zones": 3
+  },
+  "seeds": {
+    "base_seed": 0,
+    "clean_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "flaw_seeds": [
+      [
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59
+      ],
+      [
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79
+      ]
+    ]
+  },
+  "runtime_s": 2546.323,
+  "sweep": [
+    {
+      "name": "flat",
+      "field_sigma": 0.0,
+      "zone_levels": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "structured",
+      "field_sigma": 0.1,
+      "zone_levels": [
+        1.0,
+        1.2,
+        1.1
+      ]
+    },
+    {
+      "name": "structured_sigma_0.15",
+      "field_sigma": 0.15,
+      "zone_levels": [
+        1.0,
+        1.2,
+        1.1
+      ]
+    },
+    {
+      "name": "structured_sigma_0.2",
+      "field_sigma": 0.2,
+      "zone_levels": [
+        1.0,
+        1.2,
+        1.1
+      ]
+    },
+    {
+      "name": "structured_sigma_0.3",
+      "field_sigma": 0.3,
+      "zone_levels": [
+        1.0,
+        1.2,
+        1.1
+      ]
+    }
+  ],
+  "noise_models": {
+    "flat": {
+      "calibration": {
+        "calib_id": "dc750cdf29e06d0d",
+        "zones": [
+          {
+            "zone": 0,
+            "depth_mm": [
+              2.0,
+              12.0
+            ],
+            "ref_depth_mm": 7.0,
+            "signal_a": 0.08461562544107437,
+            "noise_mean_b": 0.017367158085107803,
+            "noise_peak_c": 0.03905938193202019,
+            "snr": 3.1001186337812268,
+            "alarm_level": 0.04296532012522221,
+            "cap_bound": false,
+            "inspectable": true,
+            "reason": ""
+          },
+          {
+            "zone": 1,
+            "depth_mm": [
+              12.0,
+              22.0
+            ],
+            "ref_depth_mm": 17.0,
+            "signal_a": 0.09455451369285583,
+            "noise_mean_b": 0.01872951164841652,
+            "noise_peak_c": 0.03998906910419464,
+            "snr": 3.566631252892373,
+            "alarm_level": 0.04398797601461411,
+            "cap_bound": false,
+            "inspectable": true,
+            "reason": ""
+          },
+          {
+            "zone": 2,
+            "depth_mm": [
+              22.0,
+              36.0
+            ],
+            "ref_depth_mm": 29.0,
+            "signal_a": 0.06492365151643753,
+            "noise_mean_b": 0.01449771411716938,
+            "noise_peak_c": 0.028910771012306213,
+            "snr": 3.4986289005965534,
+            "alarm_level": 0.03180184811353684,
+            "cap_bound": false,
+            "inspectable": true,
+            "reason": ""
+          }
+        ],
+        "ref_fbh_mm": 0.8,
+        "block_seed": 1000,
+        "config_sha256": "068359f9ed287a39689dc4ea70a84573263a438ee4cd8be8c4f6866bbbecc058",
+        "label": "Synthetic data: simulated reference block"
+      },
+      "arms": {
+        "zone": {
+          "clean": {
+            "false_alarms_per_bar": 0.05,
+            "false_alarms_per_bar_mean": 0.05,
+            "bars_with_alarm": {
+              "k": 1,
+              "n": 20,
+              "rate": 0.05,
+              "ci_low": 0.0012650894979498047,
+              "ci_high": 0.24873276277202777
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 1,
+              "n": 20,
+              "rate": 0.05,
+              "ci_low": 0.0012650894979498047,
+              "ci_high": 0.24873276277202777
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 20,
+                "n": 20,
+                "rate": 1.0,
+                "ci_low": 0.8315665290169147,
+                "ci_high": 1.0,
+                "snr": 3.1001186337812268,
+                "alarm_level": 0.04296532012522221,
+                "cap_bound": false,
+                "inspectable": true
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 13,
+                "n": 20,
+                "rate": 0.65,
+                "ci_low": 0.4078114654671719,
+                "ci_high": 0.8460907952154588,
+                "snr": 3.566631252892373,
+                "alarm_level": 0.04398797601461411,
+                "cap_bound": false,
+                "inspectable": true
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 20,
+                "n": 20,
+                "rate": 1.0,
+                "ci_low": 0.8315665290169147,
+                "ci_high": 1.0,
+                "snr": 3.4986289005965534,
+                "alarm_level": 0.03180184811353684,
+                "cap_bound": false,
+                "inspectable": true
+              }
+            ],
+            "zones_not_inspectable": 0
+          },
+          "zones_not_inspectable": 0
+        },
+        "global": {
+          "clean": {
+            "false_alarms_per_bar": 0.0,
+            "false_alarms_per_bar_mean": 0.0,
+            "bars_with_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 20,
+                "n": 20,
+                "rate": 1.0,
+                "ci_low": 0.8315665290169147,
+                "ci_high": 1.0,
+                "snr": 2.0782860420525036,
+                "alarm_level": 0.04398797601461411,
+                "cap_bound": false,
+                "inspectable": true
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 13,
+                "n": 20,
+                "rate": 0.65,
+                "ci_low": 0.4078114654671719,
+                "ci_high": 0.8460907952154588,
+                "snr": 2.0782860420525036,
+                "alarm_level": 0.04398797601461411,
+                "cap_bound": false,
+                "inspectable": true
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 14,
+                "n": 20,
+                "rate": 0.7,
+                "ci_low": 0.4572108177237109,
+                "ci_high": 0.8810684095942722,
+                "snr": 2.0782860420525036,
+                "alarm_level": 0.04398797601461411,
+                "cap_bound": false,
+                "inspectable": true
+              }
+            ],
+            "zones_not_inspectable": 0
+          },
+          "zones_not_inspectable": 0
+        }
+      }
+    },
+    "structured": {
+      "calibration": {
+        "calib_id": "1bc504433c706830",
+        "zones": [
+          {
+            "zone": 0,
+            "depth_mm": [
+              2.0,
+              12.0
+            ],
+            "ref_depth_mm": 7.0,
+            "signal_a": 0.08453439176082611,
+            "noise_mean_b": 0.01781598851084709,
+            "noise_peak_c": 0.05095171555876732,
+            "snr": 2.013488436619851,
+            "alarm_level": 0.056046887114644055,
+            "cap_bound": false,
+            "inspectable": true,
+            "reason": ""
+          },
+          {
+            "zone": 1,
+            "depth_mm": [
+              12.0,
+              22.0
+            ],
+            "ref_depth_mm": 17.0,
+            "signal_a": 0.09619148820638657,
+            "noise_mean_b": 0.022451147437095642,
+            "noise_peak_c": 0.04980027675628662,
+            "snr": 2.696259171861353,
+            "alarm_level": 0.05478030443191529,
+            "cap_bound": false,
+            "inspectable": true,
+            "reason": ""
+          },
+          {
+            "zone": 2,
+            "depth_mm": [
+              22.0,
+              36.0
+            ],
+            "ref_depth_mm": 29.0,
+            "signal_a": 0.0652599185705185,
+            "noise_mean_b": 0.016020597890019417,
+            "noise_peak_c": 0.0363948754966259,
+            "snr": 2.4167394609629214,
+            "alarm_level": 0.04003436304628849,
+            "cap_bound": false,
+            "inspectable": true,
+            "reason": ""
+          }
+        ],
+        "ref_fbh_mm": 0.8,
+        "block_seed": 1000,
+        "config_sha256": "0b4e0ef56eb9b6fabc323b4827c2cd865ec938f417b6493855d9538340cc767d",
+        "label": "Synthetic data: simulated reference block"
+      },
+      "arms": {
+        "zone": {
+          "clean": {
+            "false_alarms_per_bar": 0.05,
+            "false_alarms_per_bar_mean": 0.05,
+            "bars_with_alarm": {
+              "k": 1,
+              "n": 20,
+              "rate": 0.05,
+              "ci_low": 0.0012650894979498047,
+              "ci_high": 0.24873276277202777
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 1,
+              "n": 20,
+              "rate": 0.05,
+              "ci_low": 0.0012650894979498047,
+              "ci_high": 0.24873276277202777
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 20,
+                "n": 20,
+                "rate": 1.0,
+                "ci_low": 0.8315665290169147,
+                "ci_high": 1.0,
+                "snr": 2.013488436619851,
+                "alarm_level": 0.056046887114644055,
+                "cap_bound": false,
+                "inspectable": true
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 14,
+                "n": 20,
+                "rate": 0.7,
+                "ci_low": 0.4572108177237109,
+                "ci_high": 0.8810684095942722,
+                "snr": 2.696259171861353,
+                "alarm_level": 0.05478030443191529,
+                "cap_bound": false,
+                "inspectable": true
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 20,
+                "n": 20,
+                "rate": 1.0,
+                "ci_low": 0.8315665290169147,
+                "ci_high": 1.0,
+                "snr": 2.4167394609629214,
+                "alarm_level": 0.04003436304628849,
+                "cap_bound": false,
+                "inspectable": true
+              }
+            ],
+            "zones_not_inspectable": 0
+          },
+          "zones_not_inspectable": 0
+        },
+        "global": {
+          "clean": {
+            "false_alarms_per_bar": 0.0,
+            "false_alarms_per_bar_mean": 0.0,
+            "bars_with_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 1.4445040803476028,
+                "alarm_level": 0.04568194299936294,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 1.4445040803476028,
+                "alarm_level": 0.04568194299936294,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 1.4445040803476028,
+                "alarm_level": 0.04568194299936294,
+                "cap_bound": true,
+                "inspectable": false
+              }
+            ],
+            "zones_not_inspectable": 1
+          },
+          "zones_not_inspectable": 1
+        }
+      }
+    },
+    "structured_sigma_0.15": {
+      "calibration": {
+        "calib_id": "6537c1aba6c8c89b",
+        "zones": [
+          {
+            "zone": 0,
+            "depth_mm": [
+              2.0,
+              12.0
+            ],
+            "ref_depth_mm": 7.0,
+            "signal_a": 0.08448830246925354,
+            "noise_mean_b": 0.01803777366876602,
+            "noise_peak_c": 0.06859087944030762,
+            "snr": 1.3144697597965431,
+            "alarm_level": 0.059141811728477475,
+            "cap_bound": true,
+            "inspectable": false,
+            "reason": "alarm cap is not above peak noise"
+          },
+          {
+            "zone": 1,
+            "depth_mm": [
+              12.0,
+              22.0
+            ],
+            "ref_depth_mm": 17.0,
+            "signal_a": 0.09642627090215683,
+            "noise_mean_b": 0.02273980714380741,
+            "noise_peak_c": 0.0627981647849083,
+            "snr": 1.8394779041751141,
+            "alarm_level": 0.06749838963150978,
+            "cap_bound": true,
+            "inspectable": false,
+            "reason": "SNR below placeholder minimum"
+          },
+          {
+            "zone": 2,
+            "depth_mm": [
+              22.0,
+              36.0
+            ],
+            "ref_depth_mm": 29.0,
+            "signal_a": 0.06517079472541809,
+            "noise_mean_b": 0.016212407499551773,
+            "noise_peak_c": 0.04854847118258476,
+            "snr": 1.5140490724464772,
+            "alarm_level": 0.04561955630779266,
+            "cap_bound": true,
+            "inspectable": false,
+            "reason": "alarm cap is not above peak noise"
+          }
+        ],
+        "ref_fbh_mm": 0.8,
+        "block_seed": 1000,
+        "config_sha256": "b5423db745b43fa5f309bf4339ec78044741ab013d3ddd59c9fd424f9c976382",
+        "label": "Synthetic data: simulated reference block"
+      },
+      "arms": {
+        "zone": {
+          "clean": {
+            "false_alarms_per_bar": 0.0,
+            "false_alarms_per_bar_mean": 0.0,
+            "bars_with_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 1.3144697597965431,
+                "alarm_level": 0.059141811728477475,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 1.8394779041751141,
+                "alarm_level": 0.06749838963150978,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 1.5140490724464772,
+                "alarm_level": 0.04561955630779266,
+                "cap_bound": true,
+                "inspectable": false
+              }
+            ],
+            "zones_not_inspectable": 3
+          },
+          "zones_not_inspectable": 3
+        },
+        "global": {
+          "clean": {
+            "false_alarms_per_bar": 0.0,
+            "false_alarms_per_bar_mean": 0.0,
+            "bars_with_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.9310386382816688,
+                "alarm_level": 0.04561955630779266,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.9310386382816688,
+                "alarm_level": 0.04561955630779266,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.9310386382816688,
+                "alarm_level": 0.04561955630779266,
+                "cap_bound": true,
+                "inspectable": false
+              }
+            ],
+            "zones_not_inspectable": 1
+          },
+          "zones_not_inspectable": 1
+        }
+      }
+    },
+    "structured_sigma_0.2": {
+      "calibration": {
+        "calib_id": "42cd3171048ce945",
+        "zones": [
+          {
+            "zone": 0,
+            "depth_mm": [
+              2.0,
+              12.0
+            ],
+            "ref_depth_mm": 7.0,
+            "signal_a": 0.08444159477949142,
+            "noise_mean_b": 0.0182742178440094,
+            "noise_peak_c": 0.09246820956468582,
+            "snr": 0.8918158384655622,
+            "alarm_level": 0.059109116345643996,
+            "cap_bound": true,
+            "inspectable": false,
+            "reason": "alarm cap is not above peak noise"
+          },
+          {
+            "zone": 1,
+            "depth_mm": [
+              12.0,
+              22.0
+            ],
+            "ref_depth_mm": 17.0,
+            "signal_a": 0.09664904326200485,
+            "noise_mean_b": 0.0230459775775671,
+            "noise_peak_c": 0.08351584523916245,
+            "snr": 1.2171858237947386,
+            "alarm_level": 0.0676543302834034,
+            "cap_bound": true,
+            "inspectable": false,
+            "reason": "alarm cap is not above peak noise"
+          },
+          {
+            "zone": 2,
+            "depth_mm": [
+              22.0,
+              36.0
+            ],
+            "ref_depth_mm": 29.0,
+            "signal_a": 0.06507079303264618,
+            "noise_mean_b": 0.016417117789387703,
+            "noise_peak_c": 0.06490322947502136,
+            "snr": 1.003455908337448,
+            "alarm_level": 0.045549555122852324,
+            "cap_bound": true,
+            "inspectable": false,
+            "reason": "alarm cap is not above peak noise"
+          }
+        ],
+        "ref_fbh_mm": 0.8,
+        "block_seed": 1000,
+        "config_sha256": "aaf2487d869d5df2046013271f6d1a570ae8fe69d658a731a9d255d72466bf97",
+        "label": "Synthetic data: simulated reference block"
+      },
+      "arms": {
+        "zone": {
+          "clean": {
+            "false_alarms_per_bar": 0.0,
+            "false_alarms_per_bar_mean": 0.0,
+            "bars_with_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.8918158384655622,
+                "alarm_level": 0.059109116345643996,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 1.2171858237947386,
+                "alarm_level": 0.0676543302834034,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 1.003455908337448,
+                "alarm_level": 0.045549555122852324,
+                "cap_bound": true,
+                "inspectable": false
+              }
+            ],
+            "zones_not_inspectable": 3
+          },
+          "zones_not_inspectable": 3
+        },
+        "global": {
+          "clean": {
+            "false_alarms_per_bar": 0.0,
+            "false_alarms_per_bar_mean": 0.0,
+            "bars_with_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.6258330493302502,
+                "alarm_level": 0.045549555122852324,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.6258330493302502,
+                "alarm_level": 0.045549555122852324,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.6258330493302502,
+                "alarm_level": 0.045549555122852324,
+                "cap_bound": true,
+                "inspectable": false
+              }
+            ],
+            "zones_not_inspectable": 1
+          },
+          "zones_not_inspectable": 1
+        }
+      }
+    },
+    "structured_sigma_0.3": {
+      "calibration": {
+        "calib_id": "b0969dc01f5f6de3",
+        "zones": [
+          {
+            "zone": 0,
+            "depth_mm": [
+              2.0,
+              12.0
+            ],
+            "ref_depth_mm": 7.0,
+            "signal_a": 0.0843474343419075,
+            "noise_mean_b": 0.018808454275131226,
+            "noise_peak_c": 0.16812415421009064,
+            "snr": 0.43892892773716674,
+            "alarm_level": 0.059043204039335245,
+            "cap_bound": true,
+            "inspectable": false,
+            "reason": "alarm cap is not above peak noise"
+          },
+          {
+            "zone": 1,
+            "depth_mm": [
+              12.0,
+              22.0
+            ],
+            "ref_depth_mm": 17.0,
+            "signal_a": 0.09705288708209991,
+            "noise_mean_b": 0.02373318374156952,
+            "noise_peak_c": 0.15296782553195953,
+            "snr": 0.567337846298596,
+            "alarm_level": 0.06793702095746994,
+            "cap_bound": true,
+            "inspectable": false,
+            "reason": "alarm cap is not above peak noise"
+          },
+          {
+            "zone": 2,
+            "depth_mm": [
+              22.0,
+              36.0
+            ],
+            "ref_depth_mm": 29.0,
+            "signal_a": 0.06484120339155197,
+            "noise_mean_b": 0.016879789531230927,
+            "noise_peak_c": 0.11623727530241013,
+            "snr": 0.48271565537373223,
+            "alarm_level": 0.04538884237408638,
+            "cap_bound": true,
+            "inspectable": false,
+            "reason": "alarm cap is not above peak noise"
+          }
+        ],
+        "ref_fbh_mm": 0.8,
+        "block_seed": 1000,
+        "config_sha256": "c19d367ebd32241cd81c1f75238b2d1bd68307fe48c3fe2fc8b88965fe5b7701",
+        "label": "Synthetic data: simulated reference block"
+      },
+      "arms": {
+        "zone": {
+          "clean": {
+            "false_alarms_per_bar": 0.0,
+            "false_alarms_per_bar_mean": 0.0,
+            "bars_with_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.43892892773716674,
+                "alarm_level": 0.059043204039335245,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.567337846298596,
+                "alarm_level": 0.06793702095746994,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.48271565537373223,
+                "alarm_level": 0.04538884237408638,
+                "cap_bound": true,
+                "inspectable": false
+              }
+            ],
+            "zones_not_inspectable": 3
+          },
+          "zones_not_inspectable": 3
+        },
+        "global": {
+          "clean": {
+            "false_alarms_per_bar": 0.0,
+            "false_alarms_per_bar_mean": 0.0,
+            "bars_with_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            },
+            "bars_with_ge_1_alarm": {
+              "k": 0,
+              "n": 20,
+              "rate": 0.0,
+              "ci_low": 0.0,
+              "ci_high": 0.16843347098308528
+            }
+          },
+          "flawed": {
+            "per_zone": [
+              {
+                "zone": 0,
+                "depth_mm": [
+                  2.0,
+                  12.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.303633820296031,
+                "alarm_level": 0.04538884237408638,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 1,
+                "depth_mm": [
+                  12.0,
+                  22.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.303633820296031,
+                "alarm_level": 0.04538884237408638,
+                "cap_bound": true,
+                "inspectable": false
+              },
+              {
+                "zone": 2,
+                "depth_mm": [
+                  22.0,
+                  36.0
+                ],
+                "k": 0,
+                "n": 20,
+                "rate": 0.0,
+                "ci_low": 0.0,
+                "ci_high": 0.16843347098308528,
+                "snr": 0.303633820296031,
+                "alarm_level": 0.04538884237408638,
+                "cap_bound": true,
+                "inspectable": false
+              }
+            ],
+            "zones_not_inspectable": 1
+          },
+          "zones_not_inspectable": 1
+        }
+      }
+    }
+  },
+  "calibration": {
+    "flat": {
+      "calib_id": "dc750cdf29e06d0d",
+      "zones": [
+        {
+          "zone": 0,
+          "depth_mm": [
+            2.0,
+            12.0
+          ],
+          "ref_depth_mm": 7.0,
+          "signal_a": 0.08461562544107437,
+          "noise_mean_b": 0.017367158085107803,
+          "noise_peak_c": 0.03905938193202019,
+          "snr": 3.1001186337812268,
+          "alarm_level": 0.04296532012522221,
+          "cap_bound": false,
+          "inspectable": true,
+          "reason": ""
+        },
+        {
+          "zone": 1,
+          "depth_mm": [
+            12.0,
+            22.0
+          ],
+          "ref_depth_mm": 17.0,
+          "signal_a": 0.09455451369285583,
+          "noise_mean_b": 0.01872951164841652,
+          "noise_peak_c": 0.03998906910419464,
+          "snr": 3.566631252892373,
+          "alarm_level": 0.04398797601461411,
+          "cap_bound": false,
+          "inspectable": true,
+          "reason": ""
+        },
+        {
+          "zone": 2,
+          "depth_mm": [
+            22.0,
+            36.0
+          ],
+          "ref_depth_mm": 29.0,
+          "signal_a": 0.06492365151643753,
+          "noise_mean_b": 0.01449771411716938,
+          "noise_peak_c": 0.028910771012306213,
+          "snr": 3.4986289005965534,
+          "alarm_level": 0.03180184811353684,
+          "cap_bound": false,
+          "inspectable": true,
+          "reason": ""
+        }
+      ],
+      "ref_fbh_mm": 0.8,
+      "block_seed": 1000,
+      "config_sha256": "068359f9ed287a39689dc4ea70a84573263a438ee4cd8be8c4f6866bbbecc058",
+      "label": "Synthetic data: simulated reference block"
+    },
+    "structured": {
+      "calib_id": "1bc504433c706830",
+      "zones": [
+        {
+          "zone": 0,
+          "depth_mm": [
+            2.0,
+            12.0
+          ],
+          "ref_depth_mm": 7.0,
+          "signal_a": 0.08453439176082611,
+          "noise_mean_b": 0.01781598851084709,
+          "noise_peak_c": 0.05095171555876732,
+          "snr": 2.013488436619851,
+          "alarm_level": 0.056046887114644055,
+          "cap_bound": false,
+          "inspectable": true,
+          "reason": ""
+        },
+        {
+          "zone": 1,
+          "depth_mm": [
+            12.0,
+            22.0
+          ],
+          "ref_depth_mm": 17.0,
+          "signal_a": 0.09619148820638657,
+          "noise_mean_b": 0.022451147437095642,
+          "noise_peak_c": 0.04980027675628662,
+          "snr": 2.696259171861353,
+          "alarm_level": 0.05478030443191529,
+          "cap_bound": false,
+          "inspectable": true,
+          "reason": ""
+        },
+        {
+          "zone": 2,
+          "depth_mm": [
+            22.0,
+            36.0
+          ],
+          "ref_depth_mm": 29.0,
+          "signal_a": 0.0652599185705185,
+          "noise_mean_b": 0.016020597890019417,
+          "noise_peak_c": 0.0363948754966259,
+          "snr": 2.4167394609629214,
+          "alarm_level": 0.04003436304628849,
+          "cap_bound": false,
+          "inspectable": true,
+          "reason": ""
+        }
+      ],
+      "ref_fbh_mm": 0.8,
+      "block_seed": 1000,
+      "config_sha256": "0b4e0ef56eb9b6fabc323b4827c2cd865ec938f417b6493855d9538340cc767d",
+      "label": "Synthetic data: simulated reference block"
+    },
+    "structured_sigma_0.15": {
+      "calib_id": "6537c1aba6c8c89b",
+      "zones": [
+        {
+          "zone": 0,
+          "depth_mm": [
+            2.0,
+            12.0
+          ],
+          "ref_depth_mm": 7.0,
+          "signal_a": 0.08448830246925354,
+          "noise_mean_b": 0.01803777366876602,
+          "noise_peak_c": 0.06859087944030762,
+          "snr": 1.3144697597965431,
+          "alarm_level": 0.059141811728477475,
+          "cap_bound": true,
+          "inspectable": false,
+          "reason": "alarm cap is not above peak noise"
+        },
+        {
+          "zone": 1,
+          "depth_mm": [
+            12.0,
+            22.0
+          ],
+          "ref_depth_mm": 17.0,
+          "signal_a": 0.09642627090215683,
+          "noise_mean_b": 0.02273980714380741,
+          "noise_peak_c": 0.0627981647849083,
+          "snr": 1.8394779041751141,
+          "alarm_level": 0.06749838963150978,
+          "cap_bound": true,
+          "inspectable": false,
+          "reason": "SNR below placeholder minimum"
+        },
+        {
+          "zone": 2,
+          "depth_mm": [
+            22.0,
+            36.0
+          ],
+          "ref_depth_mm": 29.0,
+          "signal_a": 0.06517079472541809,
+          "noise_mean_b": 0.016212407499551773,
+          "noise_peak_c": 0.04854847118258476,
+          "snr": 1.5140490724464772,
+          "alarm_level": 0.04561955630779266,
+          "cap_bound": true,
+          "inspectable": false,
+          "reason": "alarm cap is not above peak noise"
+        }
+      ],
+      "ref_fbh_mm": 0.8,
+      "block_seed": 1000,
+      "config_sha256": "b5423db745b43fa5f309bf4339ec78044741ab013d3ddd59c9fd424f9c976382",
+      "label": "Synthetic data: simulated reference block"
+    },
+    "structured_sigma_0.2": {
+      "calib_id": "42cd3171048ce945",
+      "zones": [
+        {
+          "zone": 0,
+          "depth_mm": [
+            2.0,
+            12.0
+          ],
+          "ref_depth_mm": 7.0,
+          "signal_a": 0.08444159477949142,
+          "noise_mean_b": 0.0182742178440094,
+          "noise_peak_c": 0.09246820956468582,
+          "snr": 0.8918158384655622,
+          "alarm_level": 0.059109116345643996,
+          "cap_bound": true,
+          "inspectable": false,
+          "reason": "alarm cap is not above peak noise"
+        },
+        {
+          "zone": 1,
+          "depth_mm": [
+            12.0,
+            22.0
+          ],
+          "ref_depth_mm": 17.0,
+          "signal_a": 0.09664904326200485,
+          "noise_mean_b": 0.0230459775775671,
+          "noise_peak_c": 0.08351584523916245,
+          "snr": 1.2171858237947386,
+          "alarm_level": 0.0676543302834034,
+          "cap_bound": true,
+          "inspectable": false,
+          "reason": "alarm cap is not above peak noise"
+        },
+        {
+          "zone": 2,
+          "depth_mm": [
+            22.0,
+            36.0
+          ],
+          "ref_depth_mm": 29.0,
+          "signal_a": 0.06507079303264618,
+          "noise_mean_b": 0.016417117789387703,
+          "noise_peak_c": 0.06490322947502136,
+          "snr": 1.003455908337448,
+          "alarm_level": 0.045549555122852324,
+          "cap_bound": true,
+          "inspectable": false,
+          "reason": "alarm cap is not above peak noise"
+        }
+      ],
+      "ref_fbh_mm": 0.8,
+      "block_seed": 1000,
+      "config_sha256": "aaf2487d869d5df2046013271f6d1a570ae8fe69d658a731a9d255d72466bf97",
+      "label": "Synthetic data: simulated reference block"
+    },
+    "structured_sigma_0.3": {
+      "calib_id": "b0969dc01f5f6de3",
+      "zones": [
+        {
+          "zone": 0,
+          "depth_mm": [
+            2.0,
+            12.0
+          ],
+          "ref_depth_mm": 7.0,
+          "signal_a": 0.0843474343419075,
+          "noise_mean_b": 0.018808454275131226,
+          "noise_peak_c": 0.16812415421009064,
+          "snr": 0.43892892773716674,
+          "alarm_level": 0.059043204039335245,
+          "cap_bound": true,
+          "inspectable": false,
+          "reason": "alarm cap is not above peak noise"
+        },
+        {
+          "zone": 1,
+          "depth_mm": [
+            12.0,
+            22.0
+          ],
+          "ref_depth_mm": 17.0,
+          "signal_a": 0.09705288708209991,
+          "noise_mean_b": 0.02373318374156952,
+          "noise_peak_c": 0.15296782553195953,
+          "snr": 0.567337846298596,
+          "alarm_level": 0.06793702095746994,
+          "cap_bound": true,
+          "inspectable": false,
+          "reason": "alarm cap is not above peak noise"
+        },
+        {
+          "zone": 2,
+          "depth_mm": [
+            22.0,
+            36.0
+          ],
+          "ref_depth_mm": 29.0,
+          "signal_a": 0.06484120339155197,
+          "noise_mean_b": 0.016879789531230927,
+          "noise_peak_c": 0.11623727530241013,
+          "snr": 0.48271565537373223,
+          "alarm_level": 0.04538884237408638,
+          "cap_bound": true,
+          "inspectable": false,
+          "reason": "alarm cap is not above peak noise"
+        }
+      ],
+      "ref_fbh_mm": 0.8,
+      "block_seed": 1000,
+      "config_sha256": "c19d367ebd32241cd81c1f75238b2d1bd68307fe48c3fe2fc8b88965fe5b7701",
+      "label": "Synthetic data: simulated reference block"
+    }
+  },
+  "notes": [
+    "Synthetic data only; says nothing about real titanium.",
+    "Default field_sigma was lowered from 0.4 to 0.1 after the first calibration run (ADR 0016 change note); the sweep reports higher values."
+  ]
+}
