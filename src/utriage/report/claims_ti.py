@@ -32,10 +32,43 @@ def _load_json(path: Path) -> dict[str, Any] | None:
         return None
 
 
+def _format_arm_flaw(
+    arm: str,
+    flaw: dict[str, Any],
+    uninspect: int,
+) -> str:
+    """Format single arm flaw detection clause."""
+    is_insp = bool(flaw.get("inspectable", True))
+    if uninspect > 0 and not is_insp:
+        if arm == "global":
+            return "global arm: not inspectable (whole depth range flagged to the inspector)"
+        return "zone arm: not inspectable (zone flagged to the inspector)"
+    k_val, n_val = int(flaw["k"]), int(flaw["n"])
+    return f"{arm} arm {k_val}/{n_val}"
+
+
+def _extract_arm_flaw_nums(
+    arm: str,
+    zone_idx: int,
+    flaw: dict[str, Any],
+    uninspect: int,
+) -> dict[str, float]:
+    """Extract detection count numbers when arm is inspectable."""
+    is_insp = bool(flaw.get("inspectable", True))
+    if uninspect > 0 and not is_insp:
+        return {}
+    k_val, n_val = int(flaw["k"]), int(flaw["n"])
+    return {
+        f"structured_{arm}_arm_zone{zone_idx}_k": float(k_val),
+        f"structured_{arm}_arm_zone{zone_idx}_n": float(n_val),
+    }
+
+
 def _format_calibration_zone(
     z_cal: dict[str, Any],
     z_flaw: dict[str, Any],
     g_flaw: dict[str, Any],
+    uninsp: tuple[int, int],
 ) -> tuple[str, dict[str, float]]:
     """Format single zone calibration and detection numbers."""
     zone_idx = int(z_cal["zone"])
@@ -43,20 +76,15 @@ def _format_calibration_zone(
     inspectable = z_cal["inspectable"]
     if inspectable is None:
         raise TypeError("inspectable cannot be None")
-    zk, zn = int(z_flaw["k"]), int(z_flaw["n"])
-    gk, gn = int(g_flaw["k"]), int(g_flaw["n"])
+    z_uninsp, g_uninsp = uninsp
+    z_str = _format_arm_flaw("zone", z_flaw, z_uninsp)
+    g_str = _format_arm_flaw("global", g_flaw, g_uninsp)
     insp_str = "yes" if inspectable else "no"
     snr_str = f"SNR {float(snr):.2f}" if snr is not None else "SNR n/a"
-    text = (
-        f"zone {zone_idx}: {snr_str}, inspectable {insp_str}, "
-        f"zone arm {zk}/{zn}, global arm {gk}/{gn}"
-    )
-    nums = {
-        f"structured_zone_arm_zone{zone_idx}_k": float(zk),
-        f"structured_zone_arm_zone{zone_idx}_n": float(zn),
-        f"structured_global_arm_zone{zone_idx}_k": float(gk),
-        f"structured_global_arm_zone{zone_idx}_n": float(gn),
-    }
+    text = f"zone {zone_idx}: {snr_str}, inspectable {insp_str}, {z_str}, {g_str}"
+    nums: dict[str, float] = {}
+    nums.update(_extract_arm_flaw_nums("zone", zone_idx, z_flaw, z_uninsp))
+    nums.update(_extract_arm_flaw_nums("global", zone_idx, g_flaw, g_uninsp))
     if snr is not None:
         nums[f"structured_zone{zone_idx}_snr"] = float(f"{float(snr):.2f}")
     return text, nums
@@ -78,6 +106,7 @@ def _collect_calibration_zones(
     z_cals: list[dict[str, Any]],
     fz_zones: list[dict[str, Any]],
     fg_zones: list[dict[str, Any]],
+    uninsp: tuple[int, int],
 ) -> tuple[list[str], dict[str, float]]:
     """Format all zones and aggregate their numeric values."""
     if len(z_cals) != len(fz_zones) or len(z_cals) != len(fg_zones):
@@ -87,7 +116,7 @@ def _collect_calibration_zones(
     zone_texts: list[str] = []
     nums: dict[str, float] = {}
     for zc, zf, gf in zip(z_cals, fz_zones, fg_zones, strict=True):
-        zt, zn = _format_calibration_zone(zc, zf, gf)
+        zt, zn = _format_calibration_zone(zc, zf, gf, uninsp)
         zone_texts.append(zt)
         nums.update(zn)
     return zone_texts, nums
@@ -111,24 +140,40 @@ def _format_calibration_text(
     )
 
 
-def _assemble_calibration_claim(
+def _base_calibration_numbers(
     fa_info: tuple[float, float, int],
     n_flaw: int,
     ref_fbh: float,
-    zone_data: tuple[list[str], dict[str, float]],
-) -> Claim:
-    """Assemble final calibration Claim instance."""
-    from utriage.report.claims import Claim
-
+    uninsp: tuple[int, int],
+) -> dict[str, float]:
+    """Build base numeric dictionary for titanium calibration claim."""
     cz_fa, cg_fa, n_clean = fa_info
-    zone_texts, zone_nums = zone_data
-    numbers = {
+    z_uninsp, g_uninsp = uninsp
+    nums = {
         "ref_hole_mm": float(f"{ref_fbh:.1f}"),
         "n_clean_bars": float(n_clean),
         "n_flawed_bars": float(n_flaw),
         "structured_zone_arm_false_alarms_per_bar": float(f"{cz_fa:.2f}"),
         "structured_global_arm_false_alarms_per_bar": float(f"{cg_fa:.2f}"),
     }
+    if z_uninsp > 0:
+        nums["zone_zones_not_inspectable"] = float(z_uninsp)
+    if g_uninsp > 0:
+        nums["global_zones_not_inspectable"] = float(g_uninsp)
+    return nums
+
+
+def _assemble_calibration_claim(
+    fa_info: tuple[float, float, int],
+    n_flaw: int,
+    ref_fbh: float,
+    claim_bundle: tuple[list[str], dict[str, float], tuple[int, int]],
+) -> Claim:
+    """Assemble final calibration Claim instance."""
+    from utriage.report.claims import Claim
+
+    zone_texts, zone_nums, uninsp = claim_bundle
+    numbers = _base_calibration_numbers(fa_info, n_flaw, ref_fbh, uninsp)
     numbers.update(zone_nums)
     text = _format_calibration_text(fa_info, n_flaw, ref_fbh, zone_texts)
     return Claim(
@@ -155,12 +200,33 @@ def _build_ti_calibration_claim(data: dict[str, Any]) -> Claim | None:
         if not z_cals or not fz_zones:
             raise ValueError("empty calibration zones or flawed data")
         n_flaw = int(fz_zones[0]["n"])
-        zone_res = _collect_calibration_zones(z_cals, fz_zones, fg_zones)
+        uninsp = (
+            int(arm_z.get("zones_not_inspectable", 0)),
+            int(arm_g.get("zones_not_inspectable", 0)),
+        )
+        zone_texts, zone_nums = _collect_calibration_zones(z_cals, fz_zones, fg_zones, uninsp)
         ref_fbh = float(cal["ref_fbh_mm"])
-        return _assemble_calibration_claim(fa_info, n_flaw, ref_fbh, zone_res)
+        claim_bundle = (zone_texts, zone_nums, uninsp)
+        return _assemble_calibration_claim(fa_info, n_flaw, ref_fbh, claim_bundle)
     except (KeyError, TypeError, ValueError) as err:  # narrow reason: missing or malformed fields
         print(f"Skipping ti_zone_calibration: {err}", file=sys.stderr)
         return None
+
+
+def _summarize_sweep_detection(
+    fz_zones: list[dict[str, Any]],
+    uninspect: int,
+) -> tuple[str, int, int]:
+    """Summarize detection text and counts over inspectable zones."""
+    insp = [z for z in fz_zones if bool(z.get("inspectable", True))]
+    if (uninspect == len(fz_zones)) or not insp:
+        return (
+            "no inspectable zone",
+            sum(int(z["k"]) for z in fz_zones),
+            sum(int(z["n"]) for z in fz_zones),
+        )
+    k_val, n_val = sum(int(z["k"]) for z in insp), sum(int(z["n"]) for z in insp)
+    return f"zone arm detection {k_val}/{n_val}", k_val, n_val
 
 
 def _format_sweep_model(
@@ -175,11 +241,11 @@ def _format_sweep_model(
     fz_zones = arm_z["flawed"]["per_zone"]
     if not fz_zones:
         raise ValueError("empty per_zone in sweep model")
-    tot_k = sum(int(z["k"]) for z in fz_zones)
-    tot_n = sum(int(z["n"]) for z in fz_zones)
+    det_text, tot_k, tot_n = _summarize_sweep_detection(fz_zones, uninspect)
     text = (
-        f"{name} (field_sigma {f_sigma:.2f}): {uninspect} zones not inspectable, "
-        f"zone arm detection {tot_k}/{tot_n}"
+        f"{name} (field_sigma {f_sigma:.2f}): "
+        f"{uninspect} zones not inspectable (flagged to the inspector), "
+        f"{det_text}"
     )
     nums = {
         f"{name}_field_sigma": float(f"{f_sigma:.2f}"),

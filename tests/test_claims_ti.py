@@ -43,9 +43,20 @@ def _make_fake_zone_cal(
     }
 
 
-def _make_fake_zone_flaw(zone: int, k: int, n: int) -> dict[str, Any]:
+def _make_fake_zone_flaw(
+    zone: int,
+    k: int,
+    n: int,
+    inspectable: bool = True,
+) -> dict[str, Any]:
     """Build fake zone flaw detection dictionary."""
-    return {"zone": zone, "k": k, "n": n, "rate": k / n if n > 0 else 0.0}
+    return {
+        "zone": zone,
+        "k": k,
+        "n": n,
+        "rate": k / n if n > 0 else 0.0,
+        "inspectable": inspectable,
+    }
 
 
 def _make_fake_structured_model() -> dict[str, Any]:
@@ -83,7 +94,10 @@ def _make_fake_sweep_model(uninspect: int, k: int, n: int) -> dict[str, Any]:
     """Build fake model arm data for sweep entry."""
     half_k = k // 2
     half_n = n // 2
-    fz = [_make_fake_zone_flaw(0, half_k, half_n), _make_fake_zone_flaw(1, k - half_k, n - half_n)]
+    fz = [
+        _make_fake_zone_flaw(0, half_k, half_n, inspectable=(uninspect < 2)),
+        _make_fake_zone_flaw(1, k - half_k, n - half_n, inspectable=(uninspect < 1)),
+    ]
     return {
         "arms": {
             "zone": {
@@ -141,8 +155,8 @@ def test_missing_file_returns_empty(tmp_path: Path) -> None:
 
 def test_both_claims_built_from_tiny_fake_payload(tmp_path: Path) -> None:
     """Check both claims built with numbers, scope, and text elements."""
-    sweep_data = [("flat", 0.0, 0), ("structured", 0.1, 0), ("sigma_0.2", 0.2, 1)]
-    payload = _make_fake_ti_payload(sweep_data)
+    sweep = [("flat", 0.0, 0), ("structured", 0.1, 0), ("sigma_0.2", 0.2, 1)]
+    payload = _make_fake_ti_payload(sweep)
     (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
 
     claims = collect_ti_claims(tmp_path)
@@ -163,9 +177,8 @@ def test_both_claims_built_from_tiny_fake_payload(tmp_path: Path) -> None:
     assert c_sweep.evidence_file == "results/ti_zone_metrics.json"
     assert c_sweep.evidence_path == "sweep"
     assert c_sweep.scope_limit == TI_SCOPE_LIMIT
-    assert (
-        "as the synthetic noise-strength variation grows, zones lose inspectability" in c_sweep.text
-    )
+    sentence = "as the synthetic noise-strength variation grows, zones lose inspectability"
+    assert sentence in c_sweep.text
     assert "lowered after the first calibration run" in c_sweep.text
     _assert_numbers_match_text(c_sweep.text, c_sweep.numbers)
     _assert_no_forbidden_phrases(c_sweep.text, c_sweep.scope_limit)
@@ -258,4 +271,74 @@ def test_snr_none_shows_na_and_omits_key(tmp_path: Path) -> None:
     assert "structured_zone0_snr" not in c_cal.numbers
     assert "structured_zone1_snr" in c_cal.numbers
     _assert_numbers_match_text(c_cal.text, c_cal.numbers)
+    _assert_no_forbidden_phrases(c_cal.text, c_cal.scope_limit)
+
+
+def test_global_arm_not_inspectable(tmp_path: Path) -> None:
+    """Check claim text when global arm is flagged not inspectable."""
+    payload = _make_fake_ti_payload([("flat", 0.0, 0), ("structured", 0.1, 0)])
+    arm_g = payload["noise_models"]["structured"]["arms"]["global"]
+    arm_g["zones_not_inspectable"] = 1
+    for z in arm_g["flawed"]["per_zone"]:
+        z["inspectable"] = False
+        z["k"] = 0
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    c_cal = next(c for c in claims if c.id == "ti_zone_calibration")
+    assert "not inspectable (whole depth range flagged to the inspector)" in c_cal.text
+    assert "global arm 0/" not in c_cal.text
+    assert c_cal.numbers["global_zones_not_inspectable"] == 1.0
+    _assert_no_forbidden_phrases(c_cal.text, c_cal.scope_limit)
+
+
+def test_sweep_all_zones_not_inspectable(tmp_path: Path) -> None:
+    """Check claim text when all zones of sweep model are not inspectable."""
+    payload = _make_fake_ti_payload([("flat", 0.0, 0), ("s_all", 0.3, 3)])
+    fz = [_make_fake_zone_flaw(i, 0, 20, inspectable=False) for i in range(3)]
+    payload["noise_models"]["s_all"]["arms"]["zone"]["flawed"]["per_zone"] = fz
+    payload["noise_models"]["s_all"]["arms"]["zone"]["zones_not_inspectable"] = 3
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    c_sweep = next(c for c in claims if c.id == "ti_noise_sweep")
+    assert "no inspectable zone" in c_sweep.text
+    assert "0/60" not in c_sweep.text
+    assert c_sweep.numbers["s_all_zone_arm_total_k"] == 0.0
+    assert c_sweep.numbers["s_all_zone_arm_total_n"] == 60.0
+    _assert_no_forbidden_phrases(c_sweep.text, c_sweep.scope_limit)
+
+
+def test_sweep_mixed_inspectable_zones(tmp_path: Path) -> None:
+    """Check detection k/n kept only over inspectable zones in mixed case."""
+    payload = _make_fake_ti_payload([("flat", 0.0, 0), ("s_mix", 0.2, 1)])
+    fz = [
+        _make_fake_zone_flaw(0, 19, 20, inspectable=True),
+        _make_fake_zone_flaw(1, 0, 20, inspectable=False),
+    ]
+    payload["noise_models"]["s_mix"]["arms"]["zone"]["flawed"]["per_zone"] = fz
+    payload["noise_models"]["s_mix"]["arms"]["zone"]["zones_not_inspectable"] = 1
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    c_sweep = next(c for c in claims if c.id == "ti_noise_sweep")
+    assert "1 zones not inspectable (flagged to the inspector)" in c_sweep.text
+    assert "zone arm detection 19/20" in c_sweep.text
+    assert c_sweep.numbers["s_mix_zone_arm_total_k"] == 19.0
+    assert c_sweep.numbers["s_mix_zone_arm_total_n"] == 20.0
+    _assert_no_forbidden_phrases(c_sweep.text, c_sweep.scope_limit)
+
+
+def test_zone_arm_not_inspectable(tmp_path: Path) -> None:
+    """Check claim text when zone arm has an uninspectable zone."""
+    payload = _make_fake_ti_payload([("flat", 0.0, 0), ("structured", 0.1, 0)])
+    arm_z = payload["noise_models"]["structured"]["arms"]["zone"]
+    arm_z["zones_not_inspectable"] = 1
+    arm_z["flawed"]["per_zone"][0]["inspectable"] = False
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    c_cal = next(c for c in claims if c.id == "ti_zone_calibration")
+    assert "zone arm: not inspectable (zone flagged to the inspector)" in c_cal.text
+    assert c_cal.numbers["zone_zones_not_inspectable"] == 1.0
     _assert_no_forbidden_phrases(c_cal.text, c_cal.scope_limit)
