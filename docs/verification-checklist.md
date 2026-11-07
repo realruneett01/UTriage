@@ -87,3 +87,13 @@ Values are placeholders until Ruri fills the `Verified against` column from a le
 | randomization.yaml | ranges.artefact_prob_lost_backwall.max | 0.2 |  | UNVERIFIED — Ruri to check |  |  |
 | randomization.yaml | ranges.artefact_prob_roughness.min | 0.0 |  | UNVERIFIED — Ruri to check |  |  |
 | randomization.yaml | ranges.artefact_prob_roughness.max | 0.2 |  | UNVERIFIED — Ruri to check |  |  |
+| ti_mode.yaml | noise.corr_axial_mm | 6.0 | _mm | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
+| ti_mode.yaml | noise.corr_angle_deg | 15.0 |  | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
+| ti_mode.yaml | noise.field_sigma | 0.1 |  | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
+| ti_mode.yaml | calibration.ref_fbh_mm | 0.8 | _mm | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
+| ti_mode.yaml | calibration.signal_window_px | 1 |  | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
+| ti_mode.yaml | calibration.noise_exclude_px | 6 |  | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
+| ti_mode.yaml | calibration.noise_margin | 0.1 |  | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
+| ti_mode.yaml | calibration.cap_fraction | 0.7 |  | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
+| ti_mode.yaml | calibration.min_snr | 2.0 |  | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
+| ti_mode.yaml | calibration.block_seed | 1000 |  | UNVERIFIED - Ruri to check (model choices so the simulator and calibration run) |  |  |
