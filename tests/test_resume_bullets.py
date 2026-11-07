@@ -517,6 +517,10 @@ def test_real_results() -> None:
     assert len(bullets) == expected_count
     for bullet in bullets:
         assert bullet.endswith(").")
+    if has_ti:
+        assert any(
+            b.startswith("Extended UTriage with a synthetic titanium mode:") for b in bullets
+        )
 
 
 def test_main(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -1202,6 +1206,71 @@ def test_titanium_bullet_global_not_inspectable(tmp_path: Path) -> None:
         "would send the whole depth range to the inspector"
     ) in ti_b
     assert "vs 0/" not in ti_b
+    assert "with one global alarm" not in ti_b
+
+
+def _make_fake_ti_uninspectable_numbers() -> dict[str, float]:
+    """Build fake numbers shaped like real results with uninspectable global arm."""
+    return {
+        "ref_hole_mm": 0.8,
+        "n_clean_bars": 20.0,
+        "n_flawed_bars": 20.0,
+        "structured_zone_arm_false_alarms_per_bar": 0.05,
+        "structured_global_arm_false_alarms_per_bar": 0.0,
+        "global_zones_not_inspectable": 1.0,
+        "structured_zone_arm_zone0_k": 20.0,
+        "structured_zone_arm_zone0_n": 20.0,
+        "structured_zone0_snr": 2.01,
+        "structured_zone_arm_zone1_k": 14.0,
+        "structured_zone_arm_zone1_n": 20.0,
+        "structured_zone1_snr": 2.7,
+        "structured_zone_arm_zone2_k": 20.0,
+        "structured_zone_arm_zone2_n": 20.0,
+        "structured_zone2_snr": 2.42,
+    }
+
+
+def _make_fake_ti_uninspectable_claim() -> dict[str, Any]:
+    """Build fake claim shaped like real results with uninspectable global arm."""
+    text = (
+        "Synthetic data (titanium-mode simulator). "
+        "Limits and calibration values are placeholders (UNVERIFIED). "
+        "Evaluated on 20 clean bars and 20 flawed bars per zone. "
+        "Clean-bar false alarms per bar: zone arm 0.05 vs global arm 0.00. "
+        "Detection k/n of the 0.8 mm reference-size hole per zone: "
+        "zone 0: SNR 2.01, inspectable yes, zone arm 20/20, global arm: not inspectable; "
+        "zone 1: SNR 2.70, inspectable yes, zone arm 14/20, global arm: not inspectable; "
+        "zone 2: SNR 2.42, inspectable yes, zone arm 20/20, global arm: not inspectable."
+    )
+    return {
+        "id": "ti_zone_calibration",
+        "text": text,
+        "evidence_file": "results/ti_zone_metrics.json",
+        "evidence_path": "noise_models.structured",
+        "scope_limit": (
+            "Synthetic titanium-mode simulator only; placeholder limits; "
+            "no real titanium data; no conformance to any specification"
+        ),
+        "numbers": _make_fake_ti_uninspectable_numbers(),
+    }
+
+
+def test_titanium_bullet_uninspectable_real_claim_shape(tmp_path: Path) -> None:
+    """Check bullet present with noise peak clause for claim shaped like real results."""
+    claims = _make_fake_claims() + [
+        _make_fake_ti_uninspectable_claim(),
+        _make_fake_ti_sweep_claim(),
+    ]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    ti_b = bullets[-1]
+    assert ti_b.startswith("Extended UTriage with a synthetic titanium mode:")
+    assert (
+        "reference-size hole detected 54/60 with zone-wise alarms, "
+        "while a single global alarm could not clear the noise peak and "
+        "would send the whole depth range to the inspector"
+    ) in ti_b
+    assert "None" not in ti_b
     assert "with one global alarm" not in ti_b
 
 

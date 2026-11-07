@@ -871,10 +871,11 @@ class TiCalibrationCounts:
 
     zone_k: int
     zone_n: int
-    global_k: int
-    global_n: int
     zone_fa: float
     global_fa: float
+    global_k: int | None = None
+    global_n: int | None = None
+    global_uninspect: int = 0
 
 
 @dataclass(frozen=True)
@@ -928,15 +929,19 @@ def _extract_ti_calibration(claim: dict[str, Any]) -> TiCalibrationCounts | None
     g_sums = _extract_ti_zone_sums(nums, "global")
     z_fa = nums.get("structured_zone_arm_false_alarms_per_bar")
     g_fa = nums.get("structured_global_arm_false_alarms_per_bar")
-    if any((z_sums is None, g_sums is None, z_fa is None, g_fa is None)):
+    if any((z_sums is None, z_fa is None, g_fa is None)):
         return None
+    g_uninsp = int(float(nums.get("global_zones_not_inspectable", 0)))
+    gk = g_sums[0] if g_sums is not None else None
+    gn = g_sums[1] if g_sums is not None else None
     return TiCalibrationCounts(
         zone_k=z_sums[0],  # type: ignore[index]
         zone_n=z_sums[1],  # type: ignore[index]
-        global_k=g_sums[0],  # type: ignore[index]
-        global_n=g_sums[1],  # type: ignore[index]
         zone_fa=float(z_fa),
         global_fa=float(g_fa),
+        global_k=gk,
+        global_n=gn,
+        global_uninspect=g_uninsp,
     )
 
 
@@ -1054,15 +1059,24 @@ def _format_ti_zone_detection(cal: TiCalibrationCounts, insp: TiInspectability |
     return f"reference-size hole detected {zk}/{zn} with zone-wise alarms"
 
 
+def _is_ti_global_uninspectable(cal: TiCalibrationCounts, insp: TiInspectability | None) -> bool:
+    """Return whether titanium global arm is marked uninspectable."""
+    if insp is not None and insp.global_uninspect > 0:
+        return True
+    return cal.global_uninspect > 0
+
+
 def _format_ti_comparison_clause(cal: TiCalibrationCounts, insp: TiInspectability | None) -> str:
     """Format global alarm comparison clause based on inspectability."""
-    if insp is None:
-        return ""
-    if insp.global_uninspect > 0:
+    if _is_ti_global_uninspectable(cal, insp):
         return (
             ", while a single global alarm could not clear the noise peak "
             "and would send the whole depth range to the inspector"
         )
+    if insp is None:
+        return ""
+    if any((cal.global_k is None, cal.global_n is None)):
+        return ""
     return f" vs {cal.global_k}/{cal.global_n} with one global alarm"
 
 
