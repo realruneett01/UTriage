@@ -518,9 +518,11 @@ def test_real_results() -> None:
     for bullet in bullets:
         assert bullet.endswith(").")
     if has_ti:
-        assert any(
-            b.startswith("Extended UTriage with a synthetic titanium mode:") for b in bullets
+        ti_b = next(
+            b for b in bullets if b.startswith("Extended UTriage with a synthetic titanium mode:")
         )
+        assert "clean-bar false alarms per bar 0.05 with zone-wise alarms" in ti_b
+        assert " vs 0.00" not in ti_b
 
 
 def test_main(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -1207,6 +1209,8 @@ def test_titanium_bullet_global_not_inspectable(tmp_path: Path) -> None:
     ) in ti_b
     assert "vs 0/" not in ti_b
     assert "with one global alarm" not in ti_b
+    assert "clean-bar false alarms per bar 0.00 with zone-wise alarms" in ti_b
+    assert " vs 0.15" not in ti_b
 
 
 def _make_fake_ti_uninspectable_numbers() -> dict[str, float]:
@@ -1272,6 +1276,8 @@ def test_titanium_bullet_uninspectable_real_claim_shape(tmp_path: Path) -> None:
     ) in ti_b
     assert "None" not in ti_b
     assert "with one global alarm" not in ti_b
+    assert "clean-bar false alarms per bar 0.05 with zone-wise alarms" in ti_b
+    assert " vs 0.00" not in ti_b
 
 
 def test_titanium_bullet_results_file_missing_skips_clause(tmp_path: Path) -> None:

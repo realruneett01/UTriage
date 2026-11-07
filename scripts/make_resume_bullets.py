@@ -1080,6 +1080,13 @@ def _format_ti_comparison_clause(cal: TiCalibrationCounts, insp: TiInspectabilit
     return f" vs {cal.global_k}/{cal.global_n} with one global alarm"
 
 
+def _format_ti_false_alarms(cal: TiCalibrationCounts, insp: TiInspectability | None) -> str:
+    """Format clean-bar false alarm rate based on inspectability."""
+    if _is_ti_global_uninspectable(cal, insp):
+        return f"clean-bar false alarms per bar {cal.zone_fa:.2f} with zone-wise alarms"
+    return f"clean-bar false alarms per bar {cal.zone_fa:.2f} vs {cal.global_fa:.2f}"
+
+
 def _build_titanium_bullet(
     claims: dict[str, dict[str, Any]], results_dir: Path | None = None
 ) -> str | None:
@@ -1094,6 +1101,7 @@ def _build_titanium_bullet(
     insp = _extract_ti_inspectability(results_dir)
     zone_det = _format_ti_zone_detection(cal, insp)
     comp_clause = _format_ti_comparison_clause(cal, insp)
+    fa_clause = _format_ti_false_alarms(cal, insp)
     sweep = _extract_ti_sweep(claims.get("ti_noise_sweep"))
     sweep_clause = _format_ti_sweep_clause(sweep)
     text = (
@@ -1103,7 +1111,7 @@ def _build_titanium_bullet(
         "flagged to the inspector, an inspector report and an air-gapped package "
         "(model SHA-256 checks, offline bundle, network-blocking test); "
         f"{zone_det}{comp_clause}, "
-        f"clean-bar false alarms per bar {cal.zone_fa:.2f} vs {cal.global_fa:.2f}{sweep_clause}"
+        f"{fa_clause}{sweep_clause}"
     )
     return _ensure_scope(text, "synthetic data only, placeholder limits, no real titanium data")
 
