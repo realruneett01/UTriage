@@ -53,6 +53,15 @@ LABEL_SYNTHETIC: str = (
     "Synthetic data (titanium-mode simulator; configs/ti_mode.yaml placeholders, UNVERIFIED)"
 )
 
+NOTES_SYNTHETIC: tuple[str, ...] = (
+    "Synthetic data only; says nothing about real titanium.",
+    (
+        "Default field_sigma was lowered from 0.4 to 0.1 after the first"
+        " calibration run (ADR 0016 change note); the sweep reports higher"
+        " values."
+    ),
+)
+
 DEFINITIONS: dict[str, str] = {
     "global_arm": (
         "One ZoneGate spanning edges[0]..edges[-1] with alarm from "
@@ -92,6 +101,7 @@ class RunConfig:
     seed: int = 0
     out_path: Path = Path("results/ti_zone_metrics.json")
     quick: bool = False
+    sigmas: tuple[float, ...] = (0.15, 0.2, 0.3)
 
 
 @dataclass(frozen=True)
@@ -146,14 +156,25 @@ def compute_config_sha256(path: Path = TI_MODE_PATH) -> str:
         return hashlib.sha256(fh.read()).hexdigest()
 
 
-def make_noise_models(cfg_noise: TiNoiseConfig) -> dict[str, TiNoiseConfig]:
-    """Build structured and flat noise configurations."""
+def make_noise_models(
+    cfg_noise: TiNoiseConfig,
+    sigmas: Sequence[float] = (0.15, 0.2, 0.3),
+) -> dict[str, TiNoiseConfig]:
+    """Build flat, structured, and swept noise configurations."""
     flat = dataclasses.replace(
         cfg_noise,
         field_sigma=0.0,
         zone_levels=tuple(1.0 for _ in cfg_noise.zone_levels),
     )
-    return {"structured": cfg_noise, "flat": flat}
+    models: dict[str, TiNoiseConfig] = {"flat": flat, "structured": cfg_noise}
+    for s in sigmas:
+        val = float(s)
+        if math.isclose(val, cfg_noise.field_sigma, rel_tol=1e-7, abs_tol=1e-9):
+            continue
+        name = f"structured_sigma_{val:g}"
+        if name not in models:
+            models[name] = dataclasses.replace(cfg_noise, field_sigma=val)
+    return models
 
 
 def build_zone_arm(rec: CalibrationRecord) -> ArmGates:
@@ -498,6 +519,20 @@ def make_seeds_dict(cfg: RunConfig, n_zones: int) -> dict[str, Any]:
     }
 
 
+def _build_sweep_records(
+    models: dict[str, TiNoiseConfig],
+) -> list[dict[str, Any]]:
+    """Build metadata records for swept noise models."""
+    return [
+        {
+            "name": name,
+            "field_sigma": float(noise.field_sigma),
+            "zone_levels": [float(lvl) for lvl in noise.zone_levels],
+        }
+        for name, noise in models.items()
+    ]
+
+
 def assemble_payload(
     models_data: dict[str, Any],
     cfg: RunConfig,
@@ -508,6 +543,7 @@ def assemble_payload(
     n_zones = len(models_data["structured"]["calibration"]["zones"])
     seeds_dict = make_seeds_dict(cfg, n_zones)
     cal_dict = {k: v["calibration"] for k, v in models_data.items()}
+    models = make_noise_models(load_ti_noise(), cfg.sigmas)
     return {
         "label": LABEL_SYNTHETIC,
         "config_sha256": sha,
@@ -515,9 +551,10 @@ def assemble_payload(
         "counts": {"n_clean": cfg.n_clean, "n_flaw": cfg.n_flaw, "n_zones": n_zones},
         "seeds": seeds_dict,
         "runtime_s": round(runtime_s, 3),
+        "sweep": _build_sweep_records(models),
         "noise_models": models_data,
-        "models": models_data,
         "calibration": cal_dict,
+        "notes": list(NOTES_SYNTHETIC),
     }
 
 
@@ -531,7 +568,7 @@ def run_ti_zones(
     noise_cfg = load_ti_noise()
     cal_cfg = load_ti_calibration()
     sha = compute_config_sha256()
-    models = make_noise_models(noise_cfg)
+    models = make_noise_models(noise_cfg, cfg.sigmas)
     models_data: dict[str, Any] = {}
     for name, noise in models.items():
         models_data[name] = evaluate_noise_model(part_spec, noise, cal_cfg, cfg)
@@ -543,9 +580,8 @@ def run_ti_zones(
     return payload
 
 
-def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
-    """Parse CLI options for titanium zone evaluation study."""
-    raw_args = list(argv) if argv is not None else sys.argv[1:]
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Build argument parser for titanium zone study."""
     parser = argparse.ArgumentParser(
         description="Synthetic study of zone calibration under titanium-like noise."
     )
@@ -559,18 +595,33 @@ def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
         help="Output metrics path",
     )
     parser.add_argument("--quick", action="store_true", help="Quick run")
+    parser.add_argument(
+        "--sigmas",
+        nargs="*",
+        type=float,
+        default=[0.15, 0.2, 0.3],
+        help="Noise field sigma values to sweep",
+    )
+    return parser
+
+
+def parse_args(argv: Sequence[str] | None = None) -> RunConfig:
+    """Parse CLI options for titanium zone evaluation study."""
+    raw_args = list(argv) if argv is not None else sys.argv[1:]
+    parser = _build_arg_parser()
     args = parser.parse_args(raw_args)
     out_given = any(a == "--out" or a.startswith("--out=") for a in raw_args)
     if args.quick and not out_given:
         raise ValueError("--quick requires explicit --out path to prevent overwriting results/")
-    n_clean = 2 if args.quick else args.n_clean
-    n_flaw = 2 if args.quick else args.n_flaw
+    sigmas_given = any(a == "--sigmas" or a.startswith("--sigmas=") for a in raw_args)
+    sigmas = tuple(args.sigmas) if (sigmas_given or not args.quick) else ()
     return RunConfig(
-        n_clean=n_clean,
-        n_flaw=n_flaw,
+        n_clean=2 if args.quick else args.n_clean,
+        n_flaw=2 if args.quick else args.n_flaw,
         seed=args.seed,
         out_path=args.out,
         quick=args.quick,
+        sigmas=sigmas,
     )
 
 
