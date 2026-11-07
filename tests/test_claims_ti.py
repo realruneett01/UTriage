@@ -1,0 +1,215 @@
+"""Tests for titanium zone evaluation quantitative claims.
+
+Checks claim construction, evidence references, and wording rules.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+from typing import Any
+
+_SRC = str(Path(__file__).resolve().parents[1] / "src")
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
+import pytest  # noqa: E402
+
+from utriage.report.claims import (  # noqa: E402
+    build_claims,
+    check_forbidden,
+    check_forbidden_words,
+)
+from utriage.report.claims_ti import (  # noqa: E402
+    TI_SCOPE_LIMIT,
+    collect_ti_claims,
+)
+
+
+def _make_fake_zone_cal(zone: int, snr: float, inspectable: bool) -> dict[str, Any]:
+    """Build fake zone calibration dictionary."""
+    return {
+        "zone": zone,
+        "snr": snr,
+        "inspectable": inspectable,
+        "alarm_level": 0.5,
+        "depth_mm": [0.0, 10.0],
+    }
+
+
+def _make_fake_zone_flaw(zone: int, k: int, n: int) -> dict[str, Any]:
+    """Build fake zone flaw detection dictionary."""
+    return {"zone": zone, "k": k, "n": n, "rate": k / n if n > 0 else 0.0}
+
+
+def _make_fake_structured_model() -> dict[str, Any]:
+    """Build fake structured noise model data."""
+    z_cals = [
+        _make_fake_zone_cal(0, 12.34, True),
+        _make_fake_zone_cal(1, 10.50, True),
+    ]
+    fz_zones = [_make_fake_zone_flaw(0, 20, 20), _make_fake_zone_flaw(1, 19, 20)]
+    fg_zones = [_make_fake_zone_flaw(0, 18, 20), _make_fake_zone_flaw(1, 15, 20)]
+    return {
+        "calibration": {"zones": z_cals, "ref_fbh_mm": 0.8},
+        "arms": {
+            "zone": {
+                "clean": {
+                    "false_alarms_per_bar": 0.05,
+                    "bars_with_alarm": {"k": 1, "n": 20},
+                },
+                "flawed": {"per_zone": fz_zones, "zones_not_inspectable": 0},
+                "zones_not_inspectable": 0,
+            },
+            "global": {
+                "clean": {
+                    "false_alarms_per_bar": 0.10,
+                    "bars_with_alarm": {"k": 2, "n": 20},
+                },
+                "flawed": {"per_zone": fg_zones, "zones_not_inspectable": 0},
+                "zones_not_inspectable": 0,
+            },
+        },
+    }
+
+
+def _make_fake_sweep_model(uninspect: int, k: int, n: int) -> dict[str, Any]:
+    """Build fake model arm data for sweep entry."""
+    half_k = k // 2
+    half_n = n // 2
+    fz = [_make_fake_zone_flaw(0, half_k, half_n), _make_fake_zone_flaw(1, k - half_k, n - half_n)]
+    return {
+        "arms": {
+            "zone": {
+                "zones_not_inspectable": uninspect,
+                "flawed": {"per_zone": fz},
+            }
+        }
+    }
+
+
+def _make_fake_ti_payload(
+    sweep_entries: list[tuple[str, float, int]],
+) -> dict[str, Any]:
+    """Build complete fake ti_zone_metrics payload."""
+    models: dict[str, Any] = {"structured": _make_fake_structured_model()}
+    sweep_list = []
+    for name, sigma, uninsp in sweep_entries:
+        sweep_list.append({"name": name, "field_sigma": sigma})
+        if name != "structured":
+            models[name] = _make_fake_sweep_model(uninsp, 38, 40)
+    return {
+        "sweep": sweep_list,
+        "noise_models": models,
+        "counts": {"n_clean": 20, "n_flaw": 20, "n_zones": 2},
+        "notes": [
+            "Synthetic data only.",
+            "Default field_sigma was lowered from 0.4 to 0.1 after the first calibration run.",
+        ],
+    }
+
+
+def _assert_numbers_match_text(text: str, numbers: dict[str, float]) -> None:
+    """Check each number in dictionary appears formatted in claim text."""
+    assert len(numbers) > 0
+    for key, val in numbers.items():
+        candidates = [f"{val:.3f}", f"{val:.2f}", f"{val:.1f}", str(int(val))]
+        assert any(re.search(rf"\b{re.escape(cand)}\b", text) for cand in candidates), (
+            f"Value {val} ({key}) not found in text: '{text}'"
+        )
+
+
+def _assert_no_forbidden_phrases(text: str, scope: str) -> None:
+    """Check that forbidden phrases and words are absent."""
+    assert not check_forbidden(text)
+    assert not check_forbidden(scope)
+    assert not check_forbidden_words(text)
+    assert not check_forbidden_words(scope)
+
+
+def test_missing_file_returns_empty(tmp_path: Path) -> None:
+    """Check empty list returned when results file is absent."""
+    claims = collect_ti_claims(tmp_path)
+    assert claims == []
+
+
+def test_both_claims_built_from_tiny_fake_payload(tmp_path: Path) -> None:
+    """Check both claims built with numbers, scope, and text elements."""
+    sweep_data = [("flat", 0.0, 0), ("structured", 0.1, 0), ("sigma_0.2", 0.2, 1)]
+    payload = _make_fake_ti_payload(sweep_data)
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    assert len(claims) == 2
+
+    c_cal = next(c for c in claims if c.id == "ti_zone_calibration")
+    assert c_cal.evidence_file == "results/ti_zone_metrics.json"
+    assert c_cal.evidence_path == "noise_models.structured"
+    assert c_cal.scope_limit == TI_SCOPE_LIMIT
+    assert "Synthetic data (titanium-mode simulator)" in c_cal.text
+    assert "placeholders (UNVERIFIED)" in c_cal.text
+    assert "20 clean bars" in c_cal.text
+    assert "0.8 mm" in c_cal.text
+    _assert_numbers_match_text(c_cal.text, c_cal.numbers)
+    _assert_no_forbidden_phrases(c_cal.text, c_cal.scope_limit)
+
+    c_sweep = next(c for c in claims if c.id == "ti_noise_sweep")
+    assert c_sweep.evidence_file == "results/ti_zone_metrics.json"
+    assert c_sweep.evidence_path == "sweep"
+    assert c_sweep.scope_limit == TI_SCOPE_LIMIT
+    assert (
+        "as the synthetic noise-strength variation grows, zones lose inspectability" in c_sweep.text
+    )
+    assert "lowered after the first calibration run" in c_sweep.text
+    _assert_numbers_match_text(c_sweep.text, c_sweep.numbers)
+    _assert_no_forbidden_phrases(c_sweep.text, c_sweep.scope_limit)
+
+
+def test_missing_structured_model_skips_claim_1(tmp_path: Path) -> None:
+    """Check calibration claim skipped when structured model data is missing."""
+    sweep_data = [("flat", 0.0, 0)]
+    payload = _make_fake_ti_payload(sweep_data)
+    del payload["noise_models"]["structured"]
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    assert len(claims) == 1
+    assert claims[0].id == "ti_noise_sweep"
+
+
+@pytest.mark.parametrize(
+    ("sweep_spec", "expect_sentence"),
+    [
+        ([("flat", 0.0, 0), ("s1", 0.1, 0), ("s2", 0.2, 1)], True),
+        ([("flat", 0.0, 1), ("s1", 0.1, 0), ("s2", 0.2, 2)], False),
+    ],
+)
+def test_sweep_sentence_monotone_condition(
+    tmp_path: Path,
+    sweep_spec: list[tuple[str, float, int]],
+    expect_sentence: bool,
+) -> None:
+    """Check monotonicity clause included only when counts are non-decreasing."""
+    sentence = "as the synthetic noise-strength variation grows, zones lose inspectability"
+    payload = _make_fake_ti_payload(sweep_spec)
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = collect_ti_claims(tmp_path)
+    c_sweep = next(c for c in claims if c.id == "ti_noise_sweep")
+    if expect_sentence:
+        assert sentence in c_sweep.text
+    else:
+        assert sentence not in c_sweep.text
+
+
+def test_build_claims_includes_ti_claims(tmp_path: Path) -> None:
+    """Check build_claims attaches titanium claims when file exists."""
+    sweep_data = [("flat", 0.0, 0), ("structured", 0.1, 0)]
+    payload = _make_fake_ti_payload(sweep_data)
+    (tmp_path / "ti_zone_metrics.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    claims = build_claims(tmp_path)
+    ti_ids = {c.id for c in claims if c.id.startswith("ti_")}
+    assert ti_ids == {"ti_zone_calibration", "ti_noise_sweep"}
