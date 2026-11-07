@@ -887,6 +887,16 @@ class TiSweepRange:
     uninspect_b: int
 
 
+@dataclass(frozen=True)
+class TiInspectability:
+    """Inspectability status and counts for titanium zone and global arms."""
+
+    zone_uninspect: int
+    global_uninspect: int
+    zone_k: int | None = None
+    zone_n: int | None = None
+
+
 def _extract_ti_zone_sums(nums: dict[str, Any], arm: str) -> tuple[int, int] | None:
     """Extract sum of k and n detections across zones for an arm."""
     k_suffix = "_k"
@@ -971,7 +981,94 @@ def _format_ti_sweep_clause(sweep: TiSweepRange | None) -> str:
     )
 
 
-def _build_titanium_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
+def _load_ti_json(results_dir: Path | None) -> dict[str, Any] | None:
+    """Load ti_zone_metrics.json from results directory if present."""
+    if results_dir is None:
+        return None
+    path = results_dir / "ti_zone_metrics.json"
+    if not path.exists():
+        return None
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else None
+    except (json.JSONDecodeError, OSError) as err:  # narrow reason: unreadable JSON
+        sys.stderr.write(f"Warning: could not read {path}: {err}\n")
+        return None
+
+
+def _extract_ti_inspectable_counts(
+    arm_z: dict[str, Any],
+) -> tuple[int | None, int | None]:
+    """Extract inspectable zone k and n detection counts if available."""
+    per_zone = arm_z.get("flawed", {}).get("per_zone", [])
+    if not isinstance(per_zone, list) or not per_zone:
+        return None, None
+    valid = [z for z in per_zone if isinstance(z, dict) and z.get("inspectable", True)]
+    if not valid:
+        return None, None
+    zk = sum(int(z.get("k", 0)) for z in valid)
+    zn = sum(int(z.get("n", 0)) for z in valid)
+    return zk, zn
+
+
+def _extract_ti_inspectability(results_dir: Path | None) -> TiInspectability | None:
+    """Extract uninspectable counts from ti_zone_metrics.json if present."""
+    data = _load_ti_json(results_dir)
+    if data is None:
+        return None
+    arms = data.get("noise_models", {}).get("structured", {}).get("arms", {})
+    arm_z = arms.get("zone", {})
+    arm_g = arms.get("global", {})
+    z_val = arm_z.get("zones_not_inspectable")
+    g_val = arm_g.get("zones_not_inspectable")
+    if any((z_val is None, g_val is None)):
+        return None
+    zk, zn = _extract_ti_inspectable_counts(arm_z)
+    return TiInspectability(
+        zone_uninspect=int(z_val),
+        global_uninspect=int(g_val),
+        zone_k=zk,
+        zone_n=zn,
+    )
+
+
+def _get_ti_zone_counts(cal: TiCalibrationCounts, insp: TiInspectability | None) -> tuple[int, int]:
+    """Get zone k and n counts from inspectability record or calibration."""
+    if any(
+        (insp is None, getattr(insp, "zone_k", None) is None, getattr(insp, "zone_n", None) is None)
+    ):
+        return cal.zone_k, cal.zone_n
+    return insp.zone_k, insp.zone_n  # type: ignore[return-value]
+
+
+def _format_ti_zone_detection(cal: TiCalibrationCounts, insp: TiInspectability | None) -> str:
+    """Format zone arm detection count and uninspectable note."""
+    zk, zn = _get_ti_zone_counts(cal, insp)
+    if insp is not None and insp.zone_uninspect > 0:
+        plural = "zone" if insp.zone_uninspect == 1 else "zones"
+        return (
+            f"reference-size hole detected {zk}/{zn} with zone-wise alarms "
+            f"({insp.zone_uninspect} {plural} sent to the inspector)"
+        )
+    return f"reference-size hole detected {zk}/{zn} with zone-wise alarms"
+
+
+def _format_ti_comparison_clause(cal: TiCalibrationCounts, insp: TiInspectability | None) -> str:
+    """Format global alarm comparison clause based on inspectability."""
+    if insp is None:
+        return ""
+    if insp.global_uninspect > 0:
+        return (
+            ", while a single global alarm could not clear the noise peak "
+            "and would send the whole depth range to the inspector"
+        )
+    return f" vs {cal.global_k}/{cal.global_n} with one global alarm"
+
+
+def _build_titanium_bullet(
+    claims: dict[str, dict[str, Any]], results_dir: Path | None = None
+) -> str | None:
     """Build bullet for synthetic titanium mode zone calibration and sweep."""
     c_cal = claims.get("ti_zone_calibration")
     if c_cal is None:
@@ -980,6 +1077,9 @@ def _build_titanium_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
     if cal is None:
         sys.stderr.write("Warning: missing titanium calibration metrics; skipping bullet.\n")
         return None
+    insp = _extract_ti_inspectability(results_dir)
+    zone_det = _format_ti_zone_detection(cal, insp)
+    comp_clause = _format_ti_comparison_clause(cal, insp)
     sweep = _extract_ti_sweep(claims.get("ti_noise_sweep"))
     sweep_clause = _format_ti_sweep_clause(sweep)
     text = (
@@ -988,8 +1088,7 @@ def _build_titanium_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
         "capped relative to the reference response, zones that cannot reach the sensitivity "
         "flagged to the inspector, an inspector report and an air-gapped package "
         "(model SHA-256 checks, offline bundle, network-blocking test); "
-        f"reference-size hole detected {cal.zone_k}/{cal.zone_n} with zone-wise alarms vs "
-        f"{cal.global_k}/{cal.global_n} with one global alarm, "
+        f"{zone_det}{comp_clause}, "
         f"clean-bar false alarms per bar {cal.zone_fa:.2f} vs {cal.global_fa:.2f}{sweep_clause}"
     )
     return _ensure_scope(text, "synthetic data only, placeholder limits, no real titanium data")
@@ -1050,7 +1149,7 @@ def build_bullets(results_dir: Path) -> list[str]:
         (_build_site_adaptation_bullet, (results_dir,)),
         (_build_joint_training_bullet, (results_dir,)),
         (_build_engineering_bullet, (claims,)),
-        (_build_titanium_bullet, (claims,)),
+        (_build_titanium_bullet, (claims, results_dir)),
     ]
     bullets = [_build_framing_bullet()]
     for func, args in builders:

@@ -1032,6 +1032,44 @@ def test_new_bullets_forbidden_check_passes(tmp_path: Path, word: str) -> None:
     assert word.lower() not in shift_b.lower()
 
 
+def _make_arm_zone_dict(z_uninsp: int, zone_uninsp: bool) -> dict[str, Any]:
+    """Build representative fake zone arm dictionary."""
+    return {
+        "zones_not_inspectable": z_uninsp,
+        "flawed": {
+            "per_zone": [
+                {"zone": 0, "k": 10, "n": 10, "inspectable": True},
+                {"zone": 1, "k": 9, "n": 10, "inspectable": True},
+                {"zone": 2, "k": 7, "n": 10, "inspectable": not zone_uninsp},
+            ]
+        },
+    }
+
+
+def _make_arm_global_dict(g_uninsp: int, global_uninsp: bool) -> dict[str, Any]:
+    """Build representative fake global arm dictionary."""
+    insp = not global_uninsp
+    return {
+        "zones_not_inspectable": g_uninsp,
+        "flawed": {
+            "per_zone": [
+                {"zone": 0, "k": 8, "n": 10, "inspectable": insp},
+                {"zone": 1, "k": 5, "n": 10, "inspectable": insp},
+                {"zone": 2, "k": 2, "n": 10, "inspectable": insp},
+            ]
+        },
+    }
+
+
+def _make_fake_ti_zone_metrics(
+    *, global_not_inspectable: bool = False, zone_not_inspectable: bool = False
+) -> dict[str, Any]:
+    """Build representative fake ti_zone_metrics.json data."""
+    arm_z = _make_arm_zone_dict(1 if zone_not_inspectable else 0, zone_not_inspectable)
+    arm_g = _make_arm_global_dict(1 if global_not_inspectable else 0, global_not_inspectable)
+    return {"noise_models": {"structured": {"arms": {"zone": arm_z, "global": arm_g}}}}
+
+
 def _make_fake_ti_calibration_numbers() -> dict[str, float]:
     """Build fake numbers dictionary for titanium zone calibration."""
     return {
@@ -1131,6 +1169,7 @@ def test_titanium_bullet_present_with_sweep(tmp_path: Path) -> None:
         _make_fake_ti_sweep_claim(),
     ]
     _write_claims(tmp_path / "claims.json", claims)
+    _write_json(tmp_path / "ti_zone_metrics.json", _make_fake_ti_zone_metrics())
     bullets = build_bullets(tmp_path)
     ti_b = bullets[-1]
     assert ti_b.startswith("Extended UTriage with a synthetic titanium mode:")
@@ -1142,6 +1181,60 @@ def test_titanium_bullet_present_with_sweep(tmp_path: Path) -> None:
         "as noise-strength variation rose from 0.05 to 0.30, zones not inspectable went from 0 to 3"
     ) in ti_b
     assert ti_b.endswith("(synthetic data only, placeholder limits, no real titanium data).")
+
+
+def test_titanium_bullet_global_not_inspectable(tmp_path: Path) -> None:
+    """Test titanium bullet wording when global alarm is not inspectable."""
+    claims = _make_fake_claims() + [
+        _make_fake_ti_calibration_claim(),
+        _make_fake_ti_sweep_claim(),
+    ]
+    _write_claims(tmp_path / "claims.json", claims)
+    _write_json(
+        tmp_path / "ti_zone_metrics.json",
+        _make_fake_ti_zone_metrics(global_not_inspectable=True),
+    )
+    bullets = build_bullets(tmp_path)
+    ti_b = bullets[-1]
+    assert (
+        "reference-size hole detected 26/30 with zone-wise alarms, "
+        "while a single global alarm could not clear the noise peak and "
+        "would send the whole depth range to the inspector"
+    ) in ti_b
+    assert "vs 0/" not in ti_b
+    assert "with one global alarm" not in ti_b
+
+
+def test_titanium_bullet_results_file_missing_skips_clause(tmp_path: Path) -> None:
+    """Test comparison clause omitted when results file is missing."""
+    claims = _make_fake_claims() + [
+        _make_fake_ti_calibration_claim(),
+        _make_fake_ti_sweep_claim(),
+    ]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    ti_b = bullets[-1]
+    assert "reference-size hole detected 26/30 with zone-wise alarms," in ti_b
+    assert "with one global alarm" not in ti_b
+    assert "while a single global alarm" not in ti_b
+
+
+def test_titanium_bullet_zone_not_inspectable(tmp_path: Path) -> None:
+    """Test zone arm wording when one zone is not inspectable."""
+    claims = _make_fake_claims() + [
+        _make_fake_ti_calibration_claim(),
+        _make_fake_ti_sweep_claim(),
+    ]
+    _write_claims(tmp_path / "claims.json", claims)
+    _write_json(
+        tmp_path / "ti_zone_metrics.json",
+        _make_fake_ti_zone_metrics(zone_not_inspectable=True),
+    )
+    bullets = build_bullets(tmp_path)
+    ti_b = bullets[-1]
+    assert (
+        "reference-size hole detected 19/20 with zone-wise alarms (1 zone sent to the inspector)"
+    ) in ti_b
 
 
 def test_titanium_bullet_absent_when_calibration_missing(tmp_path: Path) -> None:
