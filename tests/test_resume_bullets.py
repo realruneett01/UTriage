@@ -509,8 +509,12 @@ def test_real_results() -> None:
     claims_path = results_dir / "claims.json"
     if not claims_path.exists():
         pytest.skip(f"{claims_path} does not exist yet")
+    with claims_path.open("r", encoding="utf-8") as fh:
+        raw_claims = json.load(fh)
+    has_ti = any(isinstance(c, dict) and c.get("id") == "ti_zone_calibration" for c in raw_claims)
+    expected_count = 15 if has_ti else 14
     bullets = build_bullets(results_dir)
-    assert len(bullets) == 14  # includes separability, invariant, and shift bullets
+    assert len(bullets) == expected_count
     for bullet in bullets:
         assert bullet.endswith(").")
 
@@ -1026,3 +1030,189 @@ def test_new_bullets_forbidden_check_passes(tmp_path: Path, word: str) -> None:
     shift_b = [b for b in bullets if b.startswith("Stress-tested")][0]
     assert word.lower() not in inv_b.lower()
     assert word.lower() not in shift_b.lower()
+
+
+def _make_fake_ti_calibration_numbers() -> dict[str, float]:
+    """Build fake numbers dictionary for titanium zone calibration."""
+    return {
+        "ref_hole_mm": 0.8,
+        "n_clean_bars": 10.0,
+        "n_flawed_bars": 10.0,
+        "structured_zone_arm_false_alarms_per_bar": 0.0,
+        "structured_global_arm_false_alarms_per_bar": 0.15,
+        "structured_zone_arm_zone0_k": 10.0,
+        "structured_zone_arm_zone0_n": 10.0,
+        "structured_global_arm_zone0_k": 8.0,
+        "structured_global_arm_zone0_n": 10.0,
+        "structured_zone0_snr": 4.5,
+        "structured_zone_arm_zone1_k": 9.0,
+        "structured_zone_arm_zone1_n": 10.0,
+        "structured_global_arm_zone1_k": 5.0,
+        "structured_global_arm_zone1_n": 10.0,
+        "structured_zone1_snr": 3.2,
+        "structured_zone_arm_zone2_k": 7.0,
+        "structured_zone_arm_zone2_n": 10.0,
+        "structured_global_arm_zone2_k": 2.0,
+        "structured_global_arm_zone2_n": 10.0,
+        "structured_zone2_snr": 2.1,
+    }
+
+
+def _make_fake_ti_calibration_claim() -> dict[str, Any]:
+    """Build representative fake claim for ti_zone_calibration."""
+    text = (
+        "Synthetic data (titanium-mode simulator). "
+        "Limits and calibration values are placeholders (UNVERIFIED). "
+        "Evaluated on 10 clean bars and 10 flawed bars per zone. "
+        "Clean-bar false alarms per bar: zone arm 0.00 vs global arm 0.15. "
+        "Detection k/n of the 0.8 mm reference-size hole per zone: "
+        "zone 0: SNR 4.50, inspectable yes, zone arm 10/10, global arm 8/10; "
+        "zone 1: SNR 3.20, inspectable yes, zone arm 9/10, global arm 5/10; "
+        "zone 2: SNR 2.10, inspectable yes, zone arm 7/10, global arm 2/10."
+    )
+    return {
+        "id": "ti_zone_calibration",
+        "text": text,
+        "evidence_file": "results/ti_zone_metrics.json",
+        "evidence_path": "noise_models.structured",
+        "scope_limit": (
+            "Synthetic titanium-mode simulator only; placeholder limits; "
+            "no real titanium data; no conformance to any specification"
+        ),
+        "numbers": _make_fake_ti_calibration_numbers(),
+    }
+
+
+def _make_fake_ti_sweep_numbers() -> dict[str, float]:
+    """Build fake numbers dictionary for titanium noise sweep."""
+    return {
+        "weak_field_sigma": 0.05,
+        "weak_uninspectable_zones": 0.0,
+        "weak_zone_arm_total_k": 26.0,
+        "weak_zone_arm_total_n": 30.0,
+        "structured_field_sigma": 0.15,
+        "structured_uninspectable_zones": 1.0,
+        "structured_zone_arm_total_k": 26.0,
+        "structured_zone_arm_total_n": 30.0,
+        "strong_field_sigma": 0.30,
+        "strong_uninspectable_zones": 3.0,
+        "strong_zone_arm_total_k": 10.0,
+        "strong_zone_arm_total_n": 30.0,
+    }
+
+
+def _make_fake_ti_sweep_claim() -> dict[str, Any]:
+    """Build representative fake claim for ti_noise_sweep."""
+    text = (
+        "Noise sweep across models: "
+        "weak (field_sigma 0.05): 0 zones not inspectable, zone arm detection 26/30; "
+        "structured (field_sigma 0.15): 1 zones not inspectable, zone arm detection 26/30; "
+        "strong (field_sigma 0.30): 3 zones not inspectable, zone arm detection 10/30; "
+        "as the synthetic noise-strength variation grows, zones lose inspectability. "
+        "Default field_sigma was lowered after the first calibration run (from payload notes)."
+    )
+    return {
+        "id": "ti_noise_sweep",
+        "text": text,
+        "evidence_file": "results/ti_zone_metrics.json",
+        "evidence_path": "sweep",
+        "scope_limit": (
+            "Synthetic titanium-mode simulator only; placeholder limits; "
+            "no real titanium data; no conformance to any specification"
+        ),
+        "numbers": _make_fake_ti_sweep_numbers(),
+    }
+
+
+def test_titanium_bullet_present_with_sweep(tmp_path: Path) -> None:
+    """Verify titanium bullet generated last with calibration sums and sweep clause."""
+    claims = _make_fake_claims() + [
+        _make_fake_ti_calibration_claim(),
+        _make_fake_ti_sweep_claim(),
+    ]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    ti_b = bullets[-1]
+    assert ti_b.startswith("Extended UTriage with a synthetic titanium mode:")
+    assert (
+        "reference-size hole detected 26/30 with zone-wise alarms vs 15/30 with one global alarm"
+    ) in ti_b
+    assert "clean-bar false alarms per bar 0.00 vs 0.15" in ti_b
+    assert (
+        "as noise-strength variation rose from 0.05 to 0.30, zones not inspectable went from 0 to 3"
+    ) in ti_b
+    assert ti_b.endswith("(synthetic data only, placeholder limits, no real titanium data).")
+
+
+def test_titanium_bullet_absent_when_calibration_missing(tmp_path: Path) -> None:
+    """Verify titanium bullet is omitted when ti_zone_calibration claim is missing."""
+    claims = _make_fake_claims() + [_make_fake_ti_sweep_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert not any("synthetic titanium mode" in b for b in bullets)
+
+
+def test_titanium_sweep_clause_absent_when_sweep_missing(tmp_path: Path) -> None:
+    """Verify sweep clause is omitted when ti_noise_sweep claim is missing."""
+    claims = _make_fake_claims() + [_make_fake_ti_calibration_claim()]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    ti_b = bullets[-1]
+    assert ti_b.startswith("Extended UTriage with a synthetic titanium mode:")
+    assert "clean-bar false alarms per bar 0.00 vs 0.15 (" in ti_b
+    assert "as noise-strength variation rose" not in ti_b
+    assert ti_b.endswith("(synthetic data only, placeholder limits, no real titanium data).")
+
+
+@pytest.mark.parametrize(
+    "word",
+    [
+        "verified",
+        "confirming",
+        "establishing",
+        "ensuring",
+        "guarantee",
+        "certif",
+        "validated",
+        "production",
+        "deployed",
+        "compliant",
+        "qualified",
+    ],
+)
+def test_titanium_forbidden_words_check_passes(tmp_path: Path, word: str) -> None:
+    """Verify titanium bullet does not contain any forbidden words."""
+    claims = _make_fake_claims() + [
+        _make_fake_ti_calibration_claim(),
+        _make_fake_ti_sweep_claim(),
+    ]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    ti_b = bullets[-1]
+    assert word.lower() not in ti_b.lower()
+
+
+def test_titanium_every_number_in_claims(tmp_path: Path) -> None:
+    """Verify every metric number in titanium bullet appears in titanium claims."""
+    ti_claims = [_make_fake_ti_calibration_claim(), _make_fake_ti_sweep_claim()]
+    claims = _make_fake_claims() + ti_claims
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    ti_b = bullets[-1]
+    numbers = [n for n in re.findall(r"\b\d+(?:\.\d+)?\b", ti_b) if n != "256"]
+    for num in numbers:
+        assert _number_in_claims(num, ti_claims), f"Number {num} in {ti_b!r} not in claims"
+
+
+def test_titanium_missing_metrics_skips_bullet(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Verify titanium bullet is skipped when calibration numbers are incomplete."""
+    bad_claim = _make_fake_ti_calibration_claim()
+    bad_claim["numbers"] = {"ref_hole_mm": 0.8}
+    claims = _make_fake_claims() + [bad_claim]
+    _write_claims(tmp_path / "claims.json", claims)
+    bullets = build_bullets(tmp_path)
+    assert not any("synthetic titanium mode" in b for b in bullets)
+    captured = capsys.readouterr()
+    assert "Warning:" in captured.err

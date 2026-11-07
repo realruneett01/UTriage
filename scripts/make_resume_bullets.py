@@ -865,6 +865,136 @@ def _build_engineering_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
     return _ensure_scope(text, "advisory")
 
 
+@dataclass(frozen=True)
+class TiCalibrationCounts:
+    """Detection sums and clean-bar false alarm rates for titanium calibration."""
+
+    zone_k: int
+    zone_n: int
+    global_k: int
+    global_n: int
+    zone_fa: float
+    global_fa: float
+
+
+@dataclass(frozen=True)
+class TiSweepRange:
+    """Titanium noise sweep field sigma and uninspectable zone range."""
+
+    min_sigma: float
+    max_sigma: float
+    uninspect_a: int
+    uninspect_b: int
+
+
+def _extract_ti_zone_sums(nums: dict[str, Any], arm: str) -> tuple[int, int] | None:
+    """Extract sum of k and n detections across zones for an arm."""
+    k_suffix = "_k"
+    prefix = f"structured_{arm}_arm_zone"
+    zone_indices = [
+        k[len(prefix) : -len(k_suffix)]
+        for k in nums
+        if k.startswith(prefix) and k.endswith(k_suffix)
+    ]
+    if not zone_indices:
+        return None
+    k_vals: list[int] = []
+    n_vals: list[int] = []
+    for idx in zone_indices:
+        k_val = nums.get(f"{prefix}{idx}_k")
+        n_val = nums.get(f"{prefix}{idx}_n")
+        if k_val is None or n_val is None:
+            return None
+        k_vals.append(int(k_val))
+        n_vals.append(int(n_val))
+    tot_n = sum(n_vals)
+    return (sum(k_vals), tot_n) if tot_n > 0 else None
+
+
+def _extract_ti_calibration(claim: dict[str, Any]) -> TiCalibrationCounts | None:
+    """Extract titanium zone calibration detection sums and false-alarm rates."""
+    nums = claim.get("numbers", {})
+    z_sums = _extract_ti_zone_sums(nums, "zone")
+    g_sums = _extract_ti_zone_sums(nums, "global")
+    z_fa = nums.get("structured_zone_arm_false_alarms_per_bar")
+    g_fa = nums.get("structured_global_arm_false_alarms_per_bar")
+    if any((z_sums is None, g_sums is None, z_fa is None, g_fa is None)):
+        return None
+    return TiCalibrationCounts(
+        zone_k=z_sums[0],  # type: ignore[index]
+        zone_n=z_sums[1],  # type: ignore[index]
+        global_k=g_sums[0],  # type: ignore[index]
+        global_n=g_sums[1],  # type: ignore[index]
+        zone_fa=float(z_fa),
+        global_fa=float(g_fa),
+    )
+
+
+def _extract_ti_sweep_pairs(nums: dict[str, Any]) -> list[tuple[float, int]]:
+    """Extract (field_sigma, uninspectable_zones) pairs from sweep numbers."""
+    pairs: list[tuple[float, int]] = []
+    suffix = "_field_sigma"
+    for k, v in nums.items():
+        if not k.endswith(suffix):
+            continue
+        prefix = k[: -len(suffix)]
+        uninsp_key = f"{prefix}_uninspectable_zones"
+        if uninsp_key in nums:
+            pairs.append((float(v), int(nums[uninsp_key])))
+    return pairs
+
+
+def _extract_ti_sweep(claim: dict[str, Any] | None) -> TiSweepRange | None:
+    """Extract min/max sigma and uninspectable zones from noise sweep claim."""
+    if claim is None:
+        return None
+    pairs = _extract_ti_sweep_pairs(claim.get("numbers", {}))
+    if len(pairs) < 2:
+        return None
+    sorted_pairs = sorted(pairs, key=lambda p: p[0])
+    return TiSweepRange(
+        min_sigma=sorted_pairs[0][0],
+        max_sigma=sorted_pairs[-1][0],
+        uninspect_a=sorted_pairs[0][1],
+        uninspect_b=sorted_pairs[-1][1],
+    )
+
+
+def _format_ti_sweep_clause(sweep: TiSweepRange | None) -> str:
+    """Format optional sweep clause if sweep metrics are present."""
+    if sweep is None:
+        return ""
+    return (
+        f"; as noise-strength variation rose from {sweep.min_sigma:.2f} "
+        f"to {sweep.max_sigma:.2f}, zones not inspectable went from "
+        f"{sweep.uninspect_a} to {sweep.uninspect_b}"
+    )
+
+
+def _build_titanium_bullet(claims: dict[str, dict[str, Any]]) -> str | None:
+    """Build bullet for synthetic titanium mode zone calibration and sweep."""
+    c_cal = claims.get("ti_zone_calibration")
+    if c_cal is None:
+        return None
+    cal = _extract_ti_calibration(c_cal)
+    if cal is None:
+        sys.stderr.write("Warning: missing titanium calibration metrics; skipping bullet.\n")
+        return None
+    sweep = _extract_ti_sweep(claims.get("ti_noise_sweep"))
+    sweep_clause = _format_ti_sweep_clause(sweep)
+    text = (
+        "Extended UTriage with a synthetic titanium mode: macrozone-like correlated "
+        "grain noise, zone-wise reference calibration with SNR (A-B)/(C-B) and an alarm "
+        "capped relative to the reference response, zones that cannot reach the sensitivity "
+        "flagged to the inspector, an inspector report and an air-gapped package "
+        "(model SHA-256 checks, offline bundle, network-blocking test); "
+        f"reference-size hole detected {cal.zone_k}/{cal.zone_n} with zone-wise alarms vs "
+        f"{cal.global_k}/{cal.global_n} with one global alarm, "
+        f"clean-bar false alarms per bar {cal.zone_fa:.2f} vs {cal.global_fa:.2f}{sweep_clause}"
+    )
+    return _ensure_scope(text, "synthetic data only, placeholder limits, no real titanium data")
+
+
 def _check_single_claim(c: dict[str, Any]) -> None:
     """Check text and scope_limit of a single claim."""
     for field in ("text", "scope_limit"):
@@ -920,6 +1050,7 @@ def build_bullets(results_dir: Path) -> list[str]:
         (_build_site_adaptation_bullet, (results_dir,)),
         (_build_joint_training_bullet, (results_dir,)),
         (_build_engineering_bullet, (claims,)),
+        (_build_titanium_bullet, (claims,)),
     ]
     bullets = [_build_framing_bullet()]
     for func, args in builders:
