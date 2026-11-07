@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from utriage.integrity import check_model_hash, write_model_hash
 from utriage.ml.datasets import standardise
 from utriage.ml.models import MlNdtNet
 from utriage.ml.train import pick_device
@@ -34,15 +35,18 @@ def save_model(model: nn.Module, path: Path, meta: dict) -> Path:
         "meta": dict(meta),
     }
     torch.save(payload, out_path)
+    write_model_hash(out_path)
     return out_path
 
 
 def load_model(path: Path, device: str = "auto") -> tuple[MlNdtNet, dict]:
     """Load model weights and metadata from checkpoint."""
     ckpt_path = Path(path)
+    digest = check_model_hash(ckpt_path)
     dev = pick_device(device)
     ckpt = torch.load(ckpt_path, map_location=dev, weights_only=True)
     meta = dict(ckpt.get("meta", {}))
+    meta["sha256"] = digest
     width = int(meta.get("width", 32))
     pool_raw = meta.get("first_pool", (2, 2))
     first_pool = (int(pool_raw[0]), int(pool_raw[1]))

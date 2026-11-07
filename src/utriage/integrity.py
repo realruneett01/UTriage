@@ -131,3 +131,34 @@ def require_locked(manifest_path: Path, root: Path) -> None:
 
     detail = "; ".join(problems)
     raise IntegrityError(f"Locked configuration check failed: {detail}")
+
+
+def model_sidecar(path: Path) -> Path:
+    """Return sidecar path for a model checkpoint."""
+    return Path(str(path) + ".sha256")
+
+
+def write_model_hash(path: Path) -> Path:
+    """Write sha256 checksum sidecar for a model file."""
+    p = Path(path)
+    sidecar = model_sidecar(p)
+    digest = sha256_file(p)
+    sidecar.write_text(f"{digest}  {p.name}\n", encoding="utf-8")
+    return sidecar
+
+
+def check_model_hash(path: Path) -> str:
+    """Check model checksum against sidecar, raising on mismatch or missing lock."""
+    p = Path(path)
+    sidecar = model_sidecar(p)
+    if not sidecar.is_file():
+        if is_locked():
+            raise IntegrityError(f"Model hash file missing: {sidecar.name}")
+        return sha256_file(p)
+
+    actual = sha256_file(p)
+    tokens = sidecar.read_text(encoding="utf-8").split()
+    expected = tokens[0] if tokens else ""
+    if actual.lower() != expected.lower():
+        raise IntegrityError(f"Model hash mismatch: {p.name}")
+    return actual
