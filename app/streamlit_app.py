@@ -92,9 +92,13 @@ def _render_banners(session: Session | None) -> None:
 
 def _get_session() -> Session | None:
     """Retrieve or initialize inspection session."""
+    if "sessions" not in st.session_state:
+        st.session_state.sessions = {}
     if "session" not in st.session_state:
         if DEFAULT_SAMPLE.is_file():
-            st.session_state.session = load_session(DEFAULT_SAMPLE, DEFAULT_MODEL)
+            loaded = load_session(DEFAULT_SAMPLE, DEFAULT_MODEL)
+            st.session_state.session = loaded
+            st.session_state.sessions[DEFAULT_SAMPLE.name] = loaded
         else:
             st.session_state.session = None
     return st.session_state.session
@@ -102,10 +106,15 @@ def _get_session() -> Session | None:
 
 def _handle_sample_load(session: Session | None) -> None:
     """Handle loading the committed sample bar scan."""
-    if st.button("Load sample bar", type="primary") or session is None:
-        if DEFAULT_SAMPLE.is_file():
-            st.session_state.session = load_session(DEFAULT_SAMPLE, DEFAULT_MODEL)
-            st.success("Loaded sample bar: data/samples/ti64/bar_0000.npz")
+    should_load = st.button("Load sample bar", type="primary") or session is None
+    if not (should_load and DEFAULT_SAMPLE.is_file()):
+        return
+    loaded = load_session(DEFAULT_SAMPLE, DEFAULT_MODEL)
+    st.session_state.session = loaded
+    if "sessions" not in st.session_state:
+        st.session_state.sessions = {}
+    st.session_state.sessions[DEFAULT_SAMPLE.name] = loaded
+    st.success("Loaded sample bar: data/samples/ti64/bar_0000.npz")
 
 
 def upload_target(tmp_dir: Path, name: str) -> Path:
@@ -241,22 +250,61 @@ def _auto_pair(saved: list[Path], roots: Sequence[Path]) -> tuple[list[Path], li
     return out_saved, notes
 
 
-def _choose_scan(loadable: list[Path]) -> Path:
-    """Select scan to process when multiple candidates exist."""
-    if len(loadable) > 1:
-        names = [p.name for p in loadable]
-        idx = names.index(st.selectbox("Scan to process", names))
-        return loadable[idx]
-    return loadable[0]
+def _load_all(paths: list[Path], model: Path | None) -> tuple[dict[str, Session], list[str]]:
+    """Load sessions for all provided scan paths."""
+    sessions: dict[str, Session] = {}
+    errors: list[str] = []
+    for p in paths:
+        name = p.name
+        try:
+            sessions[name] = load_session(p, model)
+        except (FileNotFoundError, ValueError, KeyError, OSError) as exc:
+            errors.append(f"Could not load {name}: {exc}")
+    return sessions, errors
 
 
-def _process_scan(scan_path: Path) -> None:
-    """Load session from chosen scan path and report status."""
-    try:
-        st.session_state.session = load_session(scan_path, DEFAULT_MODEL)
-        st.success(f"Loaded {scan_path.name}")
-    except (FileNotFoundError, ValueError, KeyError, OSError) as exc:
-        st.error(f"Could not load {scan_path.name}: {exc}")
+def _prepare_uploaded_scans(uploaded: list[Any]) -> list[Path]:
+    """Save uploads, pair matching json, and return loadable paths."""
+    tmp_dir = (Path(tempfile.gettempdir()) / "utriage_uploads").resolve()
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    saved = _save_uploaded_files(uploaded, tmp_dir)
+    saved, notes = _auto_pair(saved, SCAN_SEARCH_ROOTS)
+    for note in notes:
+        st.info(note)
+    loadable, errors = _loadable_scans(saved)
+    for err in errors:
+        st.error(err)
+    return loadable
+
+
+def _process_uploaded_scans(loadable: list[Path]) -> None:
+    """Load and merge candidate scans into session state."""
+    sessions, errors = _load_all(loadable, DEFAULT_MODEL)
+    if "sessions" not in st.session_state:
+        st.session_state.sessions = {}
+    st.session_state.sessions.update(sessions)
+    if sessions:
+        st.session_state.session = next(iter(sessions.values()))
+        st.success(f"Loaded {len(sessions)} scan(s)")
+    for err in errors:
+        st.error(err)
+
+
+def _render_summary_table() -> None:
+    """Display summary table of loaded sessions."""
+    sessions: dict[str, Session] = st.session_state.get("sessions", {})
+    if not sessions:
+        return
+    rows = [
+        {
+            "scan": name,
+            "indications": len(sess.items),
+            "synthetic": sess.synthetic,
+            "ML model loaded": sess.model_loaded,
+        }
+        for name, sess in sessions.items()
+    ]
+    st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
 
 def _handle_upload_load() -> None:
@@ -270,22 +318,11 @@ def _handle_upload_load() -> None:
         "Upload a .npz scan; its .json is found automatically when the scan comes from "
         "this machine's data folder. Otherwise upload both."
     )
-    if not uploaded:
-        return
-    tmp_dir = (Path(tempfile.gettempdir()) / "utriage_uploads").resolve()
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-    saved = _save_uploaded_files(uploaded, tmp_dir)
-    saved, notes = _auto_pair(saved, SCAN_SEARCH_ROOTS)
-    for note in notes:
-        st.info(note)
-    loadable, errors = _loadable_scans(saved)
-    for err in errors:
-        st.error(err)
-    if not loadable:
-        return
-    chosen = _choose_scan(loadable)
-    if st.button("Process uploaded scan", type="primary"):
-        _process_scan(chosen)
+    if uploaded:
+        loadable = _prepare_uploaded_scans(uploaded)
+        if loadable and st.button(f"Process all uploaded scans ({len(loadable)})", type="primary"):
+            _process_uploaded_scans(loadable)
+    _render_summary_table()
 
 
 def _page_load_scan(session: Session | None) -> None:
@@ -684,13 +721,31 @@ PAGE_HANDLERS = {
 }
 
 
+def _render_sidebar_scan_switcher() -> None:
+    """Render sidebar scan switcher when multiple scans are available."""
+    sessions: dict[str, Session] = st.session_state.get("sessions", {})
+    if len(sessions) < 2:
+        return
+    names = list(sessions.keys())
+    cur = st.session_state.get("session")
+    cur_idx = 0
+    for i, name in enumerate(names):
+        if sessions[name] is cur:
+            cur_idx = i
+            break
+    chosen = st.sidebar.selectbox("Active scan", names, index=cur_idx)
+    st.session_state.session = sessions[chosen]
+
+
 def main() -> None:
     """Main Streamlit app router."""
     _enforce_locked()
-    session = _get_session()
-    _render_banners(session)
+    _get_session()
     pages = list(PAGE_HANDLERS.keys())
     page = st.sidebar.radio("Navigation", pages)
+    _render_sidebar_scan_switcher()
+    session = st.session_state.get("session")
+    _render_banners(session)
     handler = PAGE_HANDLERS.get(page)
     if handler is not None:
         handler(session)

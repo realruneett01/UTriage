@@ -24,6 +24,7 @@ import pytest  # noqa: E402
 from streamlit_app import (  # noqa: E402
     _auto_pair,
     _find_matching_json,
+    _load_all,
     _loadable_scans,
 )
 
@@ -317,3 +318,49 @@ def test_find_matching_json_skips_self(tmp_path: Path) -> None:
     (tmp_path / "bar_0000.json").write_text("{}", encoding="utf-8")
     match = _find_matching_json(npz, [tmp_path])
     assert match is None
+
+
+def test_load_all_valid_pairs(tmp_path: Path) -> None:
+    """Test loading multiple valid scan pairs with _load_all."""
+    src_npz = Path("data/samples/ti64/bar_0000.npz")
+    src_json = Path("data/samples/ti64/bar_0000.json")
+    for prefix in ("a_0000", "b_0000"):
+        (tmp_path / f"{prefix}.npz").write_bytes(src_npz.read_bytes())
+        (tmp_path / f"{prefix}.json").write_bytes(src_json.read_bytes())
+    paths = [tmp_path / "a_0000.npz", tmp_path / "b_0000.npz"]
+    sessions, errors = _load_all(paths, model=None)
+    assert errors == []
+    assert len(sessions) == 2
+    assert "a_0000.npz" in sessions
+    assert "b_0000.npz" in sessions
+    assert isinstance(sessions["a_0000.npz"], Session)
+    assert isinstance(sessions["b_0000.npz"], Session)
+
+
+def test_load_all_missing_json(tmp_path: Path) -> None:
+    """Test _load_all error reporting when scan json metadata is missing."""
+    src_npz = Path("data/samples/ti64/bar_0000.npz")
+    src_json = Path("data/samples/ti64/bar_0000.json")
+    (tmp_path / "good.npz").write_bytes(src_npz.read_bytes())
+    (tmp_path / "good.json").write_bytes(src_json.read_bytes())
+    (tmp_path / "missing.npz").write_bytes(src_npz.read_bytes())
+    paths = [tmp_path / "good.npz", tmp_path / "missing.npz"]
+    sessions, errors = _load_all(paths, model=None)
+    assert len(sessions) == 1
+    assert "good.npz" in sessions
+    assert len(errors) == 1
+    assert "missing.npz" in errors[0]
+
+
+def test_streamlit_app_multi_session_switch(running_app: Any, sample_session: Session) -> None:
+    """Test sidebar scan switcher and summary table with multiple sessions."""
+    running_app.session_state.sessions = {
+        "scan_a.npz": sample_session,
+        "scan_b.npz": sample_session,
+    }
+    running_app.run()
+    assert not running_app.exception
+    assert len(running_app.sidebar.selectbox) == 1
+    running_app.sidebar.selectbox[0].set_value("scan_b.npz").run()
+    assert not running_app.exception
+    assert running_app.session_state.session is sample_session
