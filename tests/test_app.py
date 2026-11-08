@@ -9,8 +9,11 @@ from pathlib import Path
 from typing import Any
 
 _SRC = str(Path(__file__).resolve().parents[1] / "src")
+_APP = str(Path(__file__).resolve().parents[1] / "app")
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
+if _APP not in sys.path:
+    sys.path.insert(0, _APP)
 if "utriage" in sys.modules:
     _pkg_dir = str(Path(_SRC) / "utriage")
     if _pkg_dir not in sys.modules["utriage"].__path__:
@@ -18,6 +21,7 @@ if "utriage" in sys.modules:
 
 import matplotlib  # noqa: E402
 import pytest  # noqa: E402
+from streamlit_app import _loadable_scans  # noqa: E402
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -165,3 +169,66 @@ def test_streamlit_app_all_pages(running_app: Any) -> None:
     for page_name in PAGES:
         running_app.sidebar.radio[0].set_value(page_name).run()
         assert not running_app.exception
+
+
+@pytest.mark.parametrize(
+    ("files", "expected_loadable_names", "expected_errors"),
+    [
+        (
+            [Path("bar_0001.npz"), Path("bar_0001.json")],
+            ["bar_0001.npz"],
+            [],
+        ),
+        (
+            [Path("bar_0001.npz")],
+            [],
+            ["bar_0001.npz: missing bar_0001.json - upload the .npz together with its .json file."],
+        ),
+        (
+            [Path("scan.csv")],
+            ["scan.csv"],
+            [],
+        ),
+        (
+            [Path("bar_0001.json")],
+            [],
+            [],
+        ),
+        (
+            [
+                Path("bar_0001.npz"),
+                Path("bar_0001.json"),
+                Path("bar_0002.npz"),
+                Path("bar_0002.json"),
+            ],
+            ["bar_0001.npz", "bar_0002.npz"],
+            [],
+        ),
+    ],
+    ids=["npz_json_pair", "npz_alone", "csv_alone", "json_alone", "two_pairs"],
+)
+def test_loadable_scans_cases(
+    files: list[Path],
+    expected_loadable_names: list[str],
+    expected_errors: list[str],
+) -> None:
+    """Check scan candidate filtering and missing-pair messages."""
+    loadable, errors = _loadable_scans(files)
+    assert [p.name for p in loadable] == expected_loadable_names
+    assert errors == expected_errors
+
+
+def test_loadable_scans_end_to_end(tmp_path: Path) -> None:
+    """Check pairing and session loading from copied sample files."""
+    sample_npz = Path("data/samples/ti64/bar_0000.npz")
+    sample_json = Path("data/samples/ti64/bar_0000.json")
+    dst_npz = tmp_path / "bar_0000.npz"
+    dst_json = tmp_path / "bar_0000.json"
+    dst_npz.write_bytes(sample_npz.read_bytes())
+    dst_json.write_bytes(sample_json.read_bytes())
+
+    loadable, errors = _loadable_scans([dst_npz, dst_json])
+    assert errors == []
+    assert len(loadable) == 1
+    session = load_session(loadable[0], model_path=None)
+    assert session.scan is not None

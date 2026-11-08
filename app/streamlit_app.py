@@ -115,28 +115,99 @@ def upload_target(tmp_dir: Path, name: str) -> Path:
     return target
 
 
-def _handle_upload_load() -> None:
-    """Handle user file upload for .npz or .csv scans."""
-    uploaded = st.file_uploader("Upload .npz or .csv scan file", type=["npz", "csv"])
-    if uploaded is None:
-        return
-    if uploaded.size > MAX_SCAN_BYTES:
-        st.error(f"File size exceeds maximum limit of {MAX_SCAN_BYTES} bytes.")
-        return
-    tmp_dir = (Path(tempfile.gettempdir()) / "utriage_uploads").resolve()
+def _pair_scan(p: Path, json_stems: set[str]) -> tuple[Path | None, str | None]:
+    """Classify scan candidate path as loadable or error message."""
+    suf = p.suffix.lower()
+    if suf == ".csv":
+        return p, None
+    if suf == ".npz" and p.stem in json_stems:
+        return p, None
+    if suf == ".npz":
+        msg = f"{p.name}: missing {p.stem}.json - upload the .npz together with its .json file."
+        return None, msg
+    return None, None
+
+
+def _loadable_scans(saved: list[Path]) -> tuple[list[Path], list[str]]:
+    """Partition saved files into loadable scan paths and missing-pair messages."""
+    json_stems = {p.stem for p in saved if p.suffix.lower() == ".json"}
+    loadable: list[Path] = []
+    errors: list[str] = []
+    for p in saved:
+        scan_path, err_msg = _pair_scan(p, json_stems)
+        if scan_path is not None:
+            loadable.append(scan_path)
+        if err_msg is not None:
+            errors.append(err_msg)
+    return loadable, errors
+
+
+def _save_upload(up: Any, tmp_dir: Path) -> Path | None:
+    """Save an uploaded file safely to tmp_dir."""
+    if up.size > MAX_SCAN_BYTES:
+        st.error(f"{up.name}: size exceeds maximum limit of {MAX_SCAN_BYTES} bytes.")
+        return None
     try:
-        tmp_file = upload_target(tmp_dir, uploaded.name)
+        target = upload_target(tmp_dir, up.name)
     except ValueError as exc:
         st.error(f"Invalid upload filename: {exc}")
-        return
-    if tmp_dir not in tmp_file.parents:
+        return None
+    if tmp_dir not in target.parents:
         st.error("Upload path outside temporary directory.")
+        return None
+    target.write_bytes(up.getbuffer())
+    return target
+
+
+def _save_uploaded_files(uploaded: list[Any], tmp_dir: Path) -> list[Path]:
+    """Save valid uploaded files into tmp_dir."""
+    saved: list[Path] = []
+    for up in uploaded:
+        target = _save_upload(up, tmp_dir)
+        if target is not None:
+            saved.append(target)
+    return saved
+
+
+def _choose_scan(loadable: list[Path]) -> Path:
+    """Select scan to process when multiple candidates exist."""
+    if len(loadable) > 1:
+        names = [p.name for p in loadable]
+        idx = names.index(st.selectbox("Scan to process", names))
+        return loadable[idx]
+    return loadable[0]
+
+
+def _process_scan(scan_path: Path) -> None:
+    """Load session from chosen scan path and report status."""
+    try:
+        st.session_state.session = load_session(scan_path, DEFAULT_MODEL)
+        st.success(f"Loaded {scan_path.name}")
+    except (FileNotFoundError, ValueError, KeyError, OSError) as exc:
+        st.error(f"Could not load {scan_path.name}: {exc}")
+
+
+def _handle_upload_load() -> None:
+    """Handle user file upload for .npz, .json, and .csv scans."""
+    uploaded = st.file_uploader(
+        "Upload scan files (.npz with its matching .json, or .csv)",
+        type=["npz", "json", "csv"],
+        accept_multiple_files=True,
+    )
+    st.caption("Simulator scans are a pair: bar_0001.npz + bar_0001.json - select both.")
+    if not uploaded:
         return
+    tmp_dir = (Path(tempfile.gettempdir()) / "utriage_uploads").resolve()
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    tmp_file.write_bytes(uploaded.getbuffer())
+    saved = _save_uploaded_files(uploaded, tmp_dir)
+    loadable, errors = _loadable_scans(saved)
+    for err in errors:
+        st.error(err)
+    if not loadable:
+        return
+    chosen = _choose_scan(loadable)
     if st.button("Process uploaded scan", type="primary"):
-        st.session_state.session = load_session(tmp_file, DEFAULT_MODEL)
-        st.success(f"Loaded {tmp_file.name}")
+        _process_scan(chosen)
 
 
 def _page_load_scan(session: Session | None) -> None:
