@@ -123,6 +123,14 @@ Consider what happens if no cap exists:
 
 To prevent this hazard, governing specifications cap the alarm at a fraction of the reference echo: $\text{cap\_fraction} \times A$.
 
+### FAA Context for the Alarm Level
+
+FAA Advisory Circular [AC 33.15-1A](https://www.faa.gov/documentLibrary/media/Advisory_Circular/AC_33.15-1A.pdf), section 10.3.5 'Acceptance Limit', states: "The acceptance limit should be set appropriately above the noise level to minimize false calls while maintaining detection sensitivity consistent with design requirements." The AC gives no dB figure. UTriage follows this principle (zone alarm set just above each zone's peak noise C and capped relative to the reference response A; the ML threshold is set from inspector-confirmed clean scans at a target false-call rate).
+
+FAA-sponsored research report [DOT/FAA/AR-05/30](https://www.govinfo.gov/content/pkg/GOVPUB-TD4-PURL-LPS64487/pdf/GOVPUB-TD4-PURL-LPS64487.pdf), "Inspection Development for Titanium Billet - Engine Titanium Consortium Phase II", Final Report, September 2005, states: "As agreed earlier by the ETC, a minimum SNR of 1.4 or 3 dB is required to claim achievement of target inspection sensitivity." In that report the SNR is the reference-target amplitude relative to peak noise (their example: peak noise 80% against a #1 FBH calibrated at 80% is 'a SNR of 1'). It is a research-programme criterion for billet zones, not an advisory-circular requirement or an acceptance limit.
+
+The ETC ratio is signal/peak-noise, while UTriage's zone SNR is $(A - B) / (C - B)$, so the two values are not directly comparable and 1.4 does not validate UTriage's `min_snr` placeholder; UTriage limits remain UNVERIFIED placeholders.
+
 ## 6. Worked Symbolic Example: The Inspectability Gate
 
 To understand how the alarm rule operates without using fabricated result numbers, let us examine the mathematics symbolically.
@@ -192,5 +200,6 @@ All configuration parameters from `configs/ti_mode.yaml` are summarized below:
 1. How does the macrozone correlation length in physical titanium billets compare with the ultrasonic beam focal spot size at 5 MHz and 10 MHz?
 2. In what specific alloy grades does the ASTM E2375 cap fraction bind in practice, and what transducer frequency or focal adjustments are made?
 3. Why must a zone flagged 'not inspectable at this sensitivity' never be cleared or suppressed by an advisory machine learning model?
+4. Which signal-to-noise definition and minimum value does the applicable specification use, and how does it map to (A-B)/(C-B)?
 
 > **Change note (after the first calibration run, before any experiment result):** the defaults were first `field_sigma: 0.4`, `zone_levels: [1.0, 1.6, 1.3]` and `signal_window_px: 3`. On the simulated reference block the 3x3 mean cut the reference response to about a third (the simulator grid, 1 mm x 3 deg, is coarser than the beam), and with field_sigma >= 0.15 the hottest noise patch set the zone peak noise so high that no zone was inspectable. The defaults were changed to `field_sigma: 0.1`, `zone_levels: [1.0, 1.2, 1.1]`, `signal_window_px: 1`. These are simulator model choices, not measured values; `experiments/run_ti_zones.py` sweeps field_sigma so the loss of inspectability is reported, not hidden.
