@@ -130,6 +130,11 @@
   - Quantitative claims extraction for titanium mode (`src/utriage/report/claims_ti.py`).
 - Bug fix (`b4d91ae`): `simulate_ti_bar` returned scan keeps the caller's spec rather than the internal zero-grain spec used for base propagation.
 - Config change note: `field_sigma` lowered from 0.4 to 0.1, `zone_levels` changed from `[1.0, 1.6, 1.3]` to `[1.0, 1.2, 1.1]`, and `signal_window_px` changed from 3 to 1 after the first calibration run (at `field_sigma >= 0.15` no zone was inspectable; sweep in `experiments/run_ti_zones.py` reports higher values; see ADR 0016).
+- Inspector app fixes (2026-11-08):
+  - upload crash fixed (a .npz was saved without its sibling .json);
+  - multi-file upload with automatic .json pairing by SHA-256 under data/samples and data/synthetic;
+  - all uploaded scans processed, summary table, sidebar active-scan switcher;
+  - titanium calibration claim now states the global arm's false-alarm rate is not comparable when that arm is not inspectable.
 
 ## In progress
 - separability evaluation done: results/separability_metrics.json (claims separability_batchval, separability_crackval in results/claims.json)

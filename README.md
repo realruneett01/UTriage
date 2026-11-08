@@ -90,6 +90,11 @@ Launch the local Streamlit review application for interactive inspection:
 streamlit run app/streamlit_app.py
 ```
 
+- Upload one or several scans at once (.npz with its .json, or .csv);
+- For a simulator .npz uploaded alone, the matching .json is found automatically under data/samples and data/synthetic, matched by SHA-256 of the .npz bytes (never by name alone);
+- 'Process all uploaded scans' loads every scan, a summary table lists them, and the sidebar 'Active scan' selector switches every page;
+- Each scan keeps its own decision log.
+
 ## Titanium mode (UTriage-Ti) - synthetic
 
 ### What it does
