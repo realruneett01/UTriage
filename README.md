@@ -71,9 +71,9 @@ UTriage operates under a safety-first architecture:
 ### 1. Installation
 Install the development environment:
 ```bash
-pip install -e '.[ml,app]'
+pip install -e ".[ml,app]"
 ```
-For development and tests use pip install -e '.[dev,ml,app]' then pytest.
+For development and tests use `pip install -e ".[dev,ml,app]"` then `pytest`.
 For standalone workstation setup and file integrity checks, see [docs/install.md](docs/install.md).
 
 ### 2. Simulate Synthetic Scans
