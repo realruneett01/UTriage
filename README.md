@@ -174,6 +174,8 @@ utriage/
 UTriage builds upon concepts from published ultrasonic evaluation literature and patents:
 - **US 9,927,404 B2:** "Phased array billet data evaluation software" (United Technologies / RTX).
 - **Virkkunen et al. (2019):** "Augmented Ultrasonic Data for Machine Learning", arXiv:1903.11399.
+- **FAA AC 33.15-1A, section 10.3.5:** 'The acceptance limit should be set appropriately above the noise level to minimize false calls while maintaining detection sensitivity consistent with design requirements.' UTriage's zone alarms and clean-scan ML threshold follow this principle; the AC gives no dB figure. Link: https://www.faa.gov/documentLibrary/media/Advisory_Circular/AC_33.15-1A.pdf
+- **DOT/FAA/AR-05/30 (2005), Inspection Development for Titanium Billet - Engine Titanium Consortium Phase II:** FAA-sponsored research report using a minimum signal-to-peak-noise ratio of 1.4 (3 dB) to claim target sensitivity in billet zones. Context only: a different SNR definition from UTriage's (A - B)/(C - B) and not adopted as a UTriage limit. Link: https://www.govinfo.gov/content/pkg/GOVPUB-TD4-PURL-LPS64487/pdf/GOVPUB-TD4-PURL-LPS64487.pdf
 
 UTriage is an independent prototype and portfolio project, not a commercial implementation of the patented system. It differs by integrating a rules-in-charge safety architecture with union fusion (ML can only add flags), a near-real-time (latency on the target i5 laptop not yet measured) data-quality watchdog, and probability of detection (POD) evaluation.
 
