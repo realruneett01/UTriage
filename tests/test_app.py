@@ -21,7 +21,11 @@ if "utriage" in sys.modules:
 
 import matplotlib  # noqa: E402
 import pytest  # noqa: E402
-from streamlit_app import _loadable_scans  # noqa: E402
+from streamlit_app import (  # noqa: E402
+    _auto_pair,
+    _find_matching_json,
+    _loadable_scans,
+)
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -182,7 +186,10 @@ def test_streamlit_app_all_pages(running_app: Any) -> None:
         (
             [Path("bar_0001.npz")],
             [],
-            ["bar_0001.npz: missing bar_0001.json - upload the .npz together with its .json file."],
+            [
+                "bar_0001.npz: no matching bar_0001.json found automatically - "
+                "upload the .npz together with its .json file."
+            ],
         ),
         (
             [Path("scan.csv")],
@@ -232,3 +239,81 @@ def test_loadable_scans_end_to_end(tmp_path: Path) -> None:
     assert len(loadable) == 1
     session = load_session(loadable[0], model_path=None)
     assert session.scan is not None
+
+
+def _setup_test_scan(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """Copy sample scan files to root folder and upload folder."""
+    root_dir = tmp_path / "root" / "a"
+    root_dir.mkdir(parents=True)
+    src_npz = Path("data/samples/ti64/bar_0000.npz")
+    src_json = Path("data/samples/ti64/bar_0000.json")
+    root_npz = root_dir / "bar_0000.npz"
+    root_json = root_dir / "bar_0000.json"
+    root_npz.write_bytes(src_npz.read_bytes())
+    root_json.write_bytes(src_json.read_bytes())
+    up_dir = tmp_path / "up"
+    up_dir.mkdir(parents=True)
+    up_npz = up_dir / "bar_0000.npz"
+    up_npz.write_bytes(src_npz.read_bytes())
+    return root_dir, up_dir, up_npz
+
+
+def test_auto_pair_finds_and_loads(tmp_path: Path) -> None:
+    """Test auto-pair finds matching sibling JSON and allows loading."""
+    root_dir, _up_dir, up_npz = _setup_test_scan(tmp_path)
+    saved, notes = _auto_pair([up_npz], [root_dir.parent])
+    assert len(saved) == 2
+    assert any("found automatically" in n for n in notes)
+    copied_json = up_npz.parent / f"{up_npz.stem}.json"
+    assert copied_json.is_file()
+    loadable, errors = _loadable_scans(saved)
+    assert errors == []
+    assert loadable == [up_npz]
+    session = load_session(loadable[0], model_path=None)
+    assert session.scan is not None
+
+
+def test_auto_pair_different_bytes(tmp_path: Path) -> None:
+    """Test that same-name NPZ with mismatched bytes does not pair."""
+    root_dir, _up_dir, up_npz = _setup_test_scan(tmp_path)
+    (root_dir / "bar_0000.npz").write_bytes(b"different content")
+    saved, notes = _auto_pair([up_npz], [root_dir.parent])
+    assert saved == [up_npz]
+    assert notes == []
+    loadable, errors = _loadable_scans(saved)
+    assert loadable == []
+    assert errors == [
+        "bar_0000.npz: no matching bar_0000.json found automatically - "
+        "upload the .npz together with its .json file."
+    ]
+
+
+def test_auto_pair_already_paired(tmp_path: Path) -> None:
+    """Test auto-pair adds nothing when JSON is already uploaded."""
+    root_dir, _up_dir, up_npz = _setup_test_scan(tmp_path)
+    up_json = up_npz.parent / "bar_0000.json"
+    up_json.write_text("{}", encoding="utf-8")
+    saved, notes = _auto_pair([up_npz, up_json], [root_dir.parent])
+    assert saved == [up_npz, up_json]
+    assert notes == []
+
+
+def test_auto_pair_missing_root_dir(tmp_path: Path) -> None:
+    """Test auto-pair handles nonexistent search root directories gracefully."""
+    up_dir = tmp_path / "up"
+    up_dir.mkdir()
+    up_npz = up_dir / "sample.npz"
+    up_npz.write_bytes(b"scan-data")
+    missing_root = tmp_path / "does_not_exist"
+    saved, notes = _auto_pair([up_npz], [missing_root])
+    assert saved == [up_npz]
+    assert notes == []
+
+
+def test_find_matching_json_skips_self(tmp_path: Path) -> None:
+    """Test helper skips file itself when candidate matches NPZ path."""
+    npz = tmp_path / "bar_0000.npz"
+    npz.write_bytes(b"data")
+    (tmp_path / "bar_0000.json").write_text("{}", encoding="utf-8")
+    match = _find_matching_json(npz, [tmp_path])
+    assert match is None

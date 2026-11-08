@@ -9,9 +9,12 @@ Set `gatherUsageStats = false` in `.streamlit/config.toml`.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
 import sys
 import tempfile
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -48,6 +51,8 @@ from utriage.report.html import ReportInput, render_report  # noqa: E402
 DEFAULT_SAMPLE = Path("data/samples/ti64/bar_0000.npz")
 DEFAULT_MODEL = Path("models/window_net.pt")
 DEFAULT_RESULTS = Path("results")
+_REPO = Path(__file__).resolve().parents[1]
+SCAN_SEARCH_ROOTS = (_REPO / "data" / "samples", _REPO / "data" / "synthetic")
 
 st.set_page_config(
     page_title="UTriage — Ultrasonic Bar Inspection Review",
@@ -123,7 +128,10 @@ def _pair_scan(p: Path, json_stems: set[str]) -> tuple[Path | None, str | None]:
     if suf == ".npz" and p.stem in json_stems:
         return p, None
     if suf == ".npz":
-        msg = f"{p.name}: missing {p.stem}.json - upload the .npz together with its .json file."
+        msg = (
+            f"{p.name}: no matching {p.stem}.json found automatically - "
+            "upload the .npz together with its .json file."
+        )
         return None, msg
     return None, None
 
@@ -169,6 +177,70 @@ def _save_uploaded_files(uploaded: list[Any], tmp_dir: Path) -> list[Path]:
     return saved
 
 
+def _candidate_json_match(cand: Path, npz_resolved: Path, target_hash: str) -> Path | None:
+    """Return candidate sibling JSON if hash matches and not self."""
+    if cand.resolve() == npz_resolved or not cand.is_file():
+        return None
+    sibling = cand.with_suffix(".json")
+    if sibling.is_file() and hashlib.sha256(cand.read_bytes()).hexdigest() == target_hash:
+        return sibling
+    return None
+
+
+def _search_root(root: Path, name: str, npz_resolved: Path, target_hash: str) -> Path | None:
+    """Search single root for sibling JSON matching target hash."""
+    if not root.exists():
+        return None
+    for cand in root.rglob(name):
+        match = _candidate_json_match(cand, npz_resolved, target_hash)
+        if match is not None:
+            return match
+    return None
+
+
+def _find_matching_json(npz: Path, roots: Sequence[Path]) -> Path | None:
+    """Find local sibling JSON matching the uploaded NPZ by SHA-256 hash."""
+    if not npz.is_file():
+        return None
+    target_hash = hashlib.sha256(npz.read_bytes()).hexdigest()
+    npz_resolved = npz.resolve()
+    for root in roots:
+        matched = _search_root(root, npz.name, npz_resolved, target_hash)
+        if matched is not None:
+            return matched
+    return None
+
+
+def _pair_single_npz(
+    npz: Path, roots: Sequence[Path], json_stems: set[str]
+) -> tuple[Path, str] | None:
+    """Find matching JSON and copy to NPZ directory if needed."""
+    if npz.suffix.lower() != ".npz" or npz.stem in json_stems:
+        return None
+    src = _find_matching_json(npz, roots)
+    if src is None:
+        return None
+    dst = npz.parent / f"{npz.stem}.json"
+    shutil.copyfile(src, dst)
+    note = f"{npz.name}: matching {npz.stem}.json found automatically in {src.parent}"
+    return dst, note
+
+
+def _auto_pair(saved: list[Path], roots: Sequence[Path]) -> tuple[list[Path], list[str]]:
+    """Automatically discover and copy sibling JSON for NPZ scans without JSON."""
+    out_saved = list(saved)
+    notes: list[str] = []
+    json_stems = {p.stem for p in saved if p.suffix.lower() == ".json"}
+    for p in saved:
+        res = _pair_single_npz(p, roots, json_stems)
+        if res is not None:
+            dst, note = res
+            out_saved.append(dst)
+            notes.append(note)
+            json_stems.add(p.stem)
+    return out_saved, notes
+
+
 def _choose_scan(loadable: list[Path]) -> Path:
     """Select scan to process when multiple candidates exist."""
     if len(loadable) > 1:
@@ -194,12 +266,18 @@ def _handle_upload_load() -> None:
         type=["npz", "json", "csv"],
         accept_multiple_files=True,
     )
-    st.caption("Simulator scans are a pair: bar_0001.npz + bar_0001.json - select both.")
+    st.caption(
+        "Upload a .npz scan; its .json is found automatically when the scan comes from "
+        "this machine's data folder. Otherwise upload both."
+    )
     if not uploaded:
         return
     tmp_dir = (Path(tempfile.gettempdir()) / "utriage_uploads").resolve()
     tmp_dir.mkdir(parents=True, exist_ok=True)
     saved = _save_uploaded_files(uploaded, tmp_dir)
+    saved, notes = _auto_pair(saved, SCAN_SEARCH_ROOTS)
+    for note in notes:
+        st.info(note)
     loadable, errors = _loadable_scans(saved)
     for err in errors:
         st.error(err)
