@@ -784,7 +784,7 @@
   },
   {
     "id": "ti_zone_calibration",
-    "text": "Synthetic data (titanium-mode simulator). Limits and calibration values are placeholders (UNVERIFIED). Evaluated on 20 clean bars and 20 flawed bars per zone. Clean-bar false alarms per bar: zone arm 0.05 vs global arm 0.00. Detection k/n of the 0.8 mm reference-size hole per zone: zone 0: SNR 2.01, inspectable yes, zone arm 20/20, global arm: not inspectable (whole depth range flagged to the inspector); zone 1: SNR 2.70, inspectable yes, zone arm 14/20, global arm: not inspectable (whole depth range flagged to the inspector); zone 2: SNR 2.42, inspectable yes, zone arm 20/20, global arm: not inspectable (whole depth range flagged to the inspector).",
+    "text": "Synthetic data (titanium-mode simulator). Limits and calibration values are placeholders (UNVERIFIED). Evaluated on 20 clean bars and 20 flawed bars per zone. Clean-bar false alarms per bar: zone arm 0.05; global arm not inspectable, so its false-alarm rate is not comparable. Detection k/n of the 0.8 mm reference-size hole per zone: zone 0: SNR 2.01, inspectable yes, zone arm 20/20, global arm: not inspectable (whole depth range flagged to the inspector); zone 1: SNR 2.70, inspectable yes, zone arm 14/20, global arm: not inspectable (whole depth range flagged to the inspector); zone 2: SNR 2.42, inspectable yes, zone arm 20/20, global arm: not inspectable (whole depth range flagged to the inspector).",
     "evidence_file": "results/ti_zone_metrics.json",
     "evidence_path": "noise_models.structured",
     "scope_limit": "Synthetic titanium-mode simulator only; placeholder limits; no real titanium data; no conformance to any specification",
