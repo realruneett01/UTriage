@@ -364,3 +364,19 @@ def test_streamlit_app_multi_session_switch(running_app: Any, sample_session: Se
     running_app.sidebar.selectbox[0].set_value("scan_b.npz").run()
     assert not running_app.exception
     assert running_app.session_state.session is sample_session
+
+
+def test_sample_mode_summary_table(running_app: Any, sample_session: Session) -> None:
+    """Check summary table in sample mode with multiple sessions across pages."""
+    running_app.session_state.sessions = {
+        "bar_0000.npz": sample_session,
+        "bar_0001.npz": sample_session,
+    }
+    sample_opt = "Sample: data/samples/ti64/bar_0000.npz"
+    running_app.radio[0].set_value(sample_opt).run()
+    assert not running_app.exception
+    assert len(running_app.dataframe) == 1
+    assert len(running_app.dataframe[0].value) == 2
+    for page_name in running_app.sidebar.radio[0].options:
+        running_app.sidebar.radio[0].set_value(page_name).run()
+        assert not running_app.exception

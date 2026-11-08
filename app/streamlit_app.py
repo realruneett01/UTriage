@@ -304,7 +304,7 @@ def _render_summary_table() -> None:
         }
         for name, sess in sessions.items()
     ]
-    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+    st.dataframe(pd.DataFrame(rows), width="stretch")
 
 
 def _handle_upload_load() -> None:
@@ -322,7 +322,6 @@ def _handle_upload_load() -> None:
         loadable = _prepare_uploaded_scans(uploaded)
         if loadable and st.button(f"Process all uploaded scans ({len(loadable)})", type="primary"):
             _process_uploaded_scans(loadable)
-    _render_summary_table()
 
 
 def _page_load_scan(session: Session | None) -> None:
@@ -340,6 +339,7 @@ def _page_load_scan(session: Session | None) -> None:
         _handle_sample_load(session)
     else:
         _handle_upload_load()
+    _render_summary_table()
 
     cur = st.session_state.get("session")
     if cur is not None:
@@ -415,7 +415,7 @@ def _page_indication_list(session: Session | None) -> None:
                 "Reasons": reasons,
             }
         )
-    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+    st.dataframe(pd.DataFrame(rows), width="stretch")
 
 
 def _page_data_quality(session: Session | None) -> None:
@@ -541,7 +541,7 @@ def _render_claims_table(claims: list[dict[str, Any]]) -> None:
         }
         for c in claims
     ]
-    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+    st.dataframe(pd.DataFrame(rows), width="stretch")
 
 
 def _page_evidence_limits(session: Session | None) -> None:
@@ -566,7 +566,7 @@ def _page_evidence_limits(session: Session | None) -> None:
     matrix_png = evidence.get("matrix_png")
     if matrix_png is not None:
         st.subheader("Generalization matrix")
-        st.image(str(matrix_png), use_container_width=True)
+        st.image(str(matrix_png), width="stretch")
 
 
 def _extract_profile_fields(
