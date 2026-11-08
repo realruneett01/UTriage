@@ -5,6 +5,13 @@ Advisory, offline decision support for immersion UT of titanium and nickel-alloy
 
 > **Status:** Independent unvalidated advisory prototype; no plant data and no plant validation.
 
+## Highlights
+- Rules engine stays in charge; ML can only add flags, never remove one - enforced by union fusion and a property-based test.
+- Found train/test leakage in a public weld ultrasonic benchmark (the random split shared the same physical cracks) and re-evaluated with leave-one-crack-out.
+- Titanium mode (synthetic): macrozone-like grain noise, zone-wise reference calibration with SNR (A-B)/(C-B), zones that cannot reach sensitivity flagged to the inspector.
+- Air-gapped by design: SHA-256-checked model files, offline install bundle, and a test that fails on any network call.
+- Offline inspector app (Streamlit): multi-scan upload, C-scan view, ranked indications, data-quality checks, decision log, HTML report.
+
 ## Problem Statement
 In automated immersion ultrasonic testing (UT) of titanium and nickel-alloy bars, coarse grain structures generate acoustic background noise that causes false detections and borderline indications. UT Level II/III inspectors must manually evaluate each borderline indication, leading to review queues and avoidable re-scans when data quality degrades.
 
@@ -64,8 +71,9 @@ UTriage operates under a safety-first architecture:
 ### 1. Installation
 Install the development environment:
 ```bash
-pip install -e .
+pip install -e '.[ml,app]'
 ```
+For development and tests use pip install -e '.[dev,ml,app]' then pytest.
 For standalone workstation setup and file integrity checks, see [docs/install.md](docs/install.md).
 
 ### 2. Simulate Synthetic Scans
