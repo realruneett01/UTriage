@@ -127,14 +127,24 @@ def _format_calibration_text(
     n_flaw: int,
     ref_fbh: float,
     zone_texts: list[str],
+    g_uninsp: int = 0,
 ) -> str:
     """Format claim text for titanium calibration."""
     cz_fa, cg_fa, n_clean = fa_info
+    if g_uninsp > 0:
+        fa_sentence = (
+            f"Clean-bar false alarms per bar: zone arm {cz_fa:.2f}; "
+            f"global arm not inspectable, so its false-alarm rate is not comparable. "
+        )
+    else:
+        fa_sentence = (
+            f"Clean-bar false alarms per bar: zone arm {cz_fa:.2f} vs global arm {cg_fa:.2f}. "
+        )
     return (
         f"Synthetic data (titanium-mode simulator). "
         f"Limits and calibration values are placeholders (UNVERIFIED). "
         f"Evaluated on {n_clean} clean bars and {n_flaw} flawed bars per zone. "
-        f"Clean-bar false alarms per bar: zone arm {cz_fa:.2f} vs global arm {cg_fa:.2f}. "
+        f"{fa_sentence}"
         f"Detection k/n of the {ref_fbh:.1f} mm reference-size hole per zone: "
         f"{'; '.join(zone_texts)}."
     )
@@ -175,7 +185,7 @@ def _assemble_calibration_claim(
     zone_texts, zone_nums, uninsp = claim_bundle
     numbers = _base_calibration_numbers(fa_info, n_flaw, ref_fbh, uninsp)
     numbers.update(zone_nums)
-    text = _format_calibration_text(fa_info, n_flaw, ref_fbh, zone_texts)
+    text = _format_calibration_text(fa_info, n_flaw, ref_fbh, zone_texts, uninsp[1])
     return Claim(
         id="ti_zone_calibration",
         text=text,

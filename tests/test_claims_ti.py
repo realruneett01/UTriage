@@ -358,3 +358,36 @@ def test_zone_arm_not_inspectable(tmp_path: Path) -> None:
     assert "zone arm: not inspectable (zone flagged to the inspector)" in c_cal.text
     assert c_cal.numbers["zone_zones_not_inspectable"] == 1.0
     _assert_no_forbidden(c_cal)
+
+
+@pytest.mark.parametrize(
+    ("uninsp_count", "expect_comparable"),
+    [
+        (0, True),
+        (1, False),
+    ],
+)
+def test_global_arm_false_alarm_inspectability_text(
+    tmp_path: Path,
+    uninsp_count: int,
+    expect_comparable: bool,
+) -> None:
+    """Check false-alarm wording reflects global arm inspectability."""
+    payload = _payload()
+    arm_g = payload["noise_models"]["structured"]["arms"]["global"]
+    arm_g["zones_not_inspectable"] = uninsp_count
+    if uninsp_count > 0:
+        for z in arm_g["flawed"]["per_zone"]:
+            z["inspectable"] = False
+    claims = _collect_for_payload(tmp_path, payload)
+    c_cal = next(c for c in claims if c.id == "ti_zone_calibration")
+    phrase = "global arm not inspectable, so its false-alarm rate is not comparable"
+    if expect_comparable:
+        assert "vs global arm" in c_cal.text
+        assert phrase not in c_cal.text
+    else:
+        assert phrase in c_cal.text
+        assert "vs global arm" not in c_cal.text
+    assert c_cal.numbers["structured_zone_arm_false_alarms_per_bar"] == 0.05
+    assert c_cal.numbers["structured_global_arm_false_alarms_per_bar"] == 0.10
+    _assert_no_forbidden(c_cal)
