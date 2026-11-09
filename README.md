@@ -164,6 +164,10 @@ utriage/
 ```
 
 ## Documentation
+- [Documentation index](docs/README.md): every guide, design record and study note in one place.
+- [User Guide](docs/user-guide.md)
+- [Architecture](docs/architecture.md)
+- [Developer Guide](docs/developer-guide.md)
 - [Technical Note](docs/technical-note.md): Physics formulation, simulation models, and algorithms.
 - [Safety Case](docs/safety-case.md): Hazard analysis, safety arguments, and failure mitigations.
 - [Architecture Decisions](docs/decisions/): Architectural records, including safety design ([0001](docs/decisions/0001-safety-design.md)) and prior art ([0002](docs/decisions/0002-prior-art.md)).
@@ -279,8 +283,8 @@ Claims and evidence: [results/claims.md](results/claims.md) | Matrix figure: [re
 <!-- RESULTS:END -->
 
 ## Licence
-Proprietary software. Copyright (c) 2026 Ruri. All rights reserved.
-Private repository. No permission to use, copy, modify, distribute or sublicense without prior written permission.
+Copyright (c) 2026 Ruri. All rights reserved.
+The source is published for review only. No permission to use, copy, modify, distribute or sublicense without prior written permission. See [LICENSE](LICENSE).
 
 ### Third-Party Data
 Evaluation on public weld ultrasonic data utilizes the ML-NDT dataset (Virkkunen et al., arXiv:1903.11399), licensed under LGPL-3.0. This dataset is not redistributed with this repository and must be fetched independently using the acquisition script.
