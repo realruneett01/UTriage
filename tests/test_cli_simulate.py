@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -125,11 +126,24 @@ _EXPECTED_HELP_OPTIONS: tuple[tuple[str, str | None], ...] = (
 )
 
 
+def _plain_help(text: str) -> str:
+    """Normalise Rich help output so it compares equal on any OS or terminal.
+
+    Strips ANSI colour codes (Typer forces colour under GitHub Actions), maps
+    rounded box corners to square ones (Windows draws square), and collapses
+    padding so terminal width does not matter.
+    """
+    text = re.sub(r"\x1b\[[0-9;]*m", "", text)
+    text = text.translate(str.maketrans("╭╮╰╯", "┌┐└┘"))
+    lines = (re.sub(r"\s+", " ", re.sub("─+", "─", line)).strip() for line in text.splitlines())
+    return "\n".join(line for line in lines if line)
+
+
 def test_simulate_help_output_matches_captured() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["simulate", "--help"])
     assert result.exit_code == 0
-    assert result.output == EXPECTED_SIMULATE_HELP
+    assert _plain_help(result.output) == _plain_help(EXPECTED_SIMULATE_HELP)
 
 
 @pytest.mark.parametrize(("opt_name", "opt_default"), _EXPECTED_HELP_OPTIONS)
@@ -137,6 +151,7 @@ def test_simulate_help_option_names_and_defaults(opt_name: str, opt_default: str
     runner = CliRunner()
     result = runner.invoke(app, ["simulate", "--help"])
     assert result.exit_code == 0
-    assert opt_name in result.output
+    output = _plain_help(result.output)
+    assert opt_name in output
     if opt_default is not None:
-        assert f"default: {opt_default}" in result.output
+        assert f"default: {opt_default}" in output
