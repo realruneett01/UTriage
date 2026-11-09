@@ -1,4 +1,4 @@
-"""Tests for joint synthetic-real training and pretraining experiment (project plan Step 3.1 & 3.3)."""
+"""Tests for joint synthetic-real training and the pretraining experiment (plan Steps 3.1, 3.3)."""
 
 from __future__ import annotations
 
